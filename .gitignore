@@ -50,3 +50,4 @@ metals.sbt
 
 # smithy lsp
 backend/build/smithy/classpath.json
+build/smithy/classpath.json

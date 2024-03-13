@@ -6,5 +6,7 @@
       "com.disneystreaming.alloy:alloy-core:0.1.21"
     ]
   },
-  "imports": ["./src"]
+  "imports": [
+    "backend/src"
+  ]
 }
