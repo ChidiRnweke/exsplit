@@ -1,0 +1,20 @@
+{
+  "name": "exsplit",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "frontend:install": "cd frontend && pnpm install",
+    "frontend:dev": "cd frontend && pnpm run dev",
+    "frontend:build": "cd frontend && pnpm run build",
+    "frontend:preview": "cd frontend && pnpm run preview",
+    "frontend:check": "cd frontend && pnpm run check",
+    "frontend:check:watch": "cd frontend && pnpm run check:watch",
+    "frontend:test": "cd frontend && pnpm run test",
+    "frontend:lint": "cd frontend && pnpm run lint",
+    "frontend:format": "cd frontend && pnpm run format"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
