@@ -3,14 +3,17 @@ $version: "2"
 namespace exsplit.spec
 
 use alloy#simpleRestJson
-use alloy.common#emailFormat
 use alloy#uuidFormat
-
+use alloy.common#emailFormat
 
 @simpleRestJson
 service UserService {
     version: "1.0.0"
-    operations: [Login, Register, Refresh]
+    operations: [
+        Login
+        Register
+        Refresh
+    ]
 }
 
 @http(method: "POST", uri: "/register")
@@ -22,7 +25,10 @@ operation Register {
         @required
         password: Password
     }
-    errors: [RegistrationError]
+
+    errors: [
+        RegistrationError
+    ]
 }
 
 @http(method: "POST", uri: "/login")
@@ -34,11 +40,15 @@ operation Login {
         @required
         password: Password
     }
+
     output := {
         @required
         access_token: AccessToken
     }
-    errors: [ValidationError]
+
+    errors: [
+        ValidationError
+    ]
 }
 
 @http(method: "POST", uri: "/refresh")
@@ -47,28 +57,33 @@ operation Refresh {
         @required
         refresh_token: RefreshToken
     }
+
     output := {
         @required
         access_token: AccessToken
     }
-    errors: [ValidationError, AuthError]
-}
 
+    errors: [
+        ValidationError
+        AuthError
+    ]
+}
 
 @emailFormat
 string Email
 
-@length(min:8)
+@length(min: 8)
 string Password
 
 string AccessToken
+
 string RefreshToken
 
 @error("client")
 @httpError(400)
 structure RegistrationError {
-  @required
-  message: String
+    @required
+    message: String
 }
 
 @uuidFormat

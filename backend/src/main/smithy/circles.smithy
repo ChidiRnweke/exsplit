@@ -1,13 +1,24 @@
 $version: "2"
 
 namespace exsplit.spec
+
 use alloy#simpleRestJson
 use alloy#uuidFormat
 
 @simpleRestJson
 service CirclesService {
-    operations: [GetCircles, AddUserToCircle, CreateCircle, UpdateCircle, DeleteCircle, ListCircleMembers]
-    errors: [AuthError, ForbiddenError]
+    operations: [
+        GetCircles
+        AddUserToCircle
+        CreateCircle
+        UpdateCircle
+        DeleteCircle
+        ListCircleMembers
+    ]
+    errors: [
+        AuthError
+        ForbiddenError
+    ]
 }
 
 @readonly
@@ -18,6 +29,7 @@ operation GetCircles {
         @httpLabel
         user_id: UserId
     }
+
     output := {
         @required
         circles: Circles
@@ -30,8 +42,10 @@ operation CreateCircle {
         @required
         @httpLabel
         user_id: UserId
+
         @required
         name: String
+
         description: String
     }
 }
@@ -43,11 +57,14 @@ operation UpdateCircle {
         @required
         @httpLabel
         user_id: UserId
+
         @required
         @httpLabel
         circle_id: CircleId
+
         @required
         name: String
+
         description: String
     }
 }
@@ -59,11 +76,11 @@ operation DeleteCircle {
         @required
         @httpLabel
         user_id: UserId
+
         @required
         @httpLabel
         circle_id: CircleId
     }
-
 }
 
 @idempotent
@@ -72,8 +89,10 @@ operation AddUserToCircle {
     input := {
         @required
         user_id: UserId
+
         @required
         display_name: String
+
         @required
         @httpLabel
         circle_id: CircleId
@@ -88,13 +107,12 @@ operation ListCircleMembers {
         @httpLabel
         circle_id: CircleId
     }
+
     output := {
         @required
         members: Members
     }
 }
-
-
 
 list Circles {
     member: Circle
@@ -106,9 +124,12 @@ string CircleId
 structure Circle {
     @required
     id: CircleId
+
     @required
     name: String
+
     description: String
+
     @required
     members: Members
 }
@@ -120,7 +141,7 @@ list Members {
 structure CircleMember {
     @required
     user_id: String
+
     @required
     display_name: String
 }
-

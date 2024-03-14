@@ -1,17 +1,25 @@
 $version: "2"
 
 namespace exsplit.spec
+
+use alloy#dateFormat
 use alloy#simpleRestJson
 use alloy#uuidFormat
-use alloy#dateFormat
 use smithy4s.meta#packedInputs
-
 
 @simpleRestJson
 @httpBearerAuth
 service ExpenseService {
-    operations: [CreateExpense, GetExpense, UpdateExpense, DeleteExpense]
-    errors: [AuthError, ForbiddenError]
+    operations: [
+        CreateExpense
+        GetExpense
+        UpdateExpense
+        DeleteExpense
+    ]
+    errors: [
+        AuthError
+        ForbiddenError
+    ]
 }
 
 @readonly
@@ -23,19 +31,22 @@ operation GetExpense {
         id: ExpenseId
 
         @required
-        @httpLabel    
+        @httpLabel
         circle_id: CircleId
 
         @required
         @httpLabel
         expense_list_id: ExpenseListId
     }
+
     output := {
         expenses: Expenses
     }
-    errors: [NotFoundError]
-}
 
+    errors: [
+        NotFoundError
+    ]
+}
 
 @http(method: "PATCH", uri: "/circles/{circle_id}/expense_lists/{expense_list_id}/expenses/{id}")
 operation UpdateExpense {
@@ -45,21 +56,27 @@ operation UpdateExpense {
         id: ExpenseId
 
         @required
-        @httpLabel    
+        @httpLabel
         circle_id: CircleId
 
         @required
         @httpLabel
         expense_list_id: ExpenseListId
-        
+
         initialPayer: String
+
         description: String
+
         price: Amount
+
         date: Date
+
         owedToInitialPayer: OwedAmounts
     }
-    errors: [NotFoundError]
 
+    errors: [
+        NotFoundError
+    ]
 }
 
 @idempotent
@@ -71,13 +88,12 @@ operation DeleteExpense {
         id: ExpenseId
 
         @required
-        @httpLabel    
+        @httpLabel
         circle_id: CircleId
 
         @required
         @httpLabel
         expense_list_id: ExpenseListId
-
     }
 }
 
@@ -89,28 +105,31 @@ operation CreateExpense {
         expense: Expense
 
         @required
-        @httpLabel    
+        @httpLabel
         circle_id: CircleId
 
         @required
         @httpLabel
         expense_list_id: ExpenseListId
-    } 
+    }
 }
 
 structure Expense {
-        @required
-        initialPayer: User
-        @required
-        description: String
-        @required
-        price: Amount
-        @required
-        date: Date
-        @required
-        owedToInitialPayer: OwedAmounts
-}
+    @required
+    initialPayer: User
 
+    @required
+    description: String
+
+    @required
+    price: Amount
+
+    @required
+    date: Date
+
+    @required
+    owedToInitialPayer: OwedAmounts
+}
 
 structure OwedAmount {
     user: User
@@ -120,7 +139,6 @@ structure OwedAmount {
 list OwedAmounts {
     member: OwedAmount
 }
-
 
 @range(min: 0)
 float Amount

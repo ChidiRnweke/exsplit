@@ -9,14 +9,12 @@ structure ValidationError {
     message: String
 }
 
-
 @error("client")
 @httpError(404)
 structure NotFoundError {
     @required
     message: String
 }
-
 
 @error("client")
 @httpError(401)

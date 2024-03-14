@@ -1,14 +1,25 @@
 $version: "2"
 
 namespace exsplit.spec
+
 use alloy#simpleRestJson
 use alloy#uuidFormat
 
 @simpleRestJson
 @httpBearerAuth
 service ExpenseListService {
-    operations: [getExpenseLists, getExpenseListById, createExpenseList, updateExpenseList, deleteExpenseList]
-    errors: [AuthError, NotFoundError, ForbiddenError]
+    operations: [
+        getExpenseLists
+        getExpenseListById
+        createExpenseList
+        updateExpenseList
+        deleteExpenseList
+    ]
+    errors: [
+        AuthError
+        NotFoundError
+        ForbiddenError
+    ]
 }
 
 @readonly
@@ -18,8 +29,8 @@ operation getExpenseLists {
         @required
         @httpLabel
         circle_id: CircleId
-
     }
+
     output := {
         @required
         expense_lists: ExpenseLists
@@ -37,26 +48,25 @@ operation getExpenseListById {
         @required
         @httpLabel
         circle_id: CircleId
-
     }
+
     output := {
         @required
         expense_list: ExpenseListDetail
     }
 }
 
-
 @http(method: "POST", uri: "/circles/{circle_id}/expense_lists")
 operation createExpenseList {
     input := {
-
         @required
         @httpLabel
         circle_id: CircleId
+
         @required
         name: String
-
     }
+
     output := {
         @required
         expense_list: ExpenseList
@@ -71,11 +81,10 @@ operation updateExpenseList {
         @httpLabel
         id: ExpenseListId
 
-
         @required
         @httpLabel
         circle_id: CircleId
-        
+
         @required
         name: String
     }
@@ -98,8 +107,10 @@ operation deleteExpenseList {
 structure ExpenseList {
     @required
     id: ExpenseListId
+
     @required
     name: String
+
     @required
     circle_id: CircleId
 }
@@ -107,17 +118,19 @@ structure ExpenseList {
 structure ExpenseListDetail {
     @required
     id: ExpenseListId
+
     @required
     name: String
+
     @required
     circle_id: CircleId
+
     expenses: Expenses
 }
 
 list ExpenseLists {
     member: ExpenseList
 }
-
 
 @uuidFormat
 string ExpenseListId
