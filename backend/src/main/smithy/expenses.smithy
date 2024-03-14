@@ -14,12 +14,20 @@ service ExpenseService {
 }
 
 @readonly
-@http(method: "GET", uri: "/expenses/{id}")
+@http(method: "GET", uri: "/circles/{circle_id}/expense_lists/{expense_list_id}/expenses/{id}")
 operation GetExpense {
     input := {
         @required
         @httpLabel
         id: ExpenseId
+
+        @required
+        @httpLabel    
+        circle_id: CircleId
+
+        @required
+        @httpLabel
+        expense_list_id: ExpenseListId
     }
     output := {
         expenses: Expenses
@@ -28,13 +36,22 @@ operation GetExpense {
 }
 
 
-@http(method: "PATCH", uri: "/expenses/{id}")
+@http(method: "PATCH", uri: "/circles/{circle_id}/expense_lists/{expense_list_id}/expenses/{id}")
 operation UpdateExpense {
     input := {
         @required
         @httpLabel
         id: ExpenseId
-        payer: String
+
+        @required
+        @httpLabel    
+        circle_id: CircleId
+
+        @required
+        @httpLabel
+        expense_list_id: ExpenseListId
+        
+        initialPayer: String
         description: String
         price: Amount
         date: Date
@@ -44,12 +61,20 @@ operation UpdateExpense {
 }
 
 @idempotent
-@http(method: "DELETE", uri: "/expenses/{id}")
+@http(method: "DELETE", uri: "/circles/{circle_id}/expense_lists/{expense_list_id}/expenses/{id}")
 operation DeleteExpense {
     input := {
         @required
         @httpLabel
         id: ExpenseId
+
+        @required
+        @httpLabel    
+        circle_id: CircleId
+
+        @required
+        @httpLabel
+        expense_list_id: ExpenseListId
 
     }
 }
