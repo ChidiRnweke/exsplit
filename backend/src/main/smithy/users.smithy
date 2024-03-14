@@ -58,26 +58,11 @@ operation Refresh {
 @emailFormat
 string Email
 
-@error("client")
-@httpError(401)
-structure AuthError {
-    @required
-    message: String
-}
-
 @length(min:8)
 string Password
 
 string AccessToken
 string RefreshToken
-
-
-@error("client")
-@httpError(400)
-structure ValidationError {
-    @required
-    message: String
-}
 
 @error("client")
 @httpError(400)
