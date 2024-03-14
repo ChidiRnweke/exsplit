@@ -11,7 +11,7 @@ use smithy4s.meta#packedInputs
 @httpBearerAuth
 service ExpenseService {
     operations: [CreateExpense, GetExpense, UpdateExpense, DeleteExpense]
-    errors: [AuthError]
+    errors: [AuthError, ForbiddenError]
 }
 
 @readonly
@@ -59,6 +59,7 @@ operation UpdateExpense {
         owedToInitialPayer: OwedAmounts
     }
     errors: [NotFoundError]
+
 }
 
 @idempotent
@@ -85,7 +86,6 @@ operation DeleteExpense {
 operation CreateExpense {
     input := {
         @required
-    
         expense: Expense
 
         @required
@@ -96,8 +96,6 @@ operation CreateExpense {
         @httpLabel
         expense_list_id: ExpenseListId
     } 
-
-    
 }
 
 structure Expense {

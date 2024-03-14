@@ -7,7 +7,7 @@ use alloy#uuidFormat
 @simpleRestJson
 service CirclesService {
     operations: [GetCircles, AddUserToCircle, CreateCircle, UpdateCircle, DeleteCircle, ListCircleMembers]
-    errors: [AuthError]
+    errors: [AuthError, ForbiddenError]
 }
 
 @readonly
@@ -124,9 +124,3 @@ structure CircleMember {
     display_name: String
 }
 
-@error("client")
-@httpError(404)
-structure NotFoundError {
-    @required
-    message: String
-}

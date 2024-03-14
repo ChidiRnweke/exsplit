@@ -8,7 +8,7 @@ use alloy#uuidFormat
 @httpBearerAuth
 service ExpenseListService {
     operations: [getExpenseLists, getExpenseListById, createExpenseList, updateExpenseList, deleteExpenseList]
-    errors: [AuthError, NotFoundError]
+    errors: [AuthError, NotFoundError, ForbiddenError]
 }
 
 @readonly
