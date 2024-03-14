@@ -3,25 +3,13 @@ $version: "2"
 namespace exsplit.spec
 use alloy#simpleRestJson
 use alloy#uuidFormat
+use alloy#dateFormat
+
 
 @simpleRestJson
 @httpBearerAuth
 service ExpenseService {
     operations: [CreateExpense, GetExpense, UpdateExpense, DeleteExpense]
-}
-
-structure owedAmount {
-    user: User
-    amount: Amount
-}
-
-list owedAmounts {
-    member: owedAmount
-}
-
-@http(method: "POST", uri: "/expenses")
-operation CreateExpense {
-    input: Expense 
 }
 
 @readonly
@@ -39,18 +27,6 @@ operation GetExpense {
 
 }
 
-structure Expense {
-        @required
-        initialPayer: User
-        @required
-        description: String
-        @required
-        price: Amount
-        @required
-        date: Timestamp
-        @required
-        owedToInitialPayer: owedAmounts
-}
 
 @http(method: "PATCH", uri: "/expenses/{id}")
 operation UpdateExpense {
@@ -61,8 +37,8 @@ operation UpdateExpense {
         payer: String
         description: String
         price: Amount
-        date: Timestamp
-        payers: owedAmounts
+        date: Date
+        owedToInitialPayer: OwedAmounts
     }
     errors: [AuthError, NotFoundError]
 
@@ -80,6 +56,34 @@ operation DeleteExpense {
     errors: [AuthError, NotFoundError]
 }
 
+structure Expense {
+        @required
+        initialPayer: User
+        @required
+        description: String
+        @required
+        price: Amount
+        @required
+        date: Date
+        @required
+        owedToInitialPayer: OwedAmounts
+}
+
+
+structure OwedAmount {
+    user: User
+    amount: Amount
+}
+
+list OwedAmounts {
+    member: OwedAmount
+}
+
+@http(method: "POST", uri: "/expenses")
+operation CreateExpense {
+    input: Expense 
+}
+
 @range(min: 0)
 float Amount
 
@@ -89,3 +93,6 @@ list Expenses {
 
 @uuidFormat
 string ExpenseId
+
+@dateFormat
+string Date
