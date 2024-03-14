@@ -4,6 +4,7 @@ namespace exsplit.spec
 use alloy#simpleRestJson
 use alloy#uuidFormat
 use alloy#dateFormat
+use smithy4s.meta#packedInputs
 
 
 @simpleRestJson
@@ -79,6 +80,26 @@ operation DeleteExpense {
     }
 }
 
+@packedInputs
+@http(method: "POST", uri: "/circles/{circle_id}/expense_lists/{expense_list_id}/expenses")
+operation CreateExpense {
+    input := {
+        @required
+    
+        expense: Expense
+
+        @required
+        @httpLabel    
+        circle_id: CircleId
+
+        @required
+        @httpLabel
+        expense_list_id: ExpenseListId
+    } 
+
+    
+}
+
 structure Expense {
         @required
         initialPayer: User
@@ -102,10 +123,6 @@ list OwedAmounts {
     member: OwedAmount
 }
 
-@http(method: "POST", uri: "/expenses")
-operation CreateExpense {
-    input: Expense 
-}
 
 @range(min: 0)
 float Amount
