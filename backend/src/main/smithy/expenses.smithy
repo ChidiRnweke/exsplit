@@ -10,6 +10,7 @@ use alloy#dateFormat
 @httpBearerAuth
 service ExpenseService {
     operations: [CreateExpense, GetExpense, UpdateExpense, DeleteExpense]
+    errors: [AuthError]
 }
 
 @readonly
@@ -23,8 +24,7 @@ operation GetExpense {
     output := {
         expenses: Expenses
     }
-    errors: [AuthError, NotFoundError]
-
+    errors: [NotFoundError]
 }
 
 
@@ -40,8 +40,7 @@ operation UpdateExpense {
         date: Date
         owedToInitialPayer: OwedAmounts
     }
-    errors: [AuthError, NotFoundError]
-
+    errors: [NotFoundError]
 }
 
 @idempotent
@@ -53,7 +52,6 @@ operation DeleteExpense {
         id: ExpenseId
 
     }
-    errors: [AuthError, NotFoundError]
 }
 
 structure Expense {
