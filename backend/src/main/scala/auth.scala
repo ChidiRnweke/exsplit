@@ -31,37 +31,50 @@ import com.outr.scalapass.Argon2PasswordFactory
 import cats.effect.std.UUIDGen
 
 object AuthEntryPoint:
-  def createService(
-      authConfig: AuthConfig[IO],
-      repo: UserRepository[IO]
-  ): UserServiceImpl =
-    val clock = Clock[IO]
+  def createService[F[_]: MonadThrow](
+      authConfig: AuthConfig[F],
+      repo: UserRepository[F],
+      clock: Clock[F],
+      validator: PasswordValidator[F],
+      uuid: UUIDGen[F]
+  ): UserServiceImpl[F] =
     val encoderDecoder = TokenEncoderDecoder(authConfig)
     val authTokenCreator = AuthTokenCreator(encoderDecoder, clock)
-    val userAuthenticator = UserAuthenticator(repo)
+    val userAuthenticator =
+      UserAuthenticator(repo, validator, uuid)
     UserServiceImpl(authTokenCreator, userAuthenticator)
 
-case class UserServiceImpl(
-    authTokenCreator: AuthTokenCreator[IO],
-    auth: UserAuthenticator[IO]
-) extends UserService[IO]:
+  def createIOService(
+      authConfig: AuthConfig[IO],
+      repo: UserRepository[IO]
+  ): UserServiceImpl[IO] =
+    val clock = Clock[IO]
+    val argon = Argon.createValidator[IO]
+    val uuid = UUIDGen[IO]
+    createService(authConfig, repo, clock, argon, uuid)
 
-  def login(email: Email, password: Password): IO[LoginOutput] =
+case class UserServiceImpl[F[_]](
+    authTokenCreator: AuthTokenCreator[F],
+    auth: UserAuthenticator[F]
+)(using F: MonadThrow[F])
+    extends UserService[F]:
+
+  def login(email: Email, password: Password): F[LoginOutput] =
     for
       authSuccess <- auth.authenticateUser(email, password)
-      _ <- IO.raiseWhen(!authSuccess)(AuthError("Invalid credentials"))
+      _ <- F.raiseWhen(!authSuccess)(AuthError("Invalid credentials"))
       refresh <- authTokenCreator.generateRefreshToken(email)
       access <- authTokenCreator.generateAccessToken(refresh)
     yield (LoginOutput(access, refresh))
 
-  def register(email: Email, password: Password): IO[Unit] =
+  def register(email: Email, password: Password): F[Unit] =
     for
       userId <- auth.registerUser(email, password)
       refresh <- authTokenCreator.generateRefreshToken(email)
       access <- authTokenCreator.generateAccessToken(refresh)
     yield LoginOutput(access, refresh)
 
-  def refresh(refresh: RefreshToken): IO[RefreshOutput] =
+  def refresh(refresh: RefreshToken): F[RefreshOutput] =
     authTokenCreator.generateAccessToken(refresh).map(RefreshOutput(_))
 
 case class User(id: String, email: String, password: String)
@@ -76,16 +89,35 @@ trait UserRepository[F[_]]:
   def findUserByEmail(email: Email): F[Option[User]]
   def createUser(id: UUID, password: String): F[Unit]
 
-case class UserAuthenticator[F[_]](repo: UserRepository[F])(using F: Sync[F]):
+trait PasswordValidator[F[_]]:
 
+  def hashPassword(password: String): F[String]
+  def checkPassword(hash: String, password: String): Boolean
+object Argon:
   private val factory = Argon2PasswordFactory()
+
+  def createValidator[F[_]](using F: Sync[F]): PasswordValidator[F] =
+    new PasswordValidator[F]:
+      def hashPassword(password: String): F[String] =
+        F.delay(factory.hash(password))
+      def checkPassword(hash: String, password: String): Boolean =
+        factory.verify(hash, password)
+
+case class UserAuthenticator[F[_]](
+    repo: UserRepository[F],
+    validator: PasswordValidator[F],
+    uuid: UUIDGen[F]
+)(using
+    F: MonadThrow[F]
+):
 
   def authenticateUser(email: Email, password: Password): F[Boolean] =
     for
       userOpt <- repo.findCredentials(email)
       result = userOpt match
-        case Some(user) => checkPassword(user.password, password.value)
-        case None       => false
+        case Some(user) =>
+          validator.checkPassword(user.password, password.value)
+        case None => false
     yield result
 
   def registerUser(email: Email, password: Password): F[Unit] =
@@ -97,17 +129,11 @@ case class UserAuthenticator[F[_]](repo: UserRepository[F])(using F: Sync[F]):
       case None =>
         for
           userId <- createUserId
-          hashedPassword <- hashPassword(password.value)
+          hashedPassword <- validator.hashPassword(password.value)
           _ <- repo.createUser(userId, hashedPassword)
         yield ()
 
-  def checkPassword(user: String, password: String): Boolean =
-    factory.verify(user, password)
-
-  def hashPassword(password: String): F[String] =
-    F.delay(factory.hash(password))
-
-  def createUserId: F[UUID] = UUIDGen.randomUUID[F]
+  def createUserId: F[UUID] = uuid.randomUUID
 
 case class TokenEncoderDecoder[F[_]: Functor](authConfig: AuthConfig[F]):
 
@@ -135,9 +161,7 @@ case class TokenEncoderDecoder[F[_]: Functor](authConfig: AuthConfig[F]):
 case class AuthTokenCreator[F[_]](
     tokenService: TokenEncoderDecoder[F],
     clock: Clock[F]
-)(using
-    F: MonadThrow[F]
-):
+)(using F: MonadThrow[F]):
 
   def generateAccessToken(refresh: RefreshToken): F[AccessToken] =
     for
