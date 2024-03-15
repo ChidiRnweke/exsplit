@@ -28,14 +28,16 @@ import cats.syntax.all._
 import cats._
 import java.util.UUID
 import com.outr.scalapass.Argon2PasswordFactory
+import cats.effect.std.UUIDGen
 
 object AuthEntryPoint:
   def createService(
       authConfig: AuthConfig[IO],
       repo: UserRepository[IO]
   ): UserServiceImpl =
+    val clock = Clock[IO]
     val encoderDecoder = TokenEncoderDecoder(authConfig)
-    val authTokenCreator = AuthTokenCreator(encoderDecoder)
+    val authTokenCreator = AuthTokenCreator(encoderDecoder, clock)
     val userAuthenticator = UserAuthenticator(repo)
     UserServiceImpl(authTokenCreator, userAuthenticator)
 
@@ -95,17 +97,17 @@ case class UserAuthenticator[F[_]](repo: UserRepository[F])(using F: Sync[F]):
       case None =>
         for
           userId <- createUserId
-          hashedPassword = hashPassword(password.value)
+          hashedPassword <- hashPassword(password.value)
           _ <- repo.createUser(userId, hashedPassword)
         yield ()
 
   def checkPassword(user: String, password: String): Boolean =
     factory.verify(user, password)
 
-  def hashPassword(password: String): String =
-    factory.hash(password)
+  def hashPassword(password: String): F[String] =
+    F.delay(factory.hash(password))
 
-  def createUserId: F[UUID] = F.delay(UUID.randomUUID())
+  def createUserId: F[UUID] = UUIDGen.randomUUID[F]
 
 case class TokenEncoderDecoder[F[_]: Functor](authConfig: AuthConfig[F]):
 
@@ -130,15 +132,18 @@ case class TokenEncoderDecoder[F[_]: Functor](authConfig: AuthConfig[F]):
       subject = Some(email.value)
     )
 
-case class AuthTokenCreator[F[_]](tokenService: TokenEncoderDecoder[F])(using
-    F: Sync[F]
+case class AuthTokenCreator[F[_]](
+    tokenService: TokenEncoderDecoder[F],
+    clock: Clock[F]
+)(using
+    F: MonadThrow[F]
 ):
 
   def generateAccessToken(refresh: RefreshToken): F[AccessToken] =
     for
       claimEither <- tokenService.decodeClaim(refresh)
-      claim <- Sync[F].fromEither(claimEither)
-      email <- Sync[F].fromEither(validateSubject(claim.subject))
+      claim <- F.fromEither(claimEither)
+      email <- F.fromEither(validateSubject(claim.subject))
       token <- generateToken(TokenLifespan.ShortLived, Email(email))
     yield AccessToken(token)
 
@@ -147,7 +152,7 @@ case class AuthTokenCreator[F[_]](tokenService: TokenEncoderDecoder[F])(using
 
   private def generateToken(lifeSpan: TokenLifespan, email: Email): F[String] =
     for
-      now <- F.realTimeInstant
+      now <- clock.realTimeInstant
       claim = tokenService.makeClaim(lifeSpan, email, now)
       token <- tokenService.encodeClaim(claim)
     yield token
