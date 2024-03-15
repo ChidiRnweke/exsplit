@@ -23,7 +23,7 @@ service ExpenseService {
 }
 
 @readonly
-@http(method: "GET", uri: "/circles/{circle_id}/expense_lists/{expense_list_id}/expenses/{id}")
+@http(method: "GET", uri: "/circles/{circleId}/expense_lists/{expenseListId}/expenses/{id}")
 operation GetExpense {
     input := {
         @required
@@ -32,15 +32,16 @@ operation GetExpense {
 
         @required
         @httpLabel
-        circle_id: CircleId
+        circleId: CircleId
 
         @required
         @httpLabel
-        expense_list_id: ExpenseListId
+        expenseListId: ExpenseListId
     }
 
     output := {
-        expenses: Expenses
+        @required
+        expenses: Expense
     }
 
     errors: [
@@ -48,7 +49,7 @@ operation GetExpense {
     ]
 }
 
-@http(method: "PATCH", uri: "/circles/{circle_id}/expense_lists/{expense_list_id}/expenses/{id}")
+@http(method: "PATCH", uri: "/circles/{circleId}/expense_lists/{expenseListId}/expenses/{id}")
 operation UpdateExpense {
     input := {
         @required
@@ -57,11 +58,11 @@ operation UpdateExpense {
 
         @required
         @httpLabel
-        circle_id: CircleId
+        circleId: CircleId
 
         @required
         @httpLabel
-        expense_list_id: ExpenseListId
+        expenseListId: ExpenseListId
 
         initialPayer: String
 
@@ -80,7 +81,7 @@ operation UpdateExpense {
 }
 
 @idempotent
-@http(method: "DELETE", uri: "/circles/{circle_id}/expense_lists/{expense_list_id}/expenses/{id}")
+@http(method: "DELETE", uri: "/circles/{circleId}/expense_lists/{expenseListId}/expenses/{id}")
 operation DeleteExpense {
     input := {
         @required
@@ -89,16 +90,16 @@ operation DeleteExpense {
 
         @required
         @httpLabel
-        circle_id: CircleId
+        circleId: CircleId
 
         @required
         @httpLabel
-        expense_list_id: ExpenseListId
+        expenseListId: ExpenseListId
     }
 }
 
 @packedInputs
-@http(method: "POST", uri: "/circles/{circle_id}/expense_lists/{expense_list_id}/expenses")
+@http(method: "POST", uri: "/circles/{circleId}/expense_lists/{expenseListId}/expenses")
 operation CreateExpense {
     input := {
         @required
@@ -106,11 +107,11 @@ operation CreateExpense {
 
         @required
         @httpLabel
-        circle_id: CircleId
+        circleId: CircleId
 
         @required
         @httpLabel
-        expense_list_id: ExpenseListId
+        expenseListId: ExpenseListId
     }
 }
 
