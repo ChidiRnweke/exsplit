@@ -10,6 +10,14 @@ structure ValidationError {
 }
 
 @error("client")
+@httpError(400)
+structure InvalidTokenError {
+    @required
+    message: String
+}
+
+
+@error("client")
 @httpError(404)
 structure NotFoundError {
     @required
