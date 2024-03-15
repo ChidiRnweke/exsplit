@@ -23,31 +23,31 @@ service ExpenseListService {
 }
 
 @readonly
-@http(method: "GET", uri: "/circles/{circle_id}/expense_lists")
+@http(method: "GET", uri: "/circles/{circleId}/expenseLists")
 operation getExpenseLists {
     input := {
         @required
         @httpLabel
-        circle_id: CircleId
+        circleId: CircleId
     }
 
     output := {
         @required
-        expense_lists: ExpenseLists
+        expenseLists: ExpenseLists
     }
 }
 
 @readonly
-@http(method: "GET", uri: "/circles/{circle_id}/expense_lists/{expense_list_id}")
+@http(method: "GET", uri: "/circles/{circleId}/expenseLists/{expenseListId}")
 operation getExpenseListById {
     input := {
         @required
         @httpLabel
-        expense_list_id: ExpenseListId
+        expenseListId: ExpenseListId
 
         @required
         @httpLabel
-        circle_id: CircleId
+        circleId: CircleId
     }
 
     output := {
@@ -56,12 +56,12 @@ operation getExpenseListById {
     }
 }
 
-@http(method: "POST", uri: "/circles/{circle_id}/expense_lists")
+@http(method: "POST", uri: "/circles/{circleId}/expenseLists")
 operation createExpenseList {
     input := {
         @required
         @httpLabel
-        circle_id: CircleId
+        circleId: CircleId
 
         @required
         name: String
@@ -74,7 +74,7 @@ operation createExpenseList {
 }
 
 @idempotent
-@http(method: "PUT", uri: "/circles/{circle_id}/expense_lists/{id}")
+@http(method: "PUT", uri: "/circles/{circleId}/expenseLists/{id}")
 operation updateExpenseList {
     input := {
         @required
@@ -83,7 +83,7 @@ operation updateExpenseList {
 
         @required
         @httpLabel
-        circle_id: CircleId
+        circleId: CircleId
 
         @required
         name: String
@@ -91,7 +91,7 @@ operation updateExpenseList {
 }
 
 @idempotent
-@http(method: "DELETE", uri: "/circles/{circle_id}/expense_lists/{id}")
+@http(method: "DELETE", uri: "/circles/{circleId}/expenseLists/{id}")
 operation deleteExpenseList {
     input := {
         @required
@@ -100,7 +100,7 @@ operation deleteExpenseList {
 
         @required
         @httpLabel
-        circle_id: CircleId
+        circleId: CircleId
     }
 }
 
@@ -112,7 +112,7 @@ structure ExpenseList {
     name: String
 
     @required
-    circle_id: CircleId
+    circleId: CircleId
 }
 
 structure ExpenseListDetail {
@@ -123,7 +123,7 @@ structure ExpenseListDetail {
     name: String
 
     @required
-    circle_id: CircleId
+    circleId: CircleId
 
     expenses: Expenses
 }
