@@ -22,12 +22,12 @@ service CirclesService {
 }
 
 @readonly
-@http(method: "GET", uri: "/users/{user_id}/circles")
+@http(method: "GET", uri: "/users/{userId}/circles")
 operation GetCircles {
     input := {
         @required
         @httpLabel
-        user_id: UserId
+        userId: UserId
     }
 
     output := {
@@ -36,12 +36,12 @@ operation GetCircles {
     }
 }
 
-@http(method: "POST", uri: "/users/{user_id}/circles")
+@http(method: "POST", uri: "/users/{userId}/circles")
 operation CreateCircle {
     input := {
         @required
         @httpLabel
-        user_id: UserId
+        userId: UserId
 
         @required
         name: String
@@ -51,16 +51,16 @@ operation CreateCircle {
 }
 
 @idempotent
-@http(method: "PUT", uri: "/users/{user_id}/circles/{circle_id}")
+@http(method: "PUT", uri: "/users/{userId}/circles/{circleId}")
 operation UpdateCircle {
     input := {
         @required
         @httpLabel
-        user_id: UserId
+        userId: UserId
 
         @required
         @httpLabel
-        circle_id: CircleId
+        circleId: CircleId
 
         @required
         name: String
@@ -70,42 +70,42 @@ operation UpdateCircle {
 }
 
 @idempotent
-@http(method: "DELETE", uri: "/users/{user_id}/circles/{circle_id}")
+@http(method: "DELETE", uri: "/users/{userId}/circles/{circleId}")
 operation DeleteCircle {
     input := {
         @required
         @httpLabel
-        user_id: UserId
+        userId: UserId
 
         @required
         @httpLabel
-        circle_id: CircleId
+        circleId: CircleId
     }
 }
 
 @idempotent
-@http(method: "PUT", uri: "/circles/{circle_id}/users")
+@http(method: "PUT", uri: "/circles/{circleId}/users")
 operation AddUserToCircle {
     input := {
         @required
-        user_id: UserId
+        userId: UserId
 
         @required
-        display_name: String
+        displayName: String
 
         @required
         @httpLabel
-        circle_id: CircleId
+        circleId: CircleId
     }
 }
 
 @readonly
-@http(method: "GET", uri: "/circles/{circle_id}/users")
+@http(method: "GET", uri: "/circles/{circleId}/users")
 operation ListCircleMembers {
     input := {
         @required
         @httpLabel
-        circle_id: CircleId
+        circleId: CircleId
     }
 
     output := {
@@ -140,8 +140,8 @@ list Members {
 
 structure CircleMember {
     @required
-    user_id: String
+    userId: String
 
     @required
-    display_name: String
+    displayName: String
 }
