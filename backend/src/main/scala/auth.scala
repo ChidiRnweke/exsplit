@@ -1,3 +1,21 @@
+/** This file contains the implementation of the authentication module. It
+  * provides functionality for user login, registration, and token generation.
+  * The main components of this module are:
+  *   - `AuthEntryPoint`: An object that creates the main service for
+  *     authentication.
+  *   - `UserServiceImpl`: The implementation of the `UserService` trait, which
+  *     provides methods for login, registration, and token generation.
+  *   - `User`: A case class representing a user with an ID, email, and
+  *     password.
+  *   - `TokenLifespan`: An enumeration representing the lifespan of a token
+  *     (long-lived or short-lived).
+  *   - `UserRepository`: A trait defining methods for accessing user data from
+  *     a repository.
+  *   - `UserAuthenticator`: A class that handles user authentication and
+  *     registration.
+  *   - `TokenEncoderDecoder`: A class that encodes and decodes JWT claims.
+  *   - `AuthTokenCreator`: A class that generates access and refresh tokens.
+  */
 import exsplit.spec._
 import cats.effect._
 import java.time.Instant
