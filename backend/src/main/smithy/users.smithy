@@ -43,7 +43,9 @@ operation Login {
 
     output := {
         @required
-        access_token: AccessToken
+        accessToken: AccessToken
+        @required
+        refreshToken: RefreshToken
     }
 
     errors: [
@@ -55,12 +57,12 @@ operation Login {
 operation Refresh {
     input := {
         @required
-        refresh_token: RefreshToken
+        refreshToken: RefreshToken
     }
 
     output := {
         @required
-        access_token: AccessToken
+        accessToken: AccessToken
     }
 
     errors: [
