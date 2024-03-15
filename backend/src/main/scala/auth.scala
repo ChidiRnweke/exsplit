@@ -13,8 +13,12 @@ enum TokenLifespan(val duration: Long):
   case ShortLived extends TokenLifespan(1.day.toSeconds)
 
 trait UserRepository[F[_]]:
-  def findUser(email: Email): F[Option[User]]
-  def createUser(email: Email, password: Password): F[Unit]
+  def findUserById(userId: UserId): F[Option[User]]
+  def findUserByEmail(email: Email): F[Option[User]]
+  def createUser(
+      email: Email,
+      password: Password
+  ): F[Either[RegistrationError, User]]
 
 trait TokenEncoderDecoder[F[_]: Functor](authConfig: AuthConfig[F]):
 
@@ -58,13 +62,13 @@ trait TokenCreator[F[_]](tokenService: TokenEncoderDecoder[F])(using
 
   private def validateSubject(
       subjectOpt: Option[String]
-  ): Either[ValidationError, String] =
-    subjectOpt.toRight(ValidationError("Subject wasn't found in JWT claim."))
+  ): Either[InvalidTokenError, String] =
+    subjectOpt.toRight(InvalidTokenError("Subject wasn't found in JWT claim."))
 
-  private def parseUserId(subject: String): Either[ValidationError, UUID] =
+  private def parseUserId(subject: String): Either[InvalidTokenError, UUID] =
     Either
       .catchOnly[IllegalArgumentException](UUID.fromString(subject))
-      .leftMap(_ => ValidationError("Subject in JWT claim isn't a valid UUID."))
+      .leftMap(_ => InvalidTokenError("JWT claim's subject isn't a valid UUID"))
 
   private def generateToken(
       lifeSpan: TokenLifespan,
@@ -94,4 +98,4 @@ case class UserServiceImpl(authTokenCreator: AuthTokenCreator)
       access <- authTokenCreator.generateAccessToken(refresh)
     yield LoginOutput(access, refresh)
 
-  def refresh(refreshToken: RefreshToken): IO[RefreshOutput] = ???
+  def refresh(): IO[RefreshOutput] = ???
