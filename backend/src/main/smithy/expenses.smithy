@@ -116,7 +116,7 @@ operation CreateExpense {
 
 structure Expense {
     @required
-    initialPayer: User
+    initialPayer: PublicUserData
 
     @required
     description: String
@@ -132,7 +132,7 @@ structure Expense {
 }
 
 structure OwedAmount {
-    user: User
+    user: PublicUserData
     amount: Amount
 }
 

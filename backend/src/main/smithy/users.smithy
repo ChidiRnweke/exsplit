@@ -7,7 +7,6 @@ use alloy#uuidFormat
 use alloy.common#emailFormat
 
 @simpleRestJson
-@httpBearerAuth
 service UserService {
     version: "1.0.0"
     operations: [
@@ -18,15 +17,8 @@ service UserService {
 }
 
 @http(method: "POST", uri: "/auth/register")
-@auth([])
 operation Register {
-    input := {
-        @required
-        email: Email
-
-        @required
-        password: Password
-    }
+    input: UserCredentials
 
     errors: [
         RegistrationError
@@ -34,15 +26,8 @@ operation Register {
 }
 
 @http(method: "POST", uri: "/auth/login")
-@auth([])
 operation Login {
-    input := {
-        @required
-        email: Email
-
-        @required
-        password: Password
-    }
+    input: UserCredentials
 
     output := {
         @required
@@ -58,6 +43,11 @@ operation Login {
 
 @http(method: "POST", uri: "/auth/refresh")
 operation Refresh {
+
+    input := {
+        @required
+        refreshToken: RefreshToken
+    }
 
     output := {
         @required
@@ -91,10 +81,18 @@ structure RegistrationError {
 @uuidFormat
 string UserId
 
-structure User {
+structure PublicUserData {
     @required
     id: UserId
 
     @required
     email: Email
+}
+
+structure UserCredentials {
+    @required
+    email: Email
+
+    @required
+    password: Password
 }
