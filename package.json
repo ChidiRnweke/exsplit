@@ -12,7 +12,8 @@
     "frontend:check:watch": "cd frontend && pnpm run check:watch",
     "frontend:test": "cd frontend && pnpm run test",
     "frontend:lint": "cd frontend && pnpm run lint",
-    "frontend:format": "cd frontend && pnpm run format"
+    "frontend:format": "cd frontend && pnpm run format",
+    "backend:api-spec": "smithy4s generate backend/src/main/smithy --skip scala --resource-output frontend/openapi"
   },
   "keywords": [],
   "author": "",
