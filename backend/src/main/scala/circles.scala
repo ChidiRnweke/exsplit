@@ -7,6 +7,12 @@ import cats._
 import cats.data._
 import exsplit.auth.User
 
+object CirclesEntryPoint:
+  def createService[F[_]: Functor](
+      repo: CirclesRepository[F]
+  ): CirclesServiceImpl[F] =
+    CirclesServiceImpl(repo)
+
 case class CirclesServiceImpl[F[_]: Functor](repo: CirclesRepository[F])
     extends CirclesService[F]:
   def getCircles(userId: UserId): F[GetCirclesOutput] =
