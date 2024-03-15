@@ -17,7 +17,7 @@ service UserService {
     ]
 }
 
-@http(method: "POST", uri: "/register")
+@http(method: "POST", uri: "/auth/register")
 @auth([])
 operation Register {
     input := {
@@ -33,7 +33,7 @@ operation Register {
     ]
 }
 
-@http(method: "POST", uri: "/login")
+@http(method: "POST", uri: "/auth/login")
 @auth([])
 operation Login {
     input := {
@@ -56,7 +56,7 @@ operation Login {
     ]
 }
 
-@http(method: "POST", uri: "/refresh")
+@http(method: "POST", uri: "/auth/refresh")
 operation Refresh {
 
     output := {
