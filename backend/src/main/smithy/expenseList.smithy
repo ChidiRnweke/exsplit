@@ -38,21 +38,18 @@ operation getExpenseLists {
 }
 
 @readonly
-@http(method: "GET", uri: "/circles/{circleId}/expenseLists/{expenseListId}")
+@http(method: "GET", uri: "/expenseLists/{expenseListId}")
 operation getExpenseListById {
     input := {
         @required
         @httpLabel
         expenseListId: ExpenseListId
 
-        @required
-        @httpLabel
-        circleId: CircleId
     }
 
     output := {
         @required
-        expense_list: ExpenseListDetail
+        expenseListDetail: ExpenseListDetail
     }
 }
 
@@ -69,12 +66,12 @@ operation createExpenseList {
 
     output := {
         @required
-        expense_list: ExpenseList
+        expenseListDetail: ExpenseList
     }
 }
 
 @idempotent
-@http(method: "PUT", uri: "/circles/{circleId}/expenseLists/{id}")
+@http(method: "PUT", uri: "/expenseLists/{id}")
 operation updateExpenseList {
     input := {
         @required
@@ -82,25 +79,17 @@ operation updateExpenseList {
         id: ExpenseListId
 
         @required
-        @httpLabel
-        circleId: CircleId
-
-        @required
         name: String
     }
 }
 
 @idempotent
-@http(method: "DELETE", uri: "/circles/{circleId}/expenseLists/{id}")
+@http(method: "DELETE", uri: "/expenseLists/{id}")
 operation deleteExpenseList {
     input := {
         @required
         @httpLabel
         id: ExpenseListId
-
-        @required
-        @httpLabel
-        circleId: CircleId
     }
 }
 
