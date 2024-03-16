@@ -1,4 +1,4 @@
-package Expenses
+package exsplit.expenses
 
 import exsplit.spec._
 import exsplit.spec.ExpenseServiceOperation.CreateExpenseError
