@@ -5,7 +5,6 @@ namespace exsplit.spec
 use alloy#dateFormat
 use alloy#simpleRestJson
 use alloy#uuidFormat
-use smithy4s.meta#packedInputs
 
 @simpleRestJson
 @httpBearerAuth
@@ -23,20 +22,12 @@ service ExpenseService {
 }
 
 @readonly
-@http(method: "GET", uri: "/circles/{circleId}/expense_lists/{expenseListId}/expenses/{id}")
+@http(method: "GET", uri: "/expenses/{id}")
 operation GetExpense {
     input := {
         @required
         @httpLabel
         id: ExpenseId
-
-        @required
-        @httpLabel
-        circleId: CircleId
-
-        @required
-        @httpLabel
-        expenseListId: ExpenseListId
     }
 
     output := {
@@ -49,20 +40,12 @@ operation GetExpense {
     ]
 }
 
-@http(method: "PATCH", uri: "/circles/{circleId}/expense_lists/{expenseListId}/expenses/{id}")
+@http(method: "PATCH", uri: "/expenses/{id}")
 operation UpdateExpense {
     input := {
         @required
         @httpLabel
         id: ExpenseId
-
-        @required
-        @httpLabel
-        circleId: CircleId
-
-        @required
-        @httpLabel
-        expenseListId: ExpenseListId
 
         initialPayer: String
 
@@ -81,33 +64,21 @@ operation UpdateExpense {
 }
 
 @idempotent
-@http(method: "DELETE", uri: "/circles/{circleId}/expense_lists/{expenseListId}/expenses/{id}")
+@http(method: "DELETE", uri: "/expenses/{id}")
 operation DeleteExpense {
     input := {
         @required
         @httpLabel
         id: ExpenseId
 
-        @required
-        @httpLabel
-        circleId: CircleId
-
-        @required
-        @httpLabel
-        expenseListId: ExpenseListId
     }
 }
 
-@packedInputs
-@http(method: "POST", uri: "/circles/{circleId}/expense_lists/{expenseListId}/expenses")
+@http(method: "POST", uri: "/expense_lists/{expenseListId}/expenses")
 operation CreateExpense {
     input := {
         @required
         expense: Expense
-
-        @required
-        @httpLabel
-        circleId: CircleId
 
         @required
         @httpLabel

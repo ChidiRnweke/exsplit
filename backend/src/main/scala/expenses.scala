@@ -14,23 +14,27 @@ object ExpensesEntryPoint:
 
 case class ExpenseServiceImpl[F[_]: Functor](repo: ExpenseRepository[F])
     extends ExpenseService[F]:
-  def createExpense(input: CreateExpenseInput): F[Unit] = ???
+
+  def createExpense(expense: Expense, expenseListId: ExpenseListId): F[Unit] =
+    repo.createExpense(
+      expenseListId,
+      expense.initialPayer.id.value.toString(),
+      expense.description,
+      expense.price,
+      expense.date,
+      expense.owedToInitialPayer
+    )
+
   def getExpense(
-      id: ExpenseId,
-      circleId: CircleId,
-      expenseListId: ExpenseListId
+      id: ExpenseId
   ): F[GetExpenseOutput] =
-    repo.getExpense(id, circleId, expenseListId).map(GetExpenseOutput(_))
+    repo.getExpense(id).map(GetExpenseOutput(_))
   def deleteExpense(
-      id: ExpenseId,
-      circleId: CircleId,
-      expenseListId: ExpenseListId
+      id: ExpenseId
   ): F[Unit] =
-    repo.deleteExpense(id, circleId, expenseListId)
+    repo.deleteExpense(id)
   def updateExpense(
       id: ExpenseId,
-      circleId: CircleId,
-      expenseListId: ExpenseListId,
       initialPayer: Option[String],
       description: Option[String],
       price: Option[Amount],
@@ -39,24 +43,16 @@ case class ExpenseServiceImpl[F[_]: Functor](repo: ExpenseRepository[F])
   ): F[Unit] =
     repo.updateExpense(
       id,
-      circleId,
-      expenseListId,
       initialPayer,
       description,
       price,
       date,
       owedToInitialPayer
     )
-
 trait ExpenseRepository[F[_]]:
-  def getExpense(
-      id: ExpenseId,
-      circleId: CircleId,
-      expenseListId: ExpenseListId
-  ): F[Expense]
+  def getExpense(id: ExpenseId): F[Expense]
 
   def createExpense(
-      circleId: CircleId,
       expenseListId: ExpenseListId,
       initialPayer: String,
       description: String,
@@ -65,16 +61,10 @@ trait ExpenseRepository[F[_]]:
       owedToInitialPayer: List[OwedAmount]
   ): F[Unit]
 
-  def deleteExpense(
-      id: ExpenseId,
-      circleId: CircleId,
-      expenseListId: ExpenseListId
-  ): F[Unit]
+  def deleteExpense(id: ExpenseId): F[Unit]
 
   def updateExpense(
       id: ExpenseId,
-      circleId: CircleId,
-      expenseListId: ExpenseListId,
       initialPayer: Option[String],
       description: Option[String],
       price: Option[Amount],

@@ -30,17 +30,16 @@ case class CirclesServiceImpl[F[_]: Functor](repo: CirclesRepository[F])
   ): F[Unit] =
     repo.addUserToCircle(userId, displayName, circleId)
 
-  def deleteCircle(userId: UserId, circleId: CircleId): F[Unit] =
-    repo.deleteCircle(userId, circleId)
+  def deleteCircle(circleId: CircleId): F[Unit] =
+    repo.deleteCircle(circleId)
   def listCircleMembers(circleId: CircleId): F[ListCircleMembersOutput] =
     repo.listCircleMembers(circleId).map(ListCircleMembersOutput(_))
   def updateCircle(
-      userId: UserId,
       circleId: CircleId,
       name: String,
       description: Option[String]
   ): F[Unit] =
-    repo.updateCircle(userId, circleId, name, description)
+    repo.updateCircle(circleId, name, description)
 
 trait CirclesRepository[F[_]]:
   def getCirclesForUser(userId: UserId): F[List[Circle]]
@@ -57,12 +56,11 @@ trait CirclesRepository[F[_]]:
       circleId: CircleId
   ): F[Unit]
 
-  def deleteCircle(userId: UserId, circleId: CircleId): F[Unit]
+  def deleteCircle(circleId: CircleId): F[Unit]
 
   def listCircleMembers(circleId: CircleId): F[List[CircleMember]]
 
   def updateCircle(
-      userId: UserId,
       circleId: CircleId,
       name: String,
       description: Option[String]

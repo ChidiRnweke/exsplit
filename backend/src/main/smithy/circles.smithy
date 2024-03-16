@@ -51,12 +51,9 @@ operation CreateCircle {
 }
 
 @idempotent
-@http(method: "PUT", uri: "/users/{userId}/circles/{circleId}")
+@http(method: "PUT", uri: "/circles/{circleId}")
 operation UpdateCircle {
     input := {
-        @required
-        @httpLabel
-        userId: UserId
 
         @required
         @httpLabel
@@ -70,12 +67,9 @@ operation UpdateCircle {
 }
 
 @idempotent
-@http(method: "DELETE", uri: "/users/{userId}/circles/{circleId}")
+@http(method: "DELETE", uri: "/circles/{circleId}")
 operation DeleteCircle {
     input := {
-        @required
-        @httpLabel
-        userId: UserId
 
         @required
         @httpLabel
