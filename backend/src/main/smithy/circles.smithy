@@ -6,6 +6,7 @@ use alloy#simpleRestJson
 use alloy#uuidFormat
 
 @simpleRestJson
+@httpBearerAuth
 service CirclesService {
     operations: [
         GetCircles
