@@ -23,7 +23,7 @@ import cats.effect._
 import java.time.Instant
 import pdi.jwt.{JwtAlgorithm, JwtClaim, JwtUpickle}
 import concurrent.duration._
-import Environment.AuthConfig
+import exsplit.config.AuthConfig
 import cats.syntax.all._
 import cats._
 import java.util.UUID
