@@ -15,7 +15,8 @@ lazy val root = (project in file("."))
       "com.outr" %% "scalapass" % "1.2.8",
       "com.github.pureconfig" %% "pureconfig-core" % "0.17.6",
       "org.flywaydb" % "flyway-database-postgresql" % "10.0.0",
-      "com.github.geirolz" %% "fly4s" % "1.0.0"
+      "com.github.geirolz" %% "fly4s" % "1.0.0",
+      "org.typelevel" %% "munit-cats-effect-3" % "1.0.6" % Test
     ),
     Compile / run / fork := true,
     Compile / run / connectInput := true
