@@ -13,7 +13,8 @@ lazy val root = (project in file("."))
       "org.http4s" %% "http4s-ember-server" % "0.23.26",
       "com.github.jwt-scala" %% "jwt-upickle" % "10.0.0",
       "com.outr" %% "scalapass" % "1.2.8",
-      "com.github.pureconfig" %% "pureconfig" % "0.17.6",
+      "com.github.pureconfig" %% "pureconfig-core" % "0.17.6",
+      "org.flywaydb" % "flyway-database-postgresql" % "10.0.0",
       "com.github.geirolz" %% "fly4s" % "1.0.0"
     ),
     Compile / run / fork := true,
