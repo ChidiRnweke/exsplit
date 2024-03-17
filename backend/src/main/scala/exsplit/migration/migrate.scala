@@ -7,9 +7,9 @@ import cats._
 import cats.effect._
 import cats.syntax.all._
 import cats.data._
-import exsplit.config.DatabaseConfig
+import exsplit.config.MigrationsConfig
 
-def migrateDb(dbConfig: DatabaseConfig): IO[MigrateResult] =
+def migrateDb(dbConfig: MigrationsConfig): IO[MigrateResult] =
   Fly4s
     .make[IO](
       url = dbConfig.url,

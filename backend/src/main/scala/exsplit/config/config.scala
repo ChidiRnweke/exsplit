@@ -13,7 +13,7 @@ trait RepositoryConfig[F[_]: Functor]:
   val dbPassword: F[String]
   val dbDriver: F[String]
 
-case class DatabaseConfig(
+case class MigrationsConfig(
     url: String,
     user: String,
     password: String,

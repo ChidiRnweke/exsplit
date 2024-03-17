@@ -17,8 +17,8 @@ import org.testcontainers.containers.wait.strategy.Wait
 class ConfigSuite extends munit.FunSuite:
   test("Config files are correctly read with pureConfig"):
     val obtained =
-      configToClassFromResource[DatabaseConfig]("database_test.conf")
-    val expected = DatabaseConfig(
+      configToClassFromResource[MigrationsConfig]("database_test.conf")
+    val expected = MigrationsConfig(
       "jdbc:postgresql://localhost:5432/exsplit",
       "exsplit",
       "exsplit",
@@ -43,6 +43,6 @@ class MigrationsSuite extends CatsEffectSuite with TestContainerForAll:
 
   test("Migrations are correctly applied"):
     val config =
-      configToClassFromResource[DatabaseConfig]("database_test.conf")
+      configToClassFromResource[MigrationsConfig]("database_test.conf")
     migrateDb(config)
       .map(result => assertEquals(result.success, true))
