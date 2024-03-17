@@ -3,7 +3,6 @@ $version: "2"
 namespace exsplit.spec
 
 use alloy#simpleRestJson
-use alloy#uuidFormat
 
 @simpleRestJson
 @httpBearerAuth
@@ -121,5 +120,4 @@ list ExpenseLists {
     member: ExpenseList
 }
 
-@uuidFormat
 string ExpenseListId

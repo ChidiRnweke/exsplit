@@ -3,12 +3,12 @@ $version: "2"
 namespace exsplit.spec
 
 use alloy#simpleRestJson
-use alloy#uuidFormat
 
 @simpleRestJson
 @httpBearerAuth
 service CirclesService {
     operations: [
+        GetCirlce
         GetCircles
         AddUserToCircle
         CreateCircle
@@ -20,6 +20,21 @@ service CirclesService {
         AuthError
         ForbiddenError
     ]
+}
+
+@readonly
+@http(method: "GET", uri: "/circles/{circleId}")
+operation GetCirlce{
+    input := {
+        @required
+        @httpLabel
+        circleId: CircleId
+    }
+
+    output := {
+        @required
+        circle: Circle
+    }
 }
 
 @readonly
@@ -113,9 +128,6 @@ list Circles {
     member: Circle
 }
 
-@uuidFormat
-string CircleId
-
 structure Circle {
     @required
     id: CircleId
@@ -124,10 +136,20 @@ structure Circle {
     name: String
 
     description: String
-
-    @required
-    members: Members
 }
+
+// structure CircleDetail {
+//     @required
+//     id: CircleId
+
+//     @required
+//     name: String
+
+//     description: String
+
+//     @required
+//     members: Members
+// }
 
 list Members {
     member: CircleMember
@@ -140,3 +162,5 @@ structure CircleMember {
     @required
     displayName: String
 }
+
+string CircleId

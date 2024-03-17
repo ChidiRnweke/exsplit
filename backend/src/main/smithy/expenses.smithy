@@ -4,7 +4,6 @@ namespace exsplit.spec
 
 use alloy#dateFormat
 use alloy#simpleRestJson
-use alloy#uuidFormat
 
 @simpleRestJson
 @httpBearerAuth
@@ -119,7 +118,6 @@ list Expenses {
     member: Expense
 }
 
-@uuidFormat
 string ExpenseId
 
 @dateFormat

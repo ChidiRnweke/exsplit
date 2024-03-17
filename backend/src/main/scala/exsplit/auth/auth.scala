@@ -87,7 +87,7 @@ trait UserRepository[F[_]]:
   def findCredentials(email: Email): F[Option[User]]
   def findUserById(userId: UserId): F[Option[User]]
   def findUserByEmail(email: Email): F[Option[User]]
-  def createUser(id: UUID, password: String): F[Unit]
+  def createUser(id: UUID, email: Email, password: String): F[Unit]
 
 trait PasswordValidator[F[_]]:
 
@@ -124,14 +124,14 @@ case class UserAuthenticator[F[_]](
     repo
       .findUserByEmail(email)
       .flatMap:
-      case Some(_) =>
-        F.raiseError(RegistrationError("User already exists."))
-      case None =>
-        for
-          userId <- createUserId
-          hashedPassword <- validator.hashPassword(password.value)
-          _ <- repo.createUser(userId, hashedPassword)
-        yield ()
+        case Some(_) =>
+          F.raiseError(RegistrationError("User already exists."))
+        case None =>
+          for
+            userId <- createUserId
+            hashedPassword <- validator.hashPassword(password.value)
+            _ <- repo.createUser(userId, email, hashedPassword)
+          yield ()
 
   def createUserId: F[UUID] = uuid.randomUUID
 

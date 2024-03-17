@@ -3,7 +3,6 @@ $version: "2"
 namespace exsplit.spec
 
 use alloy#simpleRestJson
-use alloy#uuidFormat
 use alloy.common#emailFormat
 
 @simpleRestJson
@@ -78,7 +77,6 @@ structure RegistrationError {
     message: String
 }
 
-@uuidFormat
 string UserId
 
 structure PublicUserData {
