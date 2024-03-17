@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import HeaderSection from '../../components/shared/HeaderSection.svelte';
 	import Card from 'flowbite-svelte/Card.svelte';
 	import ImagePlaceholder from 'flowbite-svelte/ImagePlaceholder.svelte';

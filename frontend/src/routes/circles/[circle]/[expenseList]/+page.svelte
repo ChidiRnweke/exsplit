@@ -6,16 +6,9 @@
 	import HeaderSection from '../../../../components/shared/HeaderSection.svelte';
 	import ExpenseRow from '../../../../components/table/ExpenseRow.svelte';
 	import PlusButton from '../../../../components/table/PlusButton.svelte';
-	import ButtonGroup from 'flowbite-svelte/ButtonGroup.svelte';
 	import SettleButton from '../../../../components/table/SettleButton.svelte';
 
-	const exampleData = {
-		user: 'John',
-		description: 'Magic Mouse 2',
-		price: '€1922',
-		date: '2021-01-01',
-		link: '/tables'
-	};
+	export let data;
 </script>
 
 <HeaderSection class="mb-20">Example expense list</HeaderSection>
@@ -33,11 +26,9 @@
 			<TableHeadCell><span class="sr-only">Edit</span></TableHeadCell>
 		</TableHead>
 		<TableBody>
-			<ExpenseRow {...exampleData} />
-			<ExpenseRow {...exampleData} />
-			<ExpenseRow {...exampleData} />
-			<ExpenseRow {...exampleData} />
-			<ExpenseRow {...exampleData} />
+			{#each data.data as expense (expense.link)}
+				<ExpenseRow {...expense} />
+			{/each}
 		</TableBody>
 	</Table>
 	<div class="flex flex-row justify-center gap-2">
