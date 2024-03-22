@@ -4,10 +4,13 @@ ThisBuild / organization := "com.example"
 ThisBuild / organizationName := "example"
 
 lazy val root = (project in file("."))
-  .enablePlugins(Smithy4sCodegenPlugin)
+  .aggregate(core, shared)
+
+lazy val core = project
+  .in(file("modules/core"))
+  .dependsOn(shared)
   .settings(
     name := "Exsplit",
-    javacOptions ++= Seq("-source", "17", "-target", "17"),
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value,
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s-swagger" % smithy4sVersion.value,
@@ -26,4 +29,13 @@ lazy val root = (project in file("."))
     Compile / run / fork := true,
     Compile / run / connectInput := true,
     Test / fork := true
+  )
+
+lazy val shared = project
+  .in(file("modules/shared"))
+  .enablePlugins(Smithy4sCodegenPlugin)
+  .settings(
+    libraryDependencies ++= Seq(
+      "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
+    )
   )

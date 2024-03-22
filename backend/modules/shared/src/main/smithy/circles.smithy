@@ -8,9 +8,11 @@ use alloy#simpleRestJson
 @httpBearerAuth
 service CirclesService {
     operations: [
-        GetCirlce
-        GetCircles
+        GetCircle
+        ListCirclesForUser
         AddUserToCircle
+        RemoveUserFromCircle
+        ChangeDisplayName
         CreateCircle
         UpdateCircle
         DeleteCircle
@@ -24,7 +26,7 @@ service CirclesService {
 
 @readonly
 @http(method: "GET", uri: "/circles/{circleId}")
-operation GetCirlce{
+operation GetCircle{
     input := {
         @required
         @httpLabel
@@ -39,7 +41,7 @@ operation GetCirlce{
 
 @readonly
 @http(method: "GET", uri: "/users/{userId}/circles")
-operation GetCircles {
+operation ListCirclesForUser {
     input := {
         @required
         @httpLabel
@@ -124,6 +126,37 @@ operation ListCircleMembers {
     }
 }
 
+@idempotent
+@http(method: "DELETE", uri: "/circles/{circleId}/users/{userId}")
+operation RemoveUserFromCircle {
+    input := {
+        @required
+        @httpLabel
+        circleId: CircleId
+
+        @required
+        @httpLabel
+        userId: UserId
+    }
+}
+
+@idempotent
+@http(method: "PATCH", uri: "/circles/{circleId}/users/{userId}")
+operation ChangeDisplayName {
+    input := {
+        @required
+        @httpLabel
+        circleId: CircleId
+
+        @required
+        @httpLabel
+        userId: UserId
+
+        @required
+        displayName: String
+    }
+}
+
 list Circles {
     member: Circle
 }
@@ -138,18 +171,6 @@ structure Circle {
     description: String
 }
 
-// structure CircleDetail {
-//     @required
-//     id: CircleId
-
-//     @required
-//     name: String
-
-//     description: String
-
-//     @required
-//     members: Members
-// }
 
 list Members {
     member: CircleMember

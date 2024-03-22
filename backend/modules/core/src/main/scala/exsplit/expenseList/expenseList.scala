@@ -1,5 +1,4 @@
 package exsplit.expenseList
-
 import exsplit.spec._
 import cats.syntax.all._
 import cats._

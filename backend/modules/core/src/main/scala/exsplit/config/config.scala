@@ -1,9 +1,9 @@
 package exsplit.config
+
 import cats.Functor
 import pureconfig._
 import pureconfig.generic.derivation.default._
 import scala.reflect.ClassTag
-import org.checkerframework.checker.units.qual.m
 
 trait AuthConfig[F[_]: Functor]:
   val secretKey: F[String]

@@ -1,5 +1,3 @@
-package exsplit.circles
-
 import exsplit.spec._
 import cats.effect._
 import cats.syntax.all._
@@ -66,26 +64,26 @@ trait CirclesRepository[F[_]]:
       description: Option[String]
   ): F[Unit]
 
-// object CirclesRepository:
-//   import exsplit.db._
-//   import skunk._
-//   import skunk.implicits._
-//   import skunk.codec.all._
-//   import natchez.Trace.Implicits.noop
+object CirclesRepository:
+  import exsplit.db._
+  import skunk._
+  import skunk.implicits._
+  import skunk.codec.all._
+  import natchez.Trace.Implicits.noop
 
-//   def fromSession[F[_]: Async](
-//       session: Resource[F, Session[F]]
-//   ): CirclesRepository[F] =
-//     new CirclesRepository[F] with SkunkRepository[F](session):
-//       def getCirclesForUser(userId: UserId): F[List[Circle]] =
+  def fromSession[F[_]: Async](
+      session: Resource[F, Session[F]]
+  ): CirclesRepository[F] =
+    new CirclesRepository[F] with SkunkRepository[F](session):
+      def getCirclesForUser(userId: UserId): F[List[Circle]] =
 
-//         val query = sql"""
-//           SELECT c.id, c.name, c.description
-//           FROM circles c
-//           JOIN circle_members cm ON c.id = cm.circle_id
-//           WHERE cm.user_id = $text
-//         """.query(varchar *: varchar *: varchar).to[Circle]
-//         ???
+        val query = sql"""
+          SELECT c.id, c.name, c.description
+          FROM circles c
+          JOIN circle_members cm ON c.id = cm.circle_id
+          WHERE cm.user_id = $text
+        """.query(varchar *: varchar *: varchar).to[Circle]
+        ???
 
-//       ???
-//   ???
+      ???
+  ???

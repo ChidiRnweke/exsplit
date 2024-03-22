@@ -16,6 +16,7 @@
   *   - `TokenEncoderDecoder`: A class that encodes and decodes JWT claims.
   *   - `AuthTokenCreator`: A class that generates access and refresh tokens.
   */
+
 package exsplit.auth
 
 import exsplit.spec._
