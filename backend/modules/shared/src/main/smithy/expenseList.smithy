@@ -8,11 +8,13 @@ use alloy#simpleRestJson
 @httpBearerAuth
 service ExpenseListService {
     operations: [
-        getExpenseLists
-        getExpenseListById
-        createExpenseList
-        updateExpenseList
-        deleteExpenseList
+        GetExpenseLists
+        GetExpenseList
+        CreateExpenseList
+        UpdateExpenseList
+        DeleteExpenseList
+        SettleExpenseList
+        GetSettledTabs
     ]
     errors: [
         AuthError
@@ -23,7 +25,7 @@ service ExpenseListService {
 
 @readonly
 @http(method: "GET", uri: "/circles/{circleId}/expenseLists")
-operation getExpenseLists {
+operation GetExpenseLists {
     input := {
         @required
         @httpLabel
@@ -32,28 +34,68 @@ operation getExpenseLists {
 
     output := {
         @required
-        expenseLists: ExpenseLists
+        expenseLists: ExpenseListsOut
     }
 }
 
 @readonly
-@http(method: "GET", uri: "/expenseLists/{expenseListId}")
-operation getExpenseListById {
+@http(method: "GET", uri: "/expenseLists/{expenseListId}/settle")
+operation GetSettledTabs {
+    input := {
+        @required
+        @httpLabel
+        expenseListId: ExpenseListId
+    }
+
+    output := {
+        @required
+        settledTabs: SettledTabsOut
+    }
+}
+
+@http(method: "POST", uri: "/expenseLists/{expenseListId}/settle")
+operation SettleExpenseList {
     input := {
         @required
         @httpLabel
         expenseListId: ExpenseListId
 
+        @required
+        fromMemberId: UserId
+
+        @required
+        toMemberId: UserId
+
+        @required
+        amount: Amount
     }
 
     output := {
         @required
-        expenseListDetail: ExpenseListDetail
+        expenseListDetail: ExpenseListDetailOut
+    }
+}
+
+@readonly
+@http(method: "GET", uri: "/expenseLists/{expenseListId}")
+operation GetExpenseList {
+    input := {
+        @required
+        @httpLabel
+        expenseListId: ExpenseListId
+
+        @httpQuery("onlyOutstanding")
+        onlyOutstanding: Boolean
+    }
+
+    output := {
+        @required
+        expenseListDetail: ExpenseListDetailOut
     }
 }
 
 @http(method: "POST", uri: "/circles/{circleId}/expenseLists")
-operation createExpenseList {
+operation CreateExpenseList {
     input := {
         @required
         @httpLabel
@@ -64,14 +106,13 @@ operation createExpenseList {
     }
 
     output := {
-        @required
-        expenseListDetail: ExpenseList
+        expenseList: ExpenseListOut
     }
 }
 
 @idempotent
 @http(method: "PUT", uri: "/expenseLists/{id}")
-operation updateExpenseList {
+operation UpdateExpenseList {
     input := {
         @required
         @httpLabel
@@ -84,7 +125,7 @@ operation updateExpenseList {
 
 @idempotent
 @http(method: "DELETE", uri: "/expenseLists/{id}")
-operation deleteExpenseList {
+operation DeleteExpenseList {
     input := {
         @required
         @httpLabel
@@ -92,32 +133,70 @@ operation deleteExpenseList {
     }
 }
 
-structure ExpenseList {
+structure SettledTabsOut {
     @required
-    id: ExpenseListId
-
-    @required
-    name: String
-
-    @required
-    circleId: CircleId
+    settledTabs: SettledTabs
 }
 
-structure ExpenseListDetail {
+list SettledTabs {
+    member: SettledTabOut
+}
+
+structure SettledTabOut {
     @required
-    id: ExpenseListId
+    link: String
+
+    @required
+    settledTabId: String
+
+    @required
+    date: String
+
+    @required
+    fromMember: CircleMemberOut
+
+    @required
+    toMember: CircleMemberOut
+
+    @required
+    amount: Float
+}
+
+structure ExpenseListOut {
+    @required
+    link: String
+
+    @required
+    expenseListId: String
 
     @required
     name: String
 
     @required
-    circleId: CircleId
+    circle: CircleOut
+}
 
-    expenses: Expenses
+structure ExpenseListDetailOut {
+    @required
+    summary: ExpenseListOut
+
+    @required
+    expenses: ExpensesOut
+
+    @required
+    totalExpense: Float
+
+    @required
+    totalOwed: OwedAmountTotalsOut
+}
+
+structure ExpenseListsOut {
+    @required
+    expenseLists: ExpenseLists
 }
 
 list ExpenseLists {
-    member: ExpenseList
+    member: ExpenseListOut
 }
 
 string ExpenseListId

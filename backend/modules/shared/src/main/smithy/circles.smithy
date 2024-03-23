@@ -26,7 +26,7 @@ service CirclesService {
 
 @readonly
 @http(method: "GET", uri: "/circles/{circleId}")
-operation GetCircle{
+operation GetCircle {
     input := {
         @required
         @httpLabel
@@ -50,7 +50,7 @@ operation ListCirclesForUser {
 
     output := {
         @required
-        circles: Circles
+        circles: CirclesOut
     }
 }
 
@@ -69,18 +69,22 @@ operation CreateCircle {
 
         description: String
     }
+
+    output := {
+        @required
+        circle: CircleOut
+    }
 }
 
 @idempotent
 @http(method: "PUT", uri: "/circles/{circleId}")
 operation UpdateCircle {
     input := {
-
         @required
         @httpLabel
         circleId: CircleId
 
-        name: String
+        circleName: String
 
         description: String
     }
@@ -90,7 +94,6 @@ operation UpdateCircle {
 @http(method: "DELETE", uri: "/circles/{circleId}")
 operation DeleteCircle {
     input := {
-
         @required
         @httpLabel
         circleId: CircleId
@@ -98,7 +101,7 @@ operation DeleteCircle {
 }
 
 @idempotent
-@http(method: "PUT", uri: "/circles/{circleId}/users")
+@http(method: "PUT", uri: "/circles/{circleId}/members")
 operation AddUserToCircle {
     input := {
         @required
@@ -114,7 +117,7 @@ operation AddUserToCircle {
 }
 
 @readonly
-@http(method: "GET", uri: "/circles/{circleId}/users")
+@http(method: "GET", uri: "/circles/{circleId}/members")
 operation ListCircleMembers {
     input := {
         @required
@@ -124,12 +127,12 @@ operation ListCircleMembers {
 
     output := {
         @required
-        members: Members
+        members: MembersListOut
     }
 }
 
 @idempotent
-@http(method: "DELETE", uri: "/circles/{circleId}/users/{userId}")
+@http(method: "DELETE", uri: "/circles/{circleId}/members/{memberId}")
 operation RemoveUserFromCircle {
     input := {
         @required
@@ -138,12 +141,12 @@ operation RemoveUserFromCircle {
 
         @required
         @httpLabel
-        userId: UserId
+        memberId: CircleMemberId
     }
 }
 
 @idempotent
-@http(method: "PATCH", uri: "/circles/{circleId}/users/{userId}")
+@http(method: "PATCH", uri: "/circles/{circleId}/members/{memberId}")
 operation ChangeDisplayName {
     input := {
         @required
@@ -152,11 +155,16 @@ operation ChangeDisplayName {
 
         @required
         @httpLabel
-        userId: UserId
+        memberId: CircleMemberId
 
         @required
         displayName: String
     }
+}
+
+structure CirclesOut {
+    @required
+    circles: Circles
 }
 
 list Circles {
@@ -165,10 +173,13 @@ list Circles {
 
 structure CircleOut {
     @required
-    id: String
+    link: String
 
     @required
-    name: String
+    circleId: String
+
+    @required
+    circleName: String
 
     @required
     description: String
@@ -182,17 +193,26 @@ structure CircleMember {
     displayName: String
 }
 
-
-list Members {
-    member: CircleMemberOut
-}
-
 structure CircleMemberOut {
     @required
-    userId: String
+    link: String
+
+    @required
+    circleMemberId: String
 
     @required
     displayName: String
 }
 
+structure MembersListOut {
+    @required
+    members: MembersOut
+}
+
+list MembersOut {
+    member: CircleMemberOut
+}
+
 string CircleId
+
+string CircleMemberId

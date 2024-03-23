@@ -19,6 +19,20 @@ service UserService {
 operation Register {
     input: UserCredentials
 
+    output := {
+        @required
+        userId: String
+
+        @required
+        link: String
+
+        @required
+        refreshToken: RefreshToken
+
+        @required
+        accessToken: AccessToken
+    }
+
     errors: [
         RegistrationError
     ]
@@ -31,6 +45,7 @@ operation Login {
     output := {
         @required
         accessToken: AccessToken
+
         @required
         refreshToken: RefreshToken
     }
@@ -42,7 +57,6 @@ operation Login {
 
 @http(method: "POST", uri: "/auth/refresh")
 operation Refresh {
-
     input := {
         @required
         refreshToken: RefreshToken
@@ -54,8 +68,8 @@ operation Refresh {
     }
 
     errors: [
-        ValidationError,
-        AuthError,
+        ValidationError
+        AuthError
         InvalidTokenError
     ]
 }
@@ -78,14 +92,6 @@ structure RegistrationError {
 }
 
 string UserId
-
-structure PublicUserData {
-    @required
-    id: UserId
-
-    @required
-    email: Email
-}
 
 structure UserCredentials {
     @required

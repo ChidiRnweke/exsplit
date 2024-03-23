@@ -31,7 +31,7 @@ operation GetExpense {
 
     output := {
         @required
-        expenses: Expense
+        expenses: ExpenseOut
     }
 
     errors: [
@@ -69,7 +69,6 @@ operation DeleteExpense {
         @required
         @httpLabel
         id: ExpenseId
-
     }
 }
 
@@ -77,12 +76,21 @@ operation DeleteExpense {
 operation CreateExpense {
     input := {
         @required
-        expense: Expense
-
-        @required
         @httpLabel
         expenseListId: ExpenseListId
+
+        @required
+        expense: Expense
     }
+
+    output := {
+        @required
+        expense: ExpenseOut
+    }
+
+    errors: [
+        NotFoundError
+    ]
 }
 
 structure Expense {
@@ -102,6 +110,14 @@ structure Expense {
     owedToInitialPayer: OwedAmounts
 }
 
+@range(min: 0)
+float Amount
+
+string ExpenseId
+
+@dateFormat
+string Date
+
 structure OwedAmount {
     user: CircleMember
     amount: Amount
@@ -111,14 +127,51 @@ list OwedAmounts {
     member: OwedAmount
 }
 
-@range(min: 0)
-float Amount
+structure ExpenseOut {
+    link: String
 
-list Expenses {
-    member: Expense
+    @required
+    initialPayer: CircleMemberOut
+
+    @required
+    description: String
+
+    @required
+    price: Float
+
+    @required
+    date: String
+
+    @required
+    owedToInitialPayer: OwedAmountsOut
 }
 
-string ExpenseId
+list ExpensesOut {
+    member: ExpenseOut
+}
 
-@dateFormat
-string Date
+structure OwedAmountOut {
+    @required
+    link: String
+
+    @required
+    user: CircleMemberOut
+
+    @required
+    amount: Float
+}
+
+structure OwedAmountTotalsOut {
+    @required
+    fromMember: CircleMemberOut
+
+    @required
+    toMember: CircleMemberOut
+
+    @required
+    amount: Float
+}
+
+list OwedAmountsOut {
+    member: OwedAmountOut
+}
