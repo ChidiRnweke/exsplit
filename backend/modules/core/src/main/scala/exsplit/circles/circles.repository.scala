@@ -19,17 +19,30 @@ trait CirclesRepository[F[_]]:
 
   def listCircleMembers(circleId: CircleOut): F[List[CircleMemberOut]]
 
+  def getCircleMemberById(
+      memberId: CircleMemberId
+  ): F[Either[NotFoundError, CircleMemberOut]]
+
   def createCircle(
-      member: CircleMember,
+      user: User,
+      displayName: String,
       circleName: String,
       description: Option[String]
+  ): F[CircleOut]
+
+  def addUserToCircle(
+      user: User,
+      displayName: String,
+      circle: CircleOut
   ): F[Unit]
 
-  def addUserToCircle(member: CircleMember, circle: CircleOut): F[Unit]
+  def changeDisplayName(
+      member: CircleMemberOut,
+      circle: CircleOut,
+      newDisplayName: String
+  ): F[Unit]
 
-  def changeDisplayName(member: CircleMember, circle: CircleOut): F[Unit]
-
-  def removeUserFromCircle(circle: CircleOut, user: User): F[Unit]
+  def removeUserFromCircle(circle: CircleOut, member: CircleMemberOut): F[Unit]
 
   def deleteCircle(circleId: CircleId): F[Unit]
 
@@ -46,6 +59,14 @@ case class CircleQueryPreparer[F[_]](session: Session[F]):
       FROM circles c
       WHERE c.id = $text
     """.query(varchar *: varchar *: varchar).to[CircleOut]
+    session.prepare(query)
+
+  val getCircleMemberByIdQuery: F[PreparedQuery[F, String, CircleMemberOut]] =
+    val query = sql"""
+      SELECT cm.user_id, cm.display_name
+      FROM circle_members cm
+      WHERE cm.user_id = $text
+    """.query(varchar *: varchar).to[CircleMemberOut]
     session.prepare(query)
 
   val getCirclesForUserQuery: F[PreparedQuery[F, String, CircleOut]] =
@@ -65,11 +86,13 @@ case class CircleQueryPreparer[F[_]](session: Session[F]):
       """.query(varchar *: varchar).to[CircleMemberOut]
     session.prepare(query)
 
-  val createCircleCommand: F[PreparedCommand[F, (String, String, String)]] =
+  val createCircleCommand
+      : F[PreparedQuery[F, (String, String, String), CircleOut]] =
     val command = sql"""
       INSERT INTO circles (id, name, description)
       VALUES ($text, $text, $text)
-    """.command
+      RETURNING id, name, description
+    """.query(varchar *: varchar *: varchar).to[CircleOut]
     session.prepare(command)
 
   val addUserToCircleCommand: F[PreparedCommand[F, (String, String, String)]] =
@@ -91,7 +114,7 @@ case class CircleQueryPreparer[F[_]](session: Session[F]):
   val removeUserFromCircleCommand: F[PreparedCommand[F, (String, String)]] =
     val command = sql"""
       DELETE FROM circle_members
-      WHERE circle_id = $text AND user_id = $text
+      WHERE circle_id = $text AND id = $text
     """.command
     session.prepare(command)
 
@@ -147,6 +170,7 @@ object CirclesRepository:
           preparer.updateCircleNameAndDescCommand
         updateCircleNameCommand <- preparer.updateCircleNameCommand
         updateCircleDescCommand <- preparer.updateCircleDescCommand
+        getCircleMemberByIdQuery <- preparer.getCircleMemberByIdQuery
 
         circleRepository = new CirclesRepository[F]:
           def findCircleById(
@@ -158,6 +182,19 @@ object CirclesRepository:
               .option(circleId.value)
               .map(_.toRight(err))
 
+          def getCircleMemberById(
+              memberId: CircleMemberId
+          ): F[Either[NotFoundError, CircleMemberOut]] =
+            getCircleMemberByIdQuery
+              .option(memberId.value)
+              .map(
+                _.toRight(
+                  NotFoundError(
+                    s"Circle member with id ${memberId.value} not found"
+                  )
+                )
+              )
+
           def getCirclesForUser(user: User): F[List[CircleOut]] =
             getCirclesForUserQuery.stream(user.id, 1024).compile.toList
 
@@ -165,41 +202,46 @@ object CirclesRepository:
             listCircleMembersQuery.stream(circle.circleId, 1024).compile.toList
 
           def createCircle(
-              member: CircleMember,
+              user: User,
+              displayName: String,
               circleName: String,
               description: Option[String]
-          ): F[Unit] =
+          ): F[CircleOut] =
             val desc = description.getOrElse("")
             createCircleCommand
-              .execute((member.userId.value, circleName, desc))
-              .void
+              .unique(user.id, circleName, desc)
 
           def addUserToCircle(
-              member: CircleMember,
+              user: User,
+              displayName: String,
               circle: CircleOut
           ): F[Unit] =
             addUserToCircleCommand
               .execute(
-                (circle.circleId, member.userId.value, member.displayName)
+                (circle.circleId, user.id, displayName)
               )
               .void
 
           def changeDisplayName(
-              member: CircleMember,
-              circle: CircleOut
+              member: CircleMemberOut,
+              circle: CircleOut,
+              newDisplayName: String
           ): F[Unit] =
             changeDisplayNameCommand
               .execute(
-                (member.displayName, circle.circleId, member.userId.value)
+                (newDisplayName, circle.circleId, member.circleMemberId)
               )
               .void
 
           def deleteCircle(circleId: CircleId): F[Unit] =
             deleteCircleCommand.execute(circleId.value).void
 
-          def removeUserFromCircle(circle: CircleOut, user: User): F[Unit] =
+          def removeUserFromCircle(
+              circle: CircleOut,
+              member: CircleMemberOut
+          ): F[Unit] =
             removeUserFromCircleCommand
-              .execute((circle.circleId, user.id))
+              .execute((circle.circleId, member.circleMemberId))
               .void
 
           def updateCircle(
