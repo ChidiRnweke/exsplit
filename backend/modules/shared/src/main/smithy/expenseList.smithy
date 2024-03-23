@@ -61,10 +61,10 @@ operation SettleExpenseList {
         expenseListId: ExpenseListId
 
         @required
-        fromMemberId: UserId
+        fromMemberId: CircleMemberId
 
         @required
-        toMemberId: UserId
+        toMemberId: CircleMemberId
 
         @required
         amount: Amount
@@ -106,6 +106,7 @@ operation CreateExpenseList {
     }
 
     output := {
+        @required
         expenseList: ExpenseListOut
     }
 }
@@ -181,8 +182,12 @@ structure ExpenseListDetailOut {
     totalExpense: Float
 
     @required
-    totalOwed: OwedAmountTotalsOut
+    totalOwed: OwedAmountsTotalsOut
 }
+
+list OwedAmountsTotalsOut {
+    member: OwedAmountTotalsOut
+}   
 
 structure ExpenseListsOut {
     @required
