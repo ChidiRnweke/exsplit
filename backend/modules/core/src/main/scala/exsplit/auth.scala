@@ -1,22 +1,3 @@
-/** This file contains the implementation of the authentication module. It
-  * provides functionality for user login, registration, and token generation.
-  * The main components of this module are:
-  *   - `AuthEntryPoint`: An object that creates the main service for
-  *     authentication.
-  *   - `UserServiceImpl`: The implementation of the `UserService` trait, which
-  *     provides methods for login, registration, and token generation.
-  *   - `User`: A case class representing a user with an ID, email, and
-  *     password.
-  *   - `TokenLifespan`: An enumeration representing the lifespan of a token
-  *     (long-lived or short-lived).
-  *   - `UserRepository`: A trait defining methods for accessing user data from
-  *     a repository.
-  *   - `UserAuthenticator`: A class that handles user authentication and
-  *     registration.
-  *   - `TokenEncoderDecoder`: A class that encodes and decodes JWT claims.
-  *   - `AuthTokenCreator`: A class that generates access and refresh tokens.
-  */
-
 package exsplit.auth
 
 import exsplit.spec._
@@ -31,29 +12,73 @@ import java.util.UUID
 import com.outr.scalapass.Argon2PasswordFactory
 import cats.effect.std.UUIDGen
 
+/** This file contains the implementation of the AuthEntryPoint object and
+  * related functions. The AuthEntryPoint object provides methods for creating a
+  * UserService instance and performing actions related to user authentication
+  * such as login, registration and token generation.
+  */
 object AuthEntryPoint:
+  /** Creates a UserServiceImpl instance with the provided dependencies.
+    *
+    * @param authConfig
+    *   The authentication configuration. The configuration for JWT
+    *   authentication. Contains the secret key.
+    * @param repo
+    *   The user repository. The repository for access to user instances.
+    * @param clock
+    *   The clock for time-related operations.
+    * @param validator
+    *   The password validator. A trait representing a password validator.
+    *   Provides methods for hashing and checking passwords.
+    * @param uuid
+    *   The UUID generator. Provides methods for generating UUIDs for user IDs
+    *   in an effectful context.
+    * @return
+    *   A UserService instance.
+    */
   def createService[F[_]: MonadThrow](
       authConfig: AuthConfig[F],
       repo: UserRepository[F],
       clock: Clock[F],
       validator: PasswordValidator[F],
       uuid: UUIDGen[F]
-  ): UserServiceImpl[F] =
+  ): UserService[F] =
     val encoderDecoder = TokenEncoderDecoder(authConfig)
     val authTokenCreator = AuthTokenCreator(encoderDecoder, clock)
     val userAuthenticator =
       UserAuthenticator(repo, validator, uuid)
     UserServiceImpl(authTokenCreator, userAuthenticator)
 
+  /** Creates a UserServiceImpl instance with the provided dependencies for the
+    * IO effect.
+    *
+    * @param authConfig
+    *   The authentication configuration.
+    * @param repo
+    *   The user repository.
+    * @return
+    *   A UserServiceImpl instance for the IO effect.
+    */
   def createIOService(
       authConfig: AuthConfig[IO],
       repo: UserRepository[IO]
-  ): UserServiceImpl[IO] =
+  ): UserService[IO] =
     val clock = Clock[IO]
     val argon = Argon.createValidator[IO]
     val uuid = UUIDGen[IO]
     createService(authConfig, repo, clock, argon, uuid)
 
+/** Executes the specified action with a valid user.
+  *
+  * @param userId
+  *   The ID of the user.
+  * @param userRepo
+  *   The user repository.
+  * @param action
+  *   The action to be performed with the user.
+  * @return
+  *   The result of the action.
+  */
 def withValidUser[F[_]: MonadThrow, A](
     userId: UserId,
     userRepo: UserRepository[F]
@@ -63,12 +88,39 @@ def withValidUser[F[_]: MonadThrow, A](
     result <- action(user)
   yield result
 
+/** Implementation of the UserService trait.
+  *
+  * @param authTokenCreator
+  *   An instance of the AuthTokenCreator trait used for creating authentication
+  *   tokens.
+  * @param auth
+  *   An instance of the UserAuthenticator trait used for user authentication.
+  *   This trait provides methods for user login, registration, and token
+  *   generation. The methods are implemented using the provided instances of
+  *   `AuthTokenCreator` and `UserAuthenticator`. The former holds an instance
+  *   of `TokenEncoderDecoder` for encoding and decoding JWT tokens, while the
+  *   latter holds an instance of `PasswordValidator` for hashing and checking
+  *   passwords.
+  *
+  * @param F
+  *   An instance of the MonadThrow typeclass representing the effect type.
+  */
 case class UserServiceImpl[F[_]](
     authTokenCreator: AuthTokenCreator[F],
     auth: UserAuthenticator[F]
 )(using F: MonadThrow[F])
     extends UserService[F]:
 
+  /** Logs in a user with the provided email and password.
+    *
+    * @param email
+    *   The user's email.
+    * @param password
+    *   The user's password.
+    * @return
+    *   A LoginOutput wrapped in the effect type F. The output contains the
+    *   access token and refresh token.
+    */
   def login(email: Email, password: Password): F[LoginOutput] =
     for
       authSuccess <- auth.authenticateUser(email, password)
@@ -77,6 +129,16 @@ case class UserServiceImpl[F[_]](
       access <- authTokenCreator.generateAccessToken(refresh)
     yield (LoginOutput(access, refresh))
 
+  /** Registers a new user with the provided email and password.
+    *
+    * @param email
+    *   The user's email.
+    * @param password
+    *   The user's password.
+    * @return
+    *   A RegisterOutput wrapped in the effect type F. The output contains the
+    *   user ID, refresh token, and access token.
+    */
   def register(email: Email, password: Password): F[RegisterOutput] =
     for
       userId <- auth.registerUser(email, password)
@@ -84,28 +146,127 @@ case class UserServiceImpl[F[_]](
       access <- authTokenCreator.generateAccessToken(refresh)
     yield RegisterOutput(userId, refresh, access)
 
+  /** Generates a new access token using the provided refresh token.
+    *
+    * @param refresh
+    *   The refresh token.
+    * @return
+    *   A RefreshOutput wrapped in the effect type F. The output contains the
+    *   new access token.
+    */
   def refresh(refresh: RefreshToken): F[RefreshOutput] =
     authTokenCreator.generateAccessToken(refresh).map(RefreshOutput(_))
 
 case class User(id: String, email: String, password: String)
 
+/** Enumeration representing the lifespan of a token.
+  *
+  * @param duration
+  *   The duration of the token lifespan in seconds.
+  * @see
+  *   TokenEncoderDecoder
+  */
 enum TokenLifespan(val duration: Long):
   case LongLived extends TokenLifespan(90.days.toSeconds)
   case ShortLived extends TokenLifespan(1.day.toSeconds)
 
+/** A trait representing a user repository. This trait provides methods for
+  * finding and creating users.
+  *
+  * @tparam F
+  *   the effect type, representing the context in which the repository operates
+  */
 trait UserRepository[F[_]]:
+  /** Finds the user credentials based on the email.
+    *
+    * @param email
+    *   the email of the user
+    * @return
+    *   an effect that yields either a `NotFoundError` or the user with the
+    *   given email
+    */
   def findCredentials(email: Email): F[Either[NotFoundError, User]]
+
+  /** Finds the user based on the user ID.
+    *
+    * @param userId
+    *   the ID of the user
+    * @return
+    *   an effect that yields either a `NotFoundError` or the user with the
+    *   given ID
+    */
   def findUserById(userId: UserId): F[Either[NotFoundError, User]]
+
+  /** Finds the user based on the email.
+    *
+    * @param email
+    *   the email of the user
+    * @return
+    *   an effect that yields either a `NotFoundError` or the user with the
+    *   given email
+    */
   def findUserByEmail(email: Email): F[Either[NotFoundError, User]]
+
+  /** Creates a new user with the specified ID, email, and password.
+    *
+    * @param id
+    *   the ID of the user
+    * @param email
+    *   the email of the user
+    * @param password
+    *   the password of the user
+    * @return
+    *   an effect that yields `Unit` when the user is successfully created
+    */
   def createUser(id: UUID, email: Email, password: String): F[Unit]
 
+/** Trait representing a password validator. Provides methods for hashing and
+  * checking passwords.
+  *
+  * @tparam F
+  *   the effect type for the password validation operations
+  */
 trait PasswordValidator[F[_]]:
 
+  /** Hashes the given password.
+    *
+    * @param password
+    *   the password to hash
+    * @return
+    *   the hashed password
+    */
   def hashPassword(password: String): F[String]
+
+  /** Checks if the given password matches the provided hash. Returns true if
+    * the password matches the hash, false otherwise. Checking a password does
+    * not require an effectful operation.
+    *
+    * @param hash
+    *   the hashed password
+    * @param password
+    *   the password to check
+    * @return
+    *   true if the password matches the hash, false otherwise
+    */
   def checkPassword(hash: String, password: String): Boolean
+
+/** The `Argon` object provides functionality for password hashing and
+  * validation using Argon2 algorithm.
+  * @see
+  *   https://argon2-cffi.readthedocs.io/en/stable/argon2.html
+  */
 object Argon:
   private val factory = Argon2PasswordFactory()
 
+  /** Creates a password validator that can hash passwords and check if a
+    * password matches a hash.
+    *
+    * @param F
+    *   the effect type constructor. Must have a `Sync` instance available
+    *   because `F.delay` is used for creating the hash.
+    * @return
+    *   a `PasswordValidator` instance
+    */
   def createValidator[F[_]](using F: Sync[F]): PasswordValidator[F] =
     new PasswordValidator[F]:
       def hashPassword(password: String): F[String] =
@@ -113,6 +274,17 @@ object Argon:
       def checkPassword(hash: String, password: String): Boolean =
         factory.verify(hash, password)
 
+/** UserAuthenticator is responsible for authenticating and registering users.
+  *
+  * @param repo
+  *   The repository for access to user instances.
+  * @param validator
+  *   The password validator for checking and hashing passwords.
+  * @param uuid
+  *   The UUID generator for creating user IDs.
+  * @param F
+  *   The effect type constructor, providing the necessary type class instances.
+  */
 case class UserAuthenticator[F[_]](
     repo: UserRepository[F],
     validator: PasswordValidator[F],
@@ -121,6 +293,15 @@ case class UserAuthenticator[F[_]](
     F: MonadThrow[F]
 ):
 
+  /** Authenticates a user by checking their email and password.
+    *
+    * @param email
+    *   The user's email.
+    * @param password
+    *   The user's password.
+    * @return
+    *   A boolean indicating whether the authentication was successful.
+    */
   def authenticateUser(email: Email, password: Password): F[Boolean] =
     for
       userEither <- repo.findCredentials(email)
@@ -130,6 +311,17 @@ case class UserAuthenticator[F[_]](
         case Left(_) => false
     yield result
 
+  /** Registers a new user with the provided email and password.
+    *
+    * @param email
+    *   The user's email.
+    * @param password
+    *   The user's password.
+    * @return
+    *   A string representing the newly created user's ID.
+    * @throws RegistrationError
+    *   if the user already exists.
+    */
   def registerUser(email: Email, password: Password): F[String] =
     val userExists = repo.findUserByEmail(email).map(_.isRight)
     userExists.ifM(
@@ -137,7 +329,7 @@ case class UserAuthenticator[F[_]](
       makeUser(email, password)
     )
 
-  def createUserId: F[UUID] = uuid.randomUUID
+  private def createUserId: F[UUID] = uuid.randomUUID
 
   private def makeUser(email: Email, password: Password): F[String] =
     createUserId.flatMap: userId =>
@@ -146,18 +338,52 @@ case class UserAuthenticator[F[_]](
         _ <- repo.createUser(userId, email, hashedPassword)
       yield userId.toString()
 
+/** TokenEncoderDecoder is responsible for encoding and decoding JWT tokens.
+  *
+  * @param authConfig
+  *   The configuration for JWT authentication. Contains the secret key.
+  * @tparam F
+  *   The effect type for the encoding and decoding operations.
+  */
 case class TokenEncoderDecoder[F[_]: Functor](authConfig: AuthConfig[F]):
 
+  /** Decodes the given refresh token and returns the decoded JWT claim.
+    *
+    * @param token
+    *   The refresh token to decode.
+    * @return
+    *   Either a Throwable if decoding fails, or the decoded JwtClaim wrapped in
+    *   the effect F.
+    */
   def decodeClaim(token: RefreshToken): F[Either[Throwable, JwtClaim]] =
     authConfig.secretKey.map(key =>
       JwtUpickle.decode(token.value, key, Seq(JwtAlgorithm.HS256)).toEither
     )
 
+  /** Encodes the given JwtClaim and returns the encoded JWT token as a string.
+    *
+    * @param claim
+    *   The JwtClaim to encode.
+    * @return
+    *   The encoded JWT token wrapped in the effect F.
+    */
   def encodeClaim(claim: JwtClaim): F[String] =
     authConfig.secretKey.map(key =>
       JwtUpickle.encode(claim, key, JwtAlgorithm.HS256)
     )
 
+  /** Creates a JwtClaim with the specified lifespan, email, and current time.
+    *
+    * @param lifeSpan
+    *   The lifespan of the token. Short-lived for access tokens, long-lived for
+    *   refresh tokens.
+    * @param email
+    *   The email associated with the token. Used as the subject in the claim.
+    * @param now
+    *   The current time.
+    * @return
+    *   The created JwtClaim.
+    */
   def makeClaim(
       lifeSpan: TokenLifespan,
       email: Email,
@@ -169,11 +395,28 @@ case class TokenEncoderDecoder[F[_]: Functor](authConfig: AuthConfig[F]):
       subject = Some(email.value)
     )
 
+/** Represents an `AuthTokenCreator` that is responsible for generating access
+  * tokens and refresh tokens.
+  *
+  * @param tokenService
+  *   The service used for encoding and decoding tokens.
+  * @param clock
+  *   The clock instance used for retrieving the current time.
+  * @param F
+  *   The effect type constructor, which must have a `MonadThrow` instance.
+  */
 case class AuthTokenCreator[F[_]](
     tokenService: TokenEncoderDecoder[F],
     clock: Clock[F]
 )(using F: MonadThrow[F]):
 
+  /** Generates an access token based on the provided refresh token.
+    *
+    * @param refresh
+    *   The refresh token used to generate the access token.
+    * @return
+    *   The generated access token.
+    */
   def generateAccessToken(refresh: RefreshToken): F[AccessToken] =
     for
       claimEither <- tokenService.decodeClaim(refresh)
@@ -182,6 +425,13 @@ case class AuthTokenCreator[F[_]](
       token <- generateToken(TokenLifespan.ShortLived, Email(email))
     yield AccessToken(token)
 
+  /** Generates a refresh token based on the provided email.
+    *
+    * @param email
+    *   The email associated with the refresh token.
+    * @return
+    *   The generated refresh token.
+    */
   def generateRefreshToken(email: Email): F[RefreshToken] =
     generateToken(TokenLifespan.LongLived, email).map(RefreshToken(_))
 
