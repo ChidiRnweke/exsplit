@@ -14,7 +14,7 @@ service ExpenseListService {
         UpdateExpenseList
         DeleteExpenseList
         SettleExpenseList
-        GetSettledTabs
+        GetSettledExpenseLists
     ]
     errors: [
         AuthError
@@ -40,7 +40,7 @@ operation GetExpenseLists {
 
 @readonly
 @http(method: "GET", uri: "/expenseLists/{expenseListId}/settle")
-operation GetSettledTabs {
+operation GetSettledExpenseLists {
     input := {
         @required
         @httpLabel
