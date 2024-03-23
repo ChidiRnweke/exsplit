@@ -14,42 +14,35 @@ object ExpensesEntryPoint:
   ): ExpenseServiceImpl[F] =
     ExpenseServiceImpl(expenseRepository, expenseListRepository)
 
+def withValidExpense[F[_]: MonadThrow, A](
+    expenseId: ExpenseId,
+    expenseRepository: ExpenseRepository[F]
+)(action: ExpenseOut => F[A]): F[A] =
+  for
+    expense <- expenseRepository.getExpense(expenseId).rethrow
+    result <- action(expense)
+  yield result
+
 case class ExpenseServiceImpl[F[_]: MonadThrow](
     expenseRepository: ExpenseRepository[F],
     expenseListRepository: ExpenseListRepository[F]
 ) extends ExpenseService[F]:
 
-  private def withValidExpenseList[A](
-      expenseListId: ExpenseListId
-  )(action: ExpenseListOut => F[A]): F[A] =
-    for
-      expenseList <- expenseListRepository.getExpenseList(expenseListId).rethrow
-      result <- action(expenseList)
-    yield result
-
-  private def withValidExpense[A](
-      expenseId: ExpenseId
-  )(action: ExpenseOut => F[A]): F[A] =
-    for
-      expense <- expenseRepository.getExpense(expenseId).rethrow
-      result <- action(expense)
-    yield result
-
   def createExpense(
       expenseListId: ExpenseListId,
       expense: Expense
   ): F[CreateExpenseOutput] =
-    withValidExpenseList(expenseListId): expenseList =>
+    withValidExpenseList(expenseListId, expenseListRepository): expenseList =>
       expenseRepository
         .createExpense(expenseList, expense)
         .map(CreateExpenseOutput(_))
 
   def getExpense(id: ExpenseId): F[GetExpenseOutput] =
-    withValidExpense(id): expense =>
+    withValidExpense(id, expenseRepository): expense =>
       GetExpenseOutput(expense).pure[F]
 
   def deleteExpense(id: ExpenseId): F[Unit] =
-    withValidExpense(id): expense =>
+    withValidExpense(id, expenseRepository): expense =>
       expenseRepository.deleteExpense(expense)
 
   def updateExpense(
@@ -60,7 +53,7 @@ case class ExpenseServiceImpl[F[_]: MonadThrow](
       date: Option[Date],
       owedToPayer: Option[List[OwedAmount]]
   ): F[Unit] =
-    withValidExpense(id): expense =>
+    withValidExpense(id, expenseRepository): expense =>
       expenseRepository.updateExpense(
         expense,
         paidBy,
