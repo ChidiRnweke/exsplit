@@ -82,13 +82,12 @@ case class ExpenseListServiceImpl[F[_]: MonadThrow](
       fromMemberId: CircleMemberId,
       toMemberId: CircleMemberId,
       amount: Amount
-  ): F[SettleExpenseListOutput] =
+  ): F[Unit] =
     withValidExpenseList(expenseListId, expenseListRepository): expenseList =>
       withValidCircleMember(fromMemberId, circlesRepository): fromMember =>
         withValidCircleMember(toMemberId, circlesRepository): toMember =>
           expenseListRepository
             .settleExpenseList(expenseList, fromMember, toMember, amount)
-            .map(SettleExpenseListOutput(_))
 
   def deleteExpenseList(id: ExpenseListId): F[Unit] =
     withValidExpenseList(id, expenseListRepository): expenseList =>
@@ -129,4 +128,4 @@ trait ExpenseListRepository[F[_]]:
       fromMember: CircleMemberOut,
       toMember: CircleMemberOut,
       amount: Amount
-  ): F[ExpenseListDetailOut]
+  ): F[Unit]

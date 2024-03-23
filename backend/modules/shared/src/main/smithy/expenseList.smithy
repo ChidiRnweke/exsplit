@@ -69,11 +69,6 @@ operation SettleExpenseList {
         @required
         amount: Amount
     }
-
-    output := {
-        @required
-        expenseListDetail: ExpenseListDetailOut
-    }
 }
 
 @readonly
