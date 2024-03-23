@@ -1,89 +1,106 @@
+package exsplit.circles
+
 import exsplit.spec._
 import cats.effect._
 import cats.syntax.all._
 import cats._
 import cats.data._
-import exsplit.auth.User
+import exsplit.auth._
+import exsplit.circles._
 
 object CirclesEntryPoint:
-  def createService[F[_]: Functor](
-      repo: CirclesRepository[F]
+  def createService[F[_]: MonadThrow](
+      circleRepository: CirclesRepository[F],
+      userRepository: UserRepository[F]
   ): CirclesServiceImpl[F] =
-    CirclesServiceImpl(repo)
+    CirclesServiceImpl(circleRepository, userRepository)
 
-case class CirclesServiceImpl[F[_]: Functor](repo: CirclesRepository[F])
+case class CirclesServiceImpl[F[_]](
+    circleRepository: CirclesRepository[F],
+    userRepo: UserRepository[F]
+)(using F: MonadThrow[F])
     extends CirclesService[F]:
-  def getCircles(userId: UserId): F[GetCirclesOutput] =
-    repo.getCirclesForUser(userId).map(GetCirclesOutput(_))
+
+  def listCirclesForUser(userId: UserId): F[ListCirclesForUserOutput] =
+    withValidUser(userId): user =>
+      circleRepository.getCirclesForUser(user).map(ListCirclesForUserOutput(_))
+
+  def removeUserFromCircle(circleId: CircleId, userId: UserId): F[Unit] =
+    withValidUser(userId): user =>
+      withValidCircle(circleId): circle =>
+        for
+          _ <- circleRepository.removeUserFromCircle(circle, user)
+          members <- circleRepository.listCircleMembers(circle)
+          _ <- handleEmptyCircle(circleId, members)
+        yield ()
+
+  def getCircle(circleId: CircleId): F[GetCircleOutput] =
+    circleRepository.findCircleById(circleId).rethrow.map(GetCircleOutput(_))
+
+  def changeDisplayName(
+      circleId: CircleId,
+      userId: UserId,
+      displayName: String
+  ): F[Unit] =
+    withValidUser(userId): user =>
+      withValidCircle(circleId): circle =>
+        val member = CircleMember(userId, displayName)
+        circleRepository.changeDisplayName(member, circle)
+
   def createCircle(
       userId: UserId,
-      name: String,
+      displayName: String,
+      circleName: String,
       description: Option[String]
   ): F[Unit] =
-    repo.createCircle(userId, name, description)
+    withValidUser(userId): user =>
+      val member = CircleMember(userId, displayName)
+      circleRepository.createCircle(member, circleName, description)
+
   def addUserToCircle(
       userId: UserId,
       displayName: String,
       circleId: CircleId
   ): F[Unit] =
-    repo.addUserToCircle(userId, displayName, circleId)
+    withValidUser(userId): user =>
+      withValidCircle(circleId): circle =>
+        val member = CircleMember(userId, displayName)
+        circleRepository.addUserToCircle(member, circle)
 
   def deleteCircle(circleId: CircleId): F[Unit] =
-    repo.deleteCircle(circleId)
+    circleRepository.deleteCircle(circleId)
+
   def listCircleMembers(circleId: CircleId): F[ListCircleMembersOutput] =
-    repo.listCircleMembers(circleId).map(ListCircleMembersOutput(_))
+    withValidCircle(circleId): circle =>
+      for members <- circleRepository.listCircleMembers(circle)
+      yield ListCircleMembersOutput(members)
+
   def updateCircle(
       circleId: CircleId,
-      name: String,
+      name: Option[String],
       description: Option[String]
   ): F[Unit] =
-    repo.updateCircle(circleId, name, description)
+    withValidCircle(circleId): circle =>
+      circleRepository.updateCircle(circle, name, description)
 
-trait CirclesRepository[F[_]]:
-  def getCirclesForUser(userId: UserId): F[List[Circle]]
+  private def withValidUser[A](userId: UserId)(action: User => F[A]): F[A] =
+    for
+      user <- userRepo.findUserById(userId).rethrow
+      result <- action(user)
+    yield result
 
-  def createCircle(
-      userId: UserId,
-      name: String,
-      description: Option[String]
-  ): F[Unit]
-
-  def addUserToCircle(
-      userId: UserId,
-      displayName: String,
+  private def withValidCircle[A](
       circleId: CircleId
-  ): F[Unit]
+  )(action: CircleOut => F[A]): F[A] =
+    for
+      circle <- circleRepository.findCircleById(circleId).rethrow
+      result <- action(circle)
+    yield result
 
-  def deleteCircle(circleId: CircleId): F[Unit]
-
-  def listCircleMembers(circleId: CircleId): F[List[CircleMember]]
-
-  def updateCircle(
+  private def handleEmptyCircle(
       circleId: CircleId,
-      name: String,
-      description: Option[String]
-  ): F[Unit]
-
-object CirclesRepository:
-  import exsplit.db._
-  import skunk._
-  import skunk.implicits._
-  import skunk.codec.all._
-  import natchez.Trace.Implicits.noop
-
-  def fromSession[F[_]: Async](
-      session: Resource[F, Session[F]]
-  ): CirclesRepository[F] =
-    new CirclesRepository[F] with SkunkRepository[F](session):
-      def getCirclesForUser(userId: UserId): F[List[Circle]] =
-
-        val query = sql"""
-          SELECT c.id, c.name, c.description
-          FROM circles c
-          JOIN circle_members cm ON c.id = cm.circle_id
-          WHERE cm.user_id = $text
-        """.query(varchar *: varchar *: varchar).to[Circle]
-        ???
-
-      ???
-  ???
+      members: List[CircleMemberOut]
+  ): F[Unit] =
+    members match
+      case Nil => circleRepository.deleteCircle(circleId)
+      case _   => F.unit
