@@ -54,6 +54,15 @@ object AuthEntryPoint:
     val uuid = UUIDGen[IO]
     createService(authConfig, repo, clock, argon, uuid)
 
+def withValidUser[F[_]: MonadThrow, A](
+    userId: UserId,
+    userRepo: UserRepository[F]
+)(action: User => F[A]): F[A] =
+  for
+    user <- userRepo.findUserById(userId).rethrow
+    result <- action(user)
+  yield result
+
 case class UserServiceImpl[F[_]](
     authTokenCreator: AuthTokenCreator[F],
     auth: UserAuthenticator[F]

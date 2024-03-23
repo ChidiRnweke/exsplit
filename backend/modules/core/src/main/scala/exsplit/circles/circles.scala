@@ -15,21 +15,29 @@ object CirclesEntryPoint:
   ): CirclesServiceImpl[F] =
     CirclesServiceImpl(circleRepository, userRepository)
 
-case class CirclesServiceImpl[F[_]](
+def withValidCircle[F[_]: MonadThrow, A](
+    circleId: CircleId,
+    circleRepository: CirclesRepository[F]
+)(action: CircleOut => F[A]): F[A] =
+  for
+    circle <- circleRepository.findCircleById(circleId).rethrow
+    result <- action(circle)
+  yield result
+
+case class CirclesServiceImpl[F[_]: MonadThrow](
     circleRepository: CirclesRepository[F],
     userRepo: UserRepository[F]
-)(using F: MonadThrow[F])
-    extends CirclesService[F]:
+) extends CirclesService[F]:
 
   def listCirclesForUser(userId: UserId): F[ListCirclesForUserOutput] =
-    withValidUser(userId): user =>
+    withValidUser(userId, userRepo): user =>
       for circlesOut <-
           circleRepository.getCirclesForUser(user).map(CirclesOut(_))
       yield ListCirclesForUserOutput(circlesOut)
 
   def removeUserFromCircle(circleId: CircleId, userId: UserId): F[Unit] =
-    withValidUser(userId): user =>
-      withValidCircle(circleId): circle =>
+    withValidUser(userId, userRepo): user =>
+      withValidCircle(circleId, circleRepository): circle =>
         for
           _ <- circleRepository.removeUserFromCircle(circle, user)
           // TODO: the user is not allowed to have outstanding debts in the circle
@@ -45,8 +53,8 @@ case class CirclesServiceImpl[F[_]](
       userId: UserId,
       displayName: String
   ): F[Unit] =
-    withValidUser(userId): user =>
-      withValidCircle(circleId): circle =>
+    withValidUser(userId, userRepo): user =>
+      withValidCircle(circleId, circleRepository): circle =>
         val member = CircleMember(userId, displayName)
         circleRepository.changeDisplayName(member, circle)
 
@@ -56,7 +64,7 @@ case class CirclesServiceImpl[F[_]](
       circleName: String,
       description: Option[String]
   ): F[Unit] =
-    withValidUser(userId): user =>
+    withValidUser(userId, userRepo): user =>
       val member = CircleMember(userId, displayName)
       circleRepository.createCircle(member, circleName, description)
 
@@ -65,8 +73,8 @@ case class CirclesServiceImpl[F[_]](
       displayName: String,
       circleId: CircleId
   ): F[Unit] =
-    withValidUser(userId): user =>
-      withValidCircle(circleId): circle =>
+    withValidUser(userId, userRepo): user =>
+      withValidCircle(circleId, circleRepository): circle =>
         val member = CircleMember(userId, displayName)
         circleRepository.addUserToCircle(member, circle)
 
@@ -75,7 +83,7 @@ case class CirclesServiceImpl[F[_]](
     circleRepository.deleteCircle(circleId)
 
   def listCircleMembers(circleId: CircleId): F[ListCircleMembersOutput] =
-    withValidCircle(circleId): circle =>
+    withValidCircle(circleId, circleRepository): circle =>
       for
         members <- circleRepository.listCircleMembers(circle)
         membersListOut = MembersListOut(members)
@@ -86,22 +94,8 @@ case class CirclesServiceImpl[F[_]](
       name: Option[String],
       description: Option[String]
   ): F[Unit] =
-    withValidCircle(circleId): circle =>
+    withValidCircle(circleId, circleRepository): circle =>
       circleRepository.updateCircle(circle, name, description)
-
-  private def withValidUser[A](userId: UserId)(action: User => F[A]): F[A] =
-    for
-      user <- userRepo.findUserById(userId).rethrow
-      result <- action(user)
-    yield result
-
-  private def withValidCircle[A](
-      circleId: CircleId
-  )(action: CircleOut => F[A]): F[A] =
-    for
-      circle <- circleRepository.findCircleById(circleId).rethrow
-      result <- action(circle)
-    yield result
 
   private def handleEmptyCircle(
       circleId: CircleId,
@@ -109,4 +103,4 @@ case class CirclesServiceImpl[F[_]](
   ): F[Unit] =
     members match
       case Nil => circleRepository.deleteCircle(circleId)
-      case _   => F.unit
+      case _   => ().pure[F]
