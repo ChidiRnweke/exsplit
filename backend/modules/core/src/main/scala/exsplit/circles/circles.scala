@@ -23,13 +23,16 @@ case class CirclesServiceImpl[F[_]](
 
   def listCirclesForUser(userId: UserId): F[ListCirclesForUserOutput] =
     withValidUser(userId): user =>
-      circleRepository.getCirclesForUser(user).map(ListCirclesForUserOutput(_))
+      for circlesOut <-
+          circleRepository.getCirclesForUser(user).map(CirclesOut(_))
+      yield ListCirclesForUserOutput(circlesOut)
 
   def removeUserFromCircle(circleId: CircleId, userId: UserId): F[Unit] =
     withValidUser(userId): user =>
       withValidCircle(circleId): circle =>
         for
           _ <- circleRepository.removeUserFromCircle(circle, user)
+          // TODO: the user is not allowed to have outstanding debts in the circle
           members <- circleRepository.listCircleMembers(circle)
           _ <- handleEmptyCircle(circleId, members)
         yield ()
@@ -68,12 +71,15 @@ case class CirclesServiceImpl[F[_]](
         circleRepository.addUserToCircle(member, circle)
 
   def deleteCircle(circleId: CircleId): F[Unit] =
+    // TODO: the circle is not allowed to have outstanding debts
     circleRepository.deleteCircle(circleId)
 
   def listCircleMembers(circleId: CircleId): F[ListCircleMembersOutput] =
     withValidCircle(circleId): circle =>
-      for members <- circleRepository.listCircleMembers(circle)
-      yield ListCircleMembersOutput(members)
+      for
+        members <- circleRepository.listCircleMembers(circle)
+        membersListOut = MembersListOut(members)
+      yield ListCircleMembersOutput(membersListOut)
 
   def updateCircle(
       circleId: CircleId,

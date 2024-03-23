@@ -161,8 +161,8 @@ object CirclesRepository:
           def getCirclesForUser(user: User): F[List[CircleOut]] =
             getCirclesForUserQuery.stream(user.id, 1024).compile.toList
 
-          def listCircleMembers(circleId: CircleOut): F[List[CircleMemberOut]] =
-            listCircleMembersQuery.stream(circleId.id, 1024).compile.toList
+          def listCircleMembers(circle: CircleOut): F[List[CircleMemberOut]] =
+            listCircleMembersQuery.stream(circle.circleId, 1024).compile.toList
 
           def createCircle(
               member: CircleMember,
@@ -179,7 +179,9 @@ object CirclesRepository:
               circle: CircleOut
           ): F[Unit] =
             addUserToCircleCommand
-              .execute((circle.id, member.userId.value, member.displayName))
+              .execute(
+                (circle.circleId, member.userId.value, member.displayName)
+              )
               .void
 
           def changeDisplayName(
@@ -187,7 +189,9 @@ object CirclesRepository:
               circle: CircleOut
           ): F[Unit] =
             changeDisplayNameCommand
-              .execute((member.displayName, circle.id, member.userId.value))
+              .execute(
+                (member.displayName, circle.circleId, member.userId.value)
+              )
               .void
 
           def deleteCircle(circleId: CircleId): F[Unit] =
@@ -195,7 +199,7 @@ object CirclesRepository:
 
           def removeUserFromCircle(circle: CircleOut, user: User): F[Unit] =
             removeUserFromCircleCommand
-              .execute((circle.id, user.id))
+              .execute((circle.circleId, user.id))
               .void
 
           def updateCircle(
@@ -205,11 +209,13 @@ object CirclesRepository:
           ): F[Unit] =
             (name, description) match
               case (Some(n), Some(d)) =>
-                updateCircleNameAndDescCommand.execute((n, d, circle.id)).void
+                updateCircleNameAndDescCommand
+                  .execute((n, d, circle.circleId))
+                  .void
               case (Some(n), None) =>
-                updateCircleNameCommand.execute((n, circle.id)).void
+                updateCircleNameCommand.execute((n, circle.circleId)).void
               case (None, Some(d)) =>
-                updateCircleDescCommand.execute((d, circle.id)).void
+                updateCircleDescCommand.execute((d, circle.circleId)).void
               case (None, None) =>
                 F.unit
       yield circleRepository
