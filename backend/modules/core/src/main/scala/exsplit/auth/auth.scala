@@ -85,9 +85,9 @@ enum TokenLifespan(val duration: Long):
   case ShortLived extends TokenLifespan(1.day.toSeconds)
 
 trait UserRepository[F[_]]:
-  def findCredentials(email: Email): F[Option[User]]
-  def findUserById(userId: UserId): F[Option[User]]
-  def findUserByEmail(email: Email): F[Option[User]]
+  def findCredentials(email: Email): F[Either[NotFoundError, User]]
+  def findUserById(userId: UserId): F[Either[NotFoundError, User]]
+  def findUserByEmail(email: Email): F[Either[NotFoundError, User]]
   def createUser(id: UUID, email: Email, password: String): F[Unit]
 
 trait PasswordValidator[F[_]]:
@@ -114,27 +114,28 @@ case class UserAuthenticator[F[_]](
 
   def authenticateUser(email: Email, password: Password): F[Boolean] =
     for
-      userOpt <- repo.findCredentials(email)
-      result = userOpt match
-        case Some(user) =>
+      userEither <- repo.findCredentials(email)
+      result = userEither match
+        case Right(user) =>
           validator.checkPassword(user.password, password.value)
-        case None => false
+        case Left(_) => false
     yield result
 
   def registerUser(email: Email, password: Password): F[Unit] =
-    repo
-      .findUserByEmail(email)
-      .flatMap:
-        case Some(_) =>
-          F.raiseError(RegistrationError("User already exists."))
-        case None =>
-          for
-            userId <- createUserId
-            hashedPassword <- validator.hashPassword(password.value)
-            _ <- repo.createUser(userId, email, hashedPassword)
-          yield ()
+    val userExists = repo.findUserByEmail(email).map(_.isRight)
+    userExists.ifM(
+      F.raiseError(RegistrationError("User already exists.")),
+      makeUser(email, password)
+    )
 
   def createUserId: F[UUID] = uuid.randomUUID
+
+  private def makeUser(email: Email, password: Password): F[Unit] =
+    createUserId.flatMap: userId =>
+      for
+        hashedPassword <- validator.hashPassword(password.value)
+        _ <- repo.createUser(userId, email, hashedPassword)
+      yield ()
 
 case class TokenEncoderDecoder[F[_]: Functor](authConfig: AuthConfig[F]):
 
