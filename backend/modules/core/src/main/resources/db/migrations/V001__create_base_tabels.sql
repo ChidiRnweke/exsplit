@@ -18,17 +18,17 @@ create table circles (
 
 create table circle_members (
     id text primary key default md5(now()::text || random()::text),
-    display_id serial primary key,
+    display_name text,
     user_id text,
     circle_id text,
     foreign key (user_id) references "users"(id) on delete cascade,
-    foreign key (circle_id) references circle(id) on delete cascade,
+    foreign key (circle_id) references circles(id) on delete cascade,
     unique (user_id)
 );
 
 create table settled_tabs (
     id text primary key default md5(now()::text || random()::text),
-    circle_id text not null references circle(id),
+    circle_id text not null references circles(id),
     from_member text not null references circle_members(id),
     to_member text not null references circle_members(id),
     amount float not null,
@@ -38,14 +38,14 @@ create table settled_tabs (
 create table expense_lists (
     id text primary key default md5(now()::text || random()::text),
     name varchar(255) not null,
-    circle_id text not null references circle(id),
+    circle_id text not null references circles(id),
     created_at timestamp not null default current_timestamp,
     updated_at timestamp not null default current_timestamp
 );
 
 create table expenses (
     id text primary key default md5(now()::text || random()::text),
-    expense_list_id text not null references expense_list(id),
+    expense_list_id text not null references expense_lists(id),
     paid_by varchar(255) not null references circle_members(id),
     description text not null,
     price float not null,
@@ -56,7 +56,7 @@ create table expenses (
 
 create table owed_amounts (
     id text primary key default md5(now()::text || random()::text),
-    expense_id text not null references expense(id),
+    expense_id text not null references expenses(id),
     from_member varchar(255) not null references circle_members(id),
     to_member varchar(255) not null references circle_members(id),
     amount float not null,
@@ -111,11 +111,11 @@ create view expense_list_circle_view as (
 
 create view expense_lists_detail_view as (
     select
-        expense_lists.id,
-        expense_lists.name,
-        expense_lists.circle_id,
-        expense_lists.created_at,
-        expense_lists.updated_at,
+        expense_list_circle_view.id,
+        expense_list_circle_view.name,
+        expense_list_circle_view.circle_id,
+        expense_list_circle_view.created_at,
+        expense_list_circle_view.updated_at,
         expenses_detail_view.id as expense_id,
         circle_name,
         circle_description,
@@ -130,5 +130,5 @@ create view expense_lists_detail_view as (
         expenses_detail_view.to_member,
         expenses_detail_view.amount
     from expense_list_circle_view
-    left join expenses_detail_view on expense_lists.id = expenses_detail_view.expense_list_id,
+    left join expenses_detail_view on expense_list_circle_view.id = expenses_detail_view.expense_list_id
 );
