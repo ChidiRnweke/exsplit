@@ -52,7 +52,7 @@ case class CircleQueryPreparer[F[_]](session: Session[F]):
     val query = sql"""
       SELECT c.id, c.name, c.description
       FROM circles c
-      JOIN circle_members cm ON c.id = cm.circle_id
+      INNER JOIN circle_members cm ON c.id = cm.circle_id
       WHERE cm.user_id = $text
     """.query(varchar *: varchar *: varchar).to[CircleOut]
     session.prepare(query)
