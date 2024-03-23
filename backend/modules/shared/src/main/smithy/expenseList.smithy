@@ -144,9 +144,6 @@ list SettledTabs {
 
 structure SettledTabOut {
     @required
-    link: String
-
-    @required
     settledTabId: String
 
     @required
@@ -163,9 +160,6 @@ structure SettledTabOut {
 }
 
 structure ExpenseListOut {
-    @required
-    link: String
-
     @required
     expenseListId: String
 

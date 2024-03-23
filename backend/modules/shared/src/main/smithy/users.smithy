@@ -24,9 +24,6 @@ operation Register {
         userId: String
 
         @required
-        link: String
-
-        @required
         refreshToken: RefreshToken
 
         @required

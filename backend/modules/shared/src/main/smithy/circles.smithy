@@ -173,9 +173,6 @@ list Circles {
 
 structure CircleOut {
     @required
-    link: String
-
-    @required
     circleId: String
 
     @required
@@ -194,9 +191,6 @@ structure CircleMember {
 }
 
 structure CircleMemberOut {
-    @required
-    link: String
-
     @required
     circleMemberId: String
 

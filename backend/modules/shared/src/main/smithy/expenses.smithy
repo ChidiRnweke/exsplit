@@ -128,8 +128,6 @@ list OwedAmounts {
 }
 
 structure ExpenseOut {
-    link: String
-
     @required
     paidBy: CircleMemberOut
 
@@ -151,9 +149,6 @@ list ExpensesOut {
 }
 
 structure OwedAmountOut {
-    @required
-    link: String
-
     @required
     user: CircleMemberOut
 
