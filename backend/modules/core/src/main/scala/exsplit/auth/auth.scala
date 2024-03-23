@@ -77,12 +77,12 @@ case class UserServiceImpl[F[_]](
       access <- authTokenCreator.generateAccessToken(refresh)
     yield (LoginOutput(access, refresh))
 
-  def register(email: Email, password: Password): F[Unit] =
+  def register(email: Email, password: Password): F[RegisterOutput] =
     for
       userId <- auth.registerUser(email, password)
       refresh <- authTokenCreator.generateRefreshToken(email)
       access <- authTokenCreator.generateAccessToken(refresh)
-    yield LoginOutput(access, refresh)
+    yield RegisterOutput(userId, refresh, access)
 
   def refresh(refresh: RefreshToken): F[RefreshOutput] =
     authTokenCreator.generateAccessToken(refresh).map(RefreshOutput(_))
@@ -130,7 +130,7 @@ case class UserAuthenticator[F[_]](
         case Left(_) => false
     yield result
 
-  def registerUser(email: Email, password: Password): F[Unit] =
+  def registerUser(email: Email, password: Password): F[String] =
     val userExists = repo.findUserByEmail(email).map(_.isRight)
     userExists.ifM(
       F.raiseError(RegistrationError("User already exists.")),
@@ -139,12 +139,12 @@ case class UserAuthenticator[F[_]](
 
   def createUserId: F[UUID] = uuid.randomUUID
 
-  private def makeUser(email: Email, password: Password): F[Unit] =
+  private def makeUser(email: Email, password: Password): F[String] =
     createUserId.flatMap: userId =>
       for
         hashedPassword <- validator.hashPassword(password.value)
         _ <- repo.createUser(userId, email, hashedPassword)
-      yield ()
+      yield userId.toString()
 
 case class TokenEncoderDecoder[F[_]: Functor](authConfig: AuthConfig[F]):
 
