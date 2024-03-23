@@ -24,6 +24,15 @@ def withValidCircle[F[_]: MonadThrow, A](
     result <- action(circle)
   yield result
 
+def withValidCircleMember[F[_]: MonadThrow, A](
+    memberId: CircleMemberId,
+    circleRepository: CirclesRepository[F]
+)(action: CircleMemberOut => F[A]): F[A] =
+  for
+    member <- circleRepository.getCircleMemberById(memberId).rethrow
+    result <- action(member)
+  yield result
+
 case class CirclesServiceImpl[F[_]: MonadThrow](
     circleRepository: CirclesRepository[F],
     userRepo: UserRepository[F]
@@ -35,11 +44,14 @@ case class CirclesServiceImpl[F[_]: MonadThrow](
           circleRepository.getCirclesForUser(user).map(CirclesOut(_))
       yield ListCirclesForUserOutput(circlesOut)
 
-  def removeUserFromCircle(circleId: CircleId, userId: UserId): F[Unit] =
-    withValidUser(userId, userRepo): user =>
-      withValidCircle(circleId, circleRepository): circle =>
+  def removeMemberFromCircle(
+      circleId: CircleId,
+      member: CircleMemberId
+  ): F[Unit] =
+    withValidCircle(circleId, circleRepository): circle =>
+      withValidCircleMember(member, circleRepository): member =>
         for
-          _ <- circleRepository.removeUserFromCircle(circle, user)
+          _ <- circleRepository.removeUserFromCircle(circle, member)
           // TODO: the user is not allowed to have outstanding debts in the circle
           members <- circleRepository.listCircleMembers(circle)
           _ <- handleEmptyCircle(circleId, members)
@@ -50,33 +62,32 @@ case class CirclesServiceImpl[F[_]: MonadThrow](
 
   def changeDisplayName(
       circleId: CircleId,
-      userId: UserId,
+      memberId: CircleMemberId,
       displayName: String
   ): F[Unit] =
-    withValidUser(userId, userRepo): user =>
+    withValidCircleMember(memberId, circleRepository): member =>
       withValidCircle(circleId, circleRepository): circle =>
-        val member = CircleMember(userId, displayName)
-        circleRepository.changeDisplayName(member, circle)
+        circleRepository.changeDisplayName(member, circle, displayName)
 
   def createCircle(
       userId: UserId,
       displayName: String,
       circleName: String,
       description: Option[String]
-  ): F[Unit] =
+  ): F[CreateCircleOutput] =
     withValidUser(userId, userRepo): user =>
-      val member = CircleMember(userId, displayName)
-      circleRepository.createCircle(member, circleName, description)
+      circleRepository
+        .createCircle(user, displayName, circleName, description)
+        .map(CreateCircleOutput(_))
 
   def addUserToCircle(
-      userId: UserId,
+      user: UserId,
       displayName: String,
       circleId: CircleId
   ): F[Unit] =
-    withValidUser(userId, userRepo): user =>
+    withValidUser(user, userRepo): user =>
       withValidCircle(circleId, circleRepository): circle =>
-        val member = CircleMember(userId, displayName)
-        circleRepository.addUserToCircle(member, circle)
+        circleRepository.addUserToCircle(user, displayName, circle)
 
   def deleteCircle(circleId: CircleId): F[Unit] =
     // TODO: the circle is not allowed to have outstanding debts

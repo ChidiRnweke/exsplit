@@ -11,7 +11,7 @@ service CirclesService {
         GetCircle
         ListCirclesForUser
         AddUserToCircle
-        RemoveUserFromCircle
+        RemoveMemberFromCircle
         ChangeDisplayName
         CreateCircle
         UpdateCircle
@@ -133,7 +133,7 @@ operation ListCircleMembers {
 
 @idempotent
 @http(method: "DELETE", uri: "/circles/{circleId}/members/{memberId}")
-operation RemoveUserFromCircle {
+operation RemoveMemberFromCircle {
     input := {
         @required
         @httpLabel
