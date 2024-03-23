@@ -35,7 +35,7 @@ operation GetCircle{
 
     output := {
         @required
-        circle: Circle
+        circle: CircleOut
     }
 }
 
@@ -62,7 +62,10 @@ operation CreateCircle {
         userId: UserId
 
         @required
-        name: String
+        displayName: String
+
+        @required
+        circleName: String
 
         description: String
     }
@@ -77,7 +80,6 @@ operation UpdateCircle {
         @httpLabel
         circleId: CircleId
 
-        @required
         name: String
 
         description: String
@@ -158,25 +160,34 @@ operation ChangeDisplayName {
 }
 
 list Circles {
-    member: Circle
+    member: CircleOut
 }
 
-structure Circle {
+structure CircleOut {
     @required
-    id: CircleId
+    id: String
 
     @required
     name: String
 
+    @required
     description: String
+}
+
+structure CircleMember {
+    @required
+    userId: UserId
+
+    @required
+    displayName: String
 }
 
 
 list Members {
-    member: CircleMember
+    member: CircleMemberOut
 }
 
-structure CircleMember {
+structure CircleMemberOut {
     @required
     userId: String
 
