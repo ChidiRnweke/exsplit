@@ -46,7 +46,7 @@ operation UpdateExpense {
         @httpLabel
         id: ExpenseId
 
-        initialPayer: String
+        initialPayer: CircleMember
 
         description: String
 
@@ -87,7 +87,7 @@ operation CreateExpense {
 
 structure Expense {
     @required
-    initialPayer: PublicUserData
+    initialPayer: CircleMember
 
     @required
     description: String
@@ -103,7 +103,7 @@ structure Expense {
 }
 
 structure OwedAmount {
-    user: PublicUserData
+    user: CircleMember
     amount: Amount
 }
 
