@@ -46,7 +46,7 @@ operation UpdateExpense {
         @httpLabel
         id: ExpenseId
 
-        initialPayer: CircleMember
+        paidBy: CircleMember
 
         description: String
 
@@ -54,7 +54,7 @@ operation UpdateExpense {
 
         date: Date
 
-        owedToInitialPayer: OwedAmounts
+        owedToPayer: OwedAmounts
     }
 
     errors: [
@@ -95,7 +95,7 @@ operation CreateExpense {
 
 structure Expense {
     @required
-    initialPayer: CircleMember
+    paidBy: CircleMember
 
     @required
     description: String
@@ -107,7 +107,7 @@ structure Expense {
     date: Date
 
     @required
-    owedToInitialPayer: OwedAmounts
+    owedToPayer: OwedAmounts
 }
 
 @range(min: 0)
@@ -131,7 +131,7 @@ structure ExpenseOut {
     link: String
 
     @required
-    initialPayer: CircleMemberOut
+    paidBy: CircleMemberOut
 
     @required
     description: String
@@ -143,7 +143,7 @@ structure ExpenseOut {
     date: String
 
     @required
-    owedToInitialPayer: OwedAmountsOut
+    owedToPayer: OwedAmountsOut
 }
 
 list ExpensesOut {
