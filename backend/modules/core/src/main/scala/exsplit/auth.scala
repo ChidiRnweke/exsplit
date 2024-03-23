@@ -159,7 +159,9 @@ case class UserServiceImpl[F[_]](
 
 case class User(id: String, email: String, password: String)
 
-/** Enumeration representing the lifespan of a token.
+/** Enum representing the lifespan of a token. The lifespan can be either
+  * long-lived or short-lived. Short-lived tokens are used for access tokens,
+  * while long-lived tokens are used for refresh tokens.
   *
   * @param duration
   *   The duration of the token lifespan in seconds.
