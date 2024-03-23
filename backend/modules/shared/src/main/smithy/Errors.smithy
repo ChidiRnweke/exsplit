@@ -16,7 +16,6 @@ structure InvalidTokenError {
     message: String
 }
 
-
 @error("client")
 @httpError(404)
 structure NotFoundError {
