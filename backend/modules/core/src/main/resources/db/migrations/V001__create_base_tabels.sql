@@ -1,6 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-create table "user" (
+create table "users" (
     id text primary key default md5(now()::text || random()::text),
     password varchar(255) not null,
     email varchar(255) not null,
@@ -8,7 +8,7 @@ create table "user" (
     updated_at timestamp not null default current_timestamp
 );
 
-create table circle (
+create table circles (
     id text primary key default md5(now()::text || random()::text),
     name varchar(255) not null,
     description text not null,
@@ -16,7 +16,7 @@ create table circle (
     updated_at timestamp not null default current_timestamp
 );
 
-create table circle_member (
+create table circle_members (
     display_id serial primary key,
     user_id text,
     circle_id text,
@@ -24,13 +24,13 @@ create table circle_member (
     foreign key (circle_id) references circle(id) on delete cascade
 );
 
-create table expense_list (
+create table expense_lists (
     id text primary key default md5(now()::text || random()::text),
     name varchar(255) not null,
     circle_id text not null references circle(id)
 );
 
-create table expense (
+create table expenses (
     id text primary key default md5(now()::text || random()::text),
     expense_list_id text not null references expense_list(id),
     initial_payer varchar(255) not null references "user"(id),
@@ -39,7 +39,7 @@ create table expense (
     date date not null
 );
 
-create table owed_expense (
+create table owed_expenses (
     id text primary key default md5(now()::text || random()::text),
     expense_id text not null references expense(id),
     person_to varchar(255) not null references "user"(id),
