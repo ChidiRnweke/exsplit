@@ -448,3 +448,19 @@ case class AuthTokenCreator[F[_]](
       subjectOpt: Option[String]
   ): Either[InvalidTokenError, String] =
     subjectOpt.toRight(InvalidTokenError("Subject wasn't found in JWT claim."))
+
+/** Extension method for validating an email address. This method checks if the
+  * email address is in a valid format. Smithy4s does not do this by default, so
+  * this extension method is provided.
+  * @param email
+  *   The email address to validate.
+  * @return
+  *   Either a `ValidationError` if the email is invalid, or the validated
+  *   `Email` object.
+  */
+extension (email: Email)
+  def validate: Either[ValidationError, Email] =
+    val emailRegex = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+    email.value.matches(emailRegex) match
+      case true  => Right(email)
+      case false => Left(ValidationError("Invalid email format."))
