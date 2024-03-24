@@ -160,7 +160,6 @@ case class UserServiceImpl[F[_]](
   def refresh(refresh: RefreshToken): F[RefreshOutput] =
     authTokenCreator.generateAccessToken(refresh).map(RefreshOutput(_))
 
-
 /** Represents an `AuthTokenCreator` that is responsible for creating
   * authentication tokens.
   *
@@ -171,9 +170,9 @@ case class UserServiceImpl[F[_]](
   *   The typeclass instance for the clock used for retrieving the current time.
   *
   * @param claimValidator
-  *   The validator used for validating token claims.
-  *   Used to validate the expiration of the refresh token.
-  * 
+  *   The validator used for validating token claims. Used to validate the
+  *   expiration of the refresh token.
+  *
   * @param F
   *   The effect type that provides the necessary capabilities for token
   *   creation. It must have a `MonadThrow` instance because it is used for
@@ -512,7 +511,7 @@ case class ClaimValidator[F[_]]()(using F: MonadThrow[F]):
     * @return
     *   True if the expiration time is in the future, false otherwise.
     */
-  def isNotExpired(expiration: Long, now: Instant): Boolean =
+  private def isNotExpired(expiration: Long, now: Instant): Boolean =
     now.getEpochSecond < expiration
 
   /** Extracts the expiration time from a JwtClaim object.
@@ -524,13 +523,11 @@ case class ClaimValidator[F[_]]()(using F: MonadThrow[F]):
     *   expiration time is not found in the claim, an `InvalidTokenError`. That
     *   is why the result is wrapped in the effect F.
     */
-  def extractExpiration(claim: JwtClaim): F[Long] =
+  private def extractExpiration(claim: JwtClaim): F[Long] =
     F.fromOption(
       claim.expiration,
       InvalidTokenError("No expiration found in JWT claim.")
     )
-
-
 
 /** Extension method for validating an email address. This method checks if the
   * email address is in a valid format. Smithy4s does not do this by default, so
