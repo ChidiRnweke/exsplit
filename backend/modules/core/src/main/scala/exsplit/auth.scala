@@ -43,13 +43,12 @@ object AuthEntryPoint:
       validator: PasswordValidator[F],
       uuid: UUIDGen[F]
   ): UserService[F] =
-    val tokenValidator = TokenValidator()
+    val claimValidator = ClaimValidator()
     val encoderDecoder = TokenEncoderDecoder(authConfig)
-    val authTokenCreator =
-      AuthTokenCreator(encoderDecoder, clock, tokenValidator)
+    val tokenCreator = AuthTokenCreator(encoderDecoder, clock, claimValidator)
     val userAuthenticator =
       UserAuthenticator(repo, validator, uuid)
-    UserServiceImpl(authTokenCreator, userAuthenticator)
+    UserServiceImpl(tokenCreator, userAuthenticator)
 
   /** Creates a UserServiceImpl instance with the provided dependencies for the
     * IO effect.
@@ -421,7 +420,7 @@ case class TokenEncoderDecoder[F[_]: Functor](authConfig: AuthConfig[F]):
   * It's a class of its own because it is also used by the middleware to
   * validate the access token.
   */
-case class TokenValidator[F[_]]()(using F: MonadThrow[F]):
+case class ClaimValidator[F[_]]()(using F: MonadThrow[F]):
 
   /** Validates the expiration of a JWT claim.
     *
@@ -470,7 +469,7 @@ case class TokenValidator[F[_]]()(using F: MonadThrow[F]):
 case class AuthTokenCreator[F[_]](
     tokenService: TokenEncoderDecoder[F],
     clock: Clock[F],
-    tokenValidator: TokenValidator[F]
+    claimValidator: ClaimValidator[F]
 )(using F: MonadThrow[F]):
 
   /** Generates an access token based on the provided refresh token.
@@ -485,7 +484,7 @@ case class AuthTokenCreator[F[_]](
       claimEither <- tokenService.decodeClaim(refresh.value)
       claim <- F.fromEither(claimEither)
       now <- clock.realTimeInstant
-      _ <- tokenValidator.validateClaimExpiration(claim, now)
+      _ <- claimValidator.validateClaimExpiration(claim, now)
       email <- F.fromEither(validateSubject(claim.subject))
       token <- generateToken(TokenLifespan.ShortLived, Email(email))
     yield AccessToken(token)
