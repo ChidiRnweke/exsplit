@@ -43,8 +43,10 @@ object AuthEntryPoint:
       validator: PasswordValidator[F],
       uuid: UUIDGen[F]
   ): UserService[F] =
+    val tokenValidator = TokenValidator()
     val encoderDecoder = TokenEncoderDecoder(authConfig)
-    val authTokenCreator = AuthTokenCreator(encoderDecoder, clock)
+    val authTokenCreator =
+      AuthTokenCreator(encoderDecoder, clock, tokenValidator)
     val userAuthenticator =
       UserAuthenticator(repo, validator, uuid)
     UserServiceImpl(authTokenCreator, userAuthenticator)
@@ -411,27 +413,32 @@ case class TokenEncoderDecoder[F[_]: Functor](authConfig: AuthConfig[F]):
   * @param F
   *   The effect type constructor, which must have a `MonadThrow` instance.
   */
-case class AuthTokenCreator[F[_]](
-    tokenService: TokenEncoderDecoder[F],
-    clock: Clock[F]
-)(using F: MonadThrow[F]):
 
-  /** Generates an access token based on the provided refresh token.
+/** TokenValidator is responsible for validating JWT tokens. It provides methods
+  * for validating the expiration of a claim and checking if a given epoch time
+  * is expired based on the current time.
+  *
+  * It's a class of its own because it is also used by the middleware to
+  * validate the access token.
+  */
+case class TokenValidator[F[_]]()(using F: MonadThrow[F]):
+
+  /** Validates the expiration of a JWT claim.
     *
-    * @param refresh
-    *   The refresh token used to generate the access token.
+    * @param claim
+    *   The JWT claim to validate.
+    * @param now
+    *   The current instant.
     * @return
-    *   The generated access token.
+    *   A `Unit` in the effect `F` if the claim is not expired, otherwise raises
+    *   an `AuthError`. This method can also throw a second exception if the
+    *   expiration time is not found in the claim (an `InvalidTokenError`).
     */
-  def generateAccessToken(refresh: RefreshToken): F[AccessToken] =
-    for
-      claimEither <- tokenService.decodeClaim(refresh.value)
-      claim <- F.fromEither(claimEither)
-      now <- clock.realTimeInstant
-      _ <- validateClaimExpiration(claim, now)
-      email <- F.fromEither(validateSubject(claim.subject))
-      token <- generateToken(TokenLifespan.ShortLived, Email(email))
-    yield AccessToken(token)
+  def validateClaimExpiration(claim: JwtClaim, now: Instant): F[Unit] =
+    val err = AuthError("Token has expired log in again to receive a new one.")
+    val notExpired =
+      extractExpiration(claim).map(expiration => isNotExpired(expiration, now))
+    F.ifM(notExpired)(F.unit, F.raiseError(err))
 
   /** Checks if a given epoch time is expired based on the current time.
     *
@@ -460,24 +467,28 @@ case class AuthTokenCreator[F[_]](
       InvalidTokenError("No expiration found in JWT claim.")
     )
 
-  /** Validates the expiration of a JWT claim.
+case class AuthTokenCreator[F[_]](
+    tokenService: TokenEncoderDecoder[F],
+    clock: Clock[F],
+    tokenValidator: TokenValidator[F]
+)(using F: MonadThrow[F]):
+
+  /** Generates an access token based on the provided refresh token.
     *
-    * @param claim
-    *   The JWT claim to validate.
-    * @param now
-    *   The current instant.
+    * @param refresh
+    *   The refresh token used to generate the access token.
     * @return
-    *   A `Unit` in the effect `F` if the claim is not expired, otherwise raises
-    *   an `AuthError`. This method can also throw a second exception if the
-    *   expiration time is not found in the claim (an `InvalidTokenError`).
+    *   The generated access token.
     */
-  def validateClaimExpiration(claim: JwtClaim, now: Instant): F[Unit] =
-    val notExpired =
-      extractExpiration(claim).map(expiration => isNotExpired(expiration, now))
-    F.ifM(notExpired)(
-      F.unit,
-      F.raiseError(AuthError("Token has expired."))
-    )
+  def generateAccessToken(refresh: RefreshToken): F[AccessToken] =
+    for
+      claimEither <- tokenService.decodeClaim(refresh.value)
+      claim <- F.fromEither(claimEither)
+      now <- clock.realTimeInstant
+      _ <- tokenValidator.validateClaimExpiration(claim, now)
+      email <- F.fromEither(validateSubject(claim.subject))
+      token <- generateToken(TokenLifespan.ShortLived, Email(email))
+    yield AccessToken(token)
 
   /** Generates a refresh token based on the provided email.
     *
