@@ -427,9 +427,57 @@ case class AuthTokenCreator[F[_]](
     for
       claimEither <- tokenService.decodeClaim(refresh.value)
       claim <- F.fromEither(claimEither)
+      now <- clock.realTimeInstant
+      _ <- validateClaimExpiration(claim, now)
       email <- F.fromEither(validateSubject(claim.subject))
       token <- generateToken(TokenLifespan.ShortLived, Email(email))
     yield AccessToken(token)
+
+  /** Checks if a given epoch time is expired based on the current time.
+    *
+    * @param expiration
+    *   The expiration time as an epoch time.
+    * @param now
+    *   The current time as an Instant object.
+    * @return
+    *   True if the expiration time is in the future, false otherwise.
+    */
+  def isNotExpired(expiration: Long, now: Instant): Boolean =
+    now.getEpochSecond < expiration
+
+  /** Extracts the expiration time from a JwtClaim object.
+    *
+    * @param claim
+    *   The JwtClaim object to extract the expiration time from.
+    * @return
+    *   The expiration time as a Long value wrapped in an F context. If the
+    *   expiration time is not found in the claim, an `InvalidTokenError`. That
+    *   is why the result is wrapped in the effect F.
+    */
+  def extractExpiration(claim: JwtClaim): F[Long] =
+    F.fromOption(
+      claim.expiration,
+      InvalidTokenError("No expiration found in JWT claim.")
+    )
+
+  /** Validates the expiration of a JWT claim.
+    *
+    * @param claim
+    *   The JWT claim to validate.
+    * @param now
+    *   The current instant.
+    * @return
+    *   A `Unit` in the effect `F` if the claim is not expired, otherwise raises
+    *   an `AuthError`. This method can also throw a second exception if the
+    *   expiration time is not found in the claim (an `InvalidTokenError`).
+    */
+  def validateClaimExpiration(claim: JwtClaim, now: Instant): F[Unit] =
+    val notExpired =
+      extractExpiration(claim).map(expiration => isNotExpired(expiration, now))
+    F.ifM(notExpired)(
+      F.unit,
+      F.raiseError(AuthError("Token has expired."))
+    )
 
   /** Generates a refresh token based on the provided email.
     *
