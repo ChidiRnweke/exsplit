@@ -50,15 +50,15 @@ object AuthEntryPoint:
       UserAuthenticator(repo, validator, uuid)
     UserServiceImpl(tokenCreator, userAuthenticator)
 
-  /** Creates a UserServiceImpl instance with the provided dependencies for the
-    * IO effect.
+  /** Creates a UserService instance with the provided dependencies for the IO
+    * effect.
     *
     * @param authConfig
     *   The authentication configuration.
     * @param repo
     *   The user repository.
     * @return
-    *   A UserServiceImpl instance for the IO effect.
+    *   A UserService instance for the IO effect.
     */
   def createIOService(
       authConfig: AuthConfig[IO],
