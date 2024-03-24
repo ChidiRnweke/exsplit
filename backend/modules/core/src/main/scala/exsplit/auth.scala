@@ -123,9 +123,10 @@ case class UserServiceImpl[F[_]](
     */
   def login(email: Email, password: Password): F[LoginOutput] =
     for
-      authSuccess <- auth.authenticateUser(email, password)
+      validatedEmail <- F.fromEither(email.validate)
+      authSuccess <- auth.authenticateUser(validatedEmail, password)
       _ <- F.raiseWhen(!authSuccess)(AuthError("Invalid credentials"))
-      refresh <- authTokenCreator.generateRefreshToken(email)
+      refresh <- authTokenCreator.generateRefreshToken(validatedEmail)
       access <- authTokenCreator.generateAccessToken(refresh)
     yield (LoginOutput(access, refresh))
 
@@ -141,8 +142,9 @@ case class UserServiceImpl[F[_]](
     */
   def register(email: Email, password: Password): F[RegisterOutput] =
     for
-      userId <- auth.registerUser(email, password)
-      refresh <- authTokenCreator.generateRefreshToken(email)
+      validatedEmail <- F.fromEither(email.validate)
+      userId <- auth.registerUser(validatedEmail, password)
+      refresh <- authTokenCreator.generateRefreshToken(validatedEmail)
       access <- authTokenCreator.generateAccessToken(refresh)
     yield RegisterOutput(userId, refresh, access)
 
