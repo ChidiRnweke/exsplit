@@ -160,6 +160,70 @@ case class UserServiceImpl[F[_]](
   def refresh(refresh: RefreshToken): F[RefreshOutput] =
     authTokenCreator.generateAccessToken(refresh).map(RefreshOutput(_))
 
+
+/** Represents an `AuthTokenCreator` that is responsible for creating
+  * authentication tokens.
+  *
+  * @param tokenParser
+  *   The token parser used for encoding and decoding tokens.
+  *
+  * @param clock
+  *   The typeclass instance for the clock used for retrieving the current time.
+  *
+  * @param claimValidator
+  *   The validator used for validating token claims.
+  *   Used to validate the expiration of the refresh token.
+  * 
+  * @param F
+  *   The effect type that provides the necessary capabilities for token
+  *   creation. It must have a `MonadThrow` instance because it is used for
+  *   error handling.
+  */
+case class AuthTokenCreator[F[_]](
+    tokenParser: TokenEncoderDecoder[F],
+    clock: Clock[F],
+    claimValidator: ClaimValidator[F]
+)(using F: MonadThrow[F]):
+
+  /** Generates an access token based on the provided refresh token.
+    *
+    * @param refresh
+    *   The refresh token used to generate the access token.
+    * @return
+    *   The generated access token.
+    */
+  def generateAccessToken(refresh: RefreshToken): F[AccessToken] =
+    for
+      claimEither <- tokenParser.decodeClaim(refresh.value)
+      claim <- F.fromEither(claimEither)
+      now <- clock.realTimeInstant
+      _ <- claimValidator.validateClaimExpiration(claim, now)
+      email <- F.fromEither(validateSubject(claim.subject))
+      token <- generateToken(TokenLifespan.ShortLived, Email(email))
+    yield AccessToken(token)
+
+  /** Generates a refresh token based on the provided email.
+    *
+    * @param email
+    *   The email associated with the refresh token.
+    * @return
+    *   The generated refresh token.
+    */
+  def generateRefreshToken(email: Email): F[RefreshToken] =
+    generateToken(TokenLifespan.LongLived, email).map(RefreshToken(_))
+
+  private def generateToken(lifeSpan: TokenLifespan, email: Email): F[String] =
+    for
+      now <- clock.realTimeInstant
+      claim = tokenParser.makeClaim(lifeSpan, email, now)
+      token <- tokenParser.encodeClaim(claim)
+    yield token
+
+  private def validateSubject(
+      subjectOpt: Option[String]
+  ): Either[InvalidTokenError, String] =
+    subjectOpt.toRight(InvalidTokenError("Subject wasn't found in JWT claim."))
+
 case class User(id: String, email: String, password: String)
 
 /** Enum representing the lifespan of a token. The lifespan can be either
@@ -466,50 +530,7 @@ case class ClaimValidator[F[_]]()(using F: MonadThrow[F]):
       InvalidTokenError("No expiration found in JWT claim.")
     )
 
-case class AuthTokenCreator[F[_]](
-    tokenService: TokenEncoderDecoder[F],
-    clock: Clock[F],
-    claimValidator: ClaimValidator[F]
-)(using F: MonadThrow[F]):
 
-  /** Generates an access token based on the provided refresh token.
-    *
-    * @param refresh
-    *   The refresh token used to generate the access token.
-    * @return
-    *   The generated access token.
-    */
-  def generateAccessToken(refresh: RefreshToken): F[AccessToken] =
-    for
-      claimEither <- tokenService.decodeClaim(refresh.value)
-      claim <- F.fromEither(claimEither)
-      now <- clock.realTimeInstant
-      _ <- claimValidator.validateClaimExpiration(claim, now)
-      email <- F.fromEither(validateSubject(claim.subject))
-      token <- generateToken(TokenLifespan.ShortLived, Email(email))
-    yield AccessToken(token)
-
-  /** Generates a refresh token based on the provided email.
-    *
-    * @param email
-    *   The email associated with the refresh token.
-    * @return
-    *   The generated refresh token.
-    */
-  def generateRefreshToken(email: Email): F[RefreshToken] =
-    generateToken(TokenLifespan.LongLived, email).map(RefreshToken(_))
-
-  private def generateToken(lifeSpan: TokenLifespan, email: Email): F[String] =
-    for
-      now <- clock.realTimeInstant
-      claim = tokenService.makeClaim(lifeSpan, email, now)
-      token <- tokenService.encodeClaim(claim)
-    yield token
-
-  private def validateSubject(
-      subjectOpt: Option[String]
-  ): Either[InvalidTokenError, String] =
-    subjectOpt.toRight(InvalidTokenError("Subject wasn't found in JWT claim."))
 
 /** Extension method for validating an email address. This method checks if the
   * email address is in a valid format. Smithy4s does not do this by default, so
