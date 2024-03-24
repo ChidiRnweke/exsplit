@@ -253,16 +253,7 @@ trait UserRepository[F[_]]:
     *   an effect that yields either a `NotFoundError` or the user with the
     *   given email
     */
-  def findCredentials(email: Email): F[Either[NotFoundError, User]]
 
-  /** Finds the user based on the user ID.
-    *
-    * @param userId
-    *   the ID of the user
-    * @return
-    *   an effect that yields either a `NotFoundError` or the user with the
-    *   given ID
-    */
   def findUserById(userId: UserId): F[Either[NotFoundError, User]]
 
   /** Finds the user based on the email.
@@ -372,7 +363,7 @@ case class UserAuthenticator[F[_]](
     */
   def authenticateUser(email: Email, password: Password): F[Boolean] =
     for
-      userEither <- repo.findCredentials(email)
+      userEither <- repo.findUserByEmail(email)
       result = userEither match
         case Right(user) =>
           validator.checkPassword(user.password, password.value)
