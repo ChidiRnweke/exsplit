@@ -359,9 +359,9 @@ case class TokenEncoderDecoder[F[_]: Functor](authConfig: AuthConfig[F]):
     *   Either a Throwable if decoding fails, or the decoded JwtClaim wrapped in
     *   the effect F.
     */
-  def decodeClaim(token: RefreshToken): F[Either[Throwable, JwtClaim]] =
+  def decodeClaim(token: String): F[Either[Throwable, JwtClaim]] =
     authConfig.secretKey.map(key =>
-      JwtUpickle.decode(token.value, key, Seq(JwtAlgorithm.HS256)).toEither
+      JwtUpickle.decode(token, key, Seq(JwtAlgorithm.HS256)).toEither
     )
 
   /** Encodes the given JwtClaim and returns the encoded JWT token as a string.
@@ -369,7 +369,9 @@ case class TokenEncoderDecoder[F[_]: Functor](authConfig: AuthConfig[F]):
     * @param claim
     *   The JwtClaim to encode.
     * @return
-    *   The encoded JWT token wrapped in the effect F.
+    *   The encoded JWT token wrapped in the effect F. This method uses the
+    *   secret key from the `authConfig` to encode the claim that is why it is
+    *   wrapped in the effect F.
     */
   def encodeClaim(claim: JwtClaim): F[String] =
     authConfig.secretKey.map(key =>
@@ -423,7 +425,7 @@ case class AuthTokenCreator[F[_]](
     */
   def generateAccessToken(refresh: RefreshToken): F[AccessToken] =
     for
-      claimEither <- tokenService.decodeClaim(refresh)
+      claimEither <- tokenService.decodeClaim(refresh.value)
       claim <- F.fromEither(claimEither)
       email <- F.fromEither(validateSubject(claim.subject))
       token <- generateToken(TokenLifespan.ShortLived, Email(email))
