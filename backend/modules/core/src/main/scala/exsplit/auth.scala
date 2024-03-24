@@ -9,8 +9,8 @@ import exsplit.config.AuthConfig
 import cats.syntax.all._
 import cats._
 import java.util.UUID
-import com.outr.scalapass.Argon2PasswordFactory
 import cats.effect.std.UUIDGen
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 
 /** This file contains the implementation of the AuthEntryPoint object and
   * related functions. The AuthEntryPoint object provides methods for creating a
@@ -65,9 +65,9 @@ object AuthEntryPoint:
       repo: UserRepository[IO]
   ): UserService[IO] =
     val clock = Clock[IO]
-    val argon = Argon.createValidator[IO]
+    val bcrypt = BCrypt.createValidator[IO]
     val uuid = UUIDGen[IO]
-    createService(authConfig, repo, clock, argon, uuid)
+    createService(authConfig, repo, clock, bcrypt, uuid)
 
 /** Executes the specified action with a valid user.
   *
@@ -309,29 +309,53 @@ trait PasswordValidator[F[_]]:
     */
   def checkPassword(hash: String, password: String): Boolean
 
-/** The `Argon` object provides functionality for password hashing and
-  * validation using Argon2 algorithm.
-  * @see
-  *   https://argon2-cffi.readthedocs.io/en/stable/argon2.html
+/** Provides functionality for working with BCrypt password hashing and
+  * validation.
   */
-object Argon:
-  private val factory = Argon2PasswordFactory()
-
-  /** Creates a password validator that can hash passwords and check if a
-    * password matches a hash.
+object BCrypt:
+  /** Creates a password validator using the BCrypt algorithm.
     *
-    * @param F
-    *   the effect type constructor. Must have a `Sync` instance available
-    *   because `F.delay` is used for creating the hash.
     * @return
-    *   a `PasswordValidator` instance
+    *   a new instance of PasswordValidator that uses BCrypt for password
+    *   hashing and validation
+    * @tparam F
+    *   the effect type for the password validation operations Creating a hash
+    *   for a password is an effectful operation because it involves generating
+    *   a random salt for the hash. The effect type must have a `Sync` instance
+    *   to create the password validator.
     */
   def createValidator[F[_]](using F: Sync[F]): PasswordValidator[F] =
     new PasswordValidator[F]:
+      private val bcrypt = BCryptPasswordEncoder()
+
+      /** Hashes a password using BCrypt.
+        *
+        * @param password
+        *   the password to hash
+        * @return
+        *   the hashed password
+        *
+        * @note
+        *   This method is effectful because it generates a random salt for the
+        *   hash. The effect type `F` must have a `Sync` instance to create the
+        *   password validator.
+        */
       def hashPassword(password: String): F[String] =
-        F.delay(factory.hash(password))
+        F.delay(bcrypt.encode(password))
+
+      /** Checks if a password matches a BCrypt hash.
+        *
+        * @param hash
+        *   the BCrypt hash
+        * @param password
+        *   the password to check
+        * @return
+        *   true if the password matches the hash, false otherwise. This method
+        *   is not effectful because it does not require any effectful
+        *   operations.
+        */
       def checkPassword(hash: String, password: String): Boolean =
-        factory.verify(hash, password)
+        bcrypt.matches(password, hash)
 
 /** UserAuthenticator is responsible for authenticating and registering users.
   *
