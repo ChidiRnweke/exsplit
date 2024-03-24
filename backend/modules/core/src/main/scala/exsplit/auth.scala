@@ -238,53 +238,6 @@ enum TokenLifespan(val duration: Long):
   case LongLived extends TokenLifespan(90.days.toSeconds)
   case ShortLived extends TokenLifespan(1.day.toSeconds)
 
-/** A trait representing a user repository. This trait provides methods for
-  * finding and creating users.
-  *
-  * @tparam F
-  *   the effect type, representing the context in which the repository operates
-  */
-trait UserRepository[F[_]]:
-  /** Finds the user credentials based on the email.
-    *
-    * @param email
-    *   the email of the user
-    * @return
-    *   an effect that yields either a `NotFoundError` or the user with the
-    *   given email
-    */
-
-  def findUserById(userId: UserId): F[Either[NotFoundError, User]]
-
-  /** Finds the user based on the email.
-    *
-    * @param email
-    *   the email of the user
-    * @return
-    *   an effect that yields either a `NotFoundError` or the user with the
-    *   given email
-    */
-  def findUserByEmail(email: Email): F[Either[NotFoundError, User]]
-
-  /** Creates a new user with the specified ID, email, and password.
-    *
-    * @param id
-    *   the ID of the user
-    * @param email
-    *   the email of the user
-    * @param password
-    *   the password of the user
-    * @return
-    *   an effect that yields `Unit` when the user is successfully created
-    */
-  def createUser(id: UUID, email: Email, password: String): F[Unit]
-
-/** Trait representing a password validator. Provides methods for hashing and
-  * checking passwords.
-  *
-  * @tparam F
-  *   the effect type for the password validation operations
-  */
 trait PasswordValidator[F[_]]:
 
   /** Hashes the given password.
