@@ -14,6 +14,7 @@ import com.dimafeng.testcontainers.DockerComposeContainer
 import java.io.File
 import com.dimafeng.testcontainers.ExposedService
 import org.testcontainers.containers.wait.strategy.Wait
+
 class ConfigSuite extends munit.FunSuite:
   test("Config files are correctly read with pureConfig"):
     val obtained =
