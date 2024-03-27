@@ -11,6 +11,7 @@ import cats._
 import java.util.UUID
 import cats.effect.std.UUIDGen
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
+import exsplit.datamapper.user._
 
 /** This file contains the implementation of the AuthEntryPoint object and
   * related functions. The AuthEntryPoint object provides methods for creating a
@@ -85,8 +86,8 @@ def withValidUser[F[_]: MonadThrow, A](
     userRepo: UserRepository[F]
 )(action: User => F[A]): F[A] =
   for
-    user <- userRepo.findUserById(userId).rethrow
-    result <- action(user)
+    userRead <- userRepo.findUserById(userId).rethrow
+    result <- action(userRead.toUser)
   yield result
 
 /** Implementation of the UserService trait.
@@ -340,8 +341,8 @@ case class UserAuthenticator[F[_]](
     */
   def authenticateUser(email: Email, password: Password): F[Boolean] =
     for
-      userEither <- repo.findUserByEmail(email)
-      result = userEither match
+      userReadEither <- repo.findUserByEmail(email)
+      result = userReadEither match
         case Right(user) =>
           validator.checkPassword(user.password, password.value)
         case Left(_) => false

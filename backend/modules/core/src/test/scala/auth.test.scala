@@ -8,6 +8,7 @@ import exsplit.config._
 import exsplit.spec._
 import cats.effect.std._
 import java.util.UUID
+import exsplit.datamapper.user._
 
 class TokenDecoderEncoderSuite extends CatsEffectSuite:
   val authConfig = new AuthConfig[IO]:
@@ -187,16 +188,17 @@ case class MockValidator() extends PasswordValidator[IO]:
 case class MockUserRepository() extends UserRepository[IO]:
   def createUser(id: UUID, email: Email, password: String): IO[Unit] = IO.unit
 
-  def findUserByEmail(email: Email): IO[Either[NotFoundError, User]] =
+  def findUserByEmail(email: Email): IO[Either[NotFoundError, UserReadMapper]] =
     email.value match
       case "not-found@mail.com" =>
         IO.pure(Left(NotFoundError("User not found")))
-      case mail => IO.pure(Right(User("id", mail, "password")))
+      case mail => IO.pure(Right(UserReadMapper("id", mail, "password")))
 
-  def findUserById(userId: UserId): IO[Either[NotFoundError, User]] =
+  def findUserById(userId: UserId): IO[Either[NotFoundError, UserReadMapper]] =
     userId.value match
       case "not-found" => IO.pure(Left(NotFoundError("User not found")))
-      case id          => IO.pure(Right(User(id, "email@mail.com", "password")))
+      case id =>
+        IO.pure(Right(UserReadMapper(id, "email@mail.com", "password")))
 
-  def updateUser(user: User): IO[User] = IO.pure(user)
-  def deleteUser(user: User): IO[Unit] = IO.unit
+  def updateUser(user: UserWriteMapper): IO[Unit] = ().pure[IO]
+  def deleteUser(userId: UserId): IO[Unit] = IO.unit

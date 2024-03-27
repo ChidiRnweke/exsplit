@@ -7,7 +7,7 @@ import cats._
 import cats.data._
 import exsplit.auth._
 import exsplit.circles._
-
+import exsplit.datamapper.user._
 object CirclesEntryPoint:
   def createService[F[_]: MonadThrow](
       circleRepository: CirclesRepository[F],
