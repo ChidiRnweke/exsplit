@@ -31,7 +31,7 @@ create table settled_tabs (
     circle_id text not null references circles(id),
     from_member text not null references circle_members(id),
     to_member text not null references circle_members(id),
-    amount float not null,
+    amount float not null,  
     settled_at date not null default current_date
 );
 
@@ -66,16 +66,18 @@ create table owed_amounts (
 
 create view owed_amounts_view as (
     select
+        owed_amounts.id as id,
+        owed_amounts.expense_id as expense_id,
+        owed_amounts.from_member as from_member,
+        owed_amounts.to_member as to_member,
+        owed_amounts.amount as amount,
+        owed_amounts.created_at as created_at,
+        owed_amounts.updated_at as updated_at
         expenses.paid_by as paid_by,
-        owed_amounts.id,
-        owed_amounts.expense_id,
-        owed_amounts.from_member,
-        owed_amounts.to_member,
-        owed_amounts.amount,
-        owed_amounts.created_at,
-        owed_amounts.updated_at
+        expenses.expense_list_id as expense_list_id
     from owed_amounts
     inner join expenses on expenses.id = owed_amounts.expense_id
+    inner join circle_members on circle_members.id = paid_by
 );
 
 create view expenses_detail_view as (
