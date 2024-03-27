@@ -103,29 +103,3 @@ case class ExpenseListServiceImpl[F[_]: MonadThrow](
   def updateExpenseList(id: ExpenseListId, name: String): F[Unit] =
     withValidExpenseList(id, expenseListRepository): expenseList =>
       expenseListRepository.updateExpenseList(expenseList, name)
-
-trait ExpenseListRepository[F[_]]:
-
-  def getExpenseListDetail(
-      expenseListId: ExpenseListId
-  ): F[Either[NotFoundError, ExpenseListDetailOut]]
-
-  def getExpenseList(
-      expenseListId: ExpenseListId
-  ): F[Either[NotFoundError, ExpenseListOut]]
-
-  def createExpenseList(
-      circle: CircleOut,
-      name: String
-  ): F[ExpenseListOut]
-
-  def deleteExpenseList(expenseList: ExpenseListOut): F[Unit]
-  def getExpenseLists(circleId: CircleOut): F[List[ExpenseListOut]]
-  def updateExpenseList(expenseList: ExpenseListOut, name: String): F[Unit]
-  def getAllTabs(expenseList: ExpenseListOut): List[SettledTabOut]
-  def settleExpenseList(
-      expenseList: ExpenseListOut,
-      fromMember: CircleMemberOut,
-      toMember: CircleMemberOut,
-      amount: Amount
-  ): F[Unit]
