@@ -38,3 +38,70 @@ trait ExpenseListRepository[F[_]]:
       toMember: CircleMemberOut,
       amount: Amount
   ): F[Unit]
+
+case class ExpenseListQueryPreparer[F[_]](session: Session[F]):
+
+  def getExpenseListQuery: F[PreparedQuery[F, String, ExpenseListOut]] =
+    val query = sql"""
+      SELECT id, name, circle_id, circle_name, circle_description
+      FROM expense_list_circle_view
+      WHERE id = $text
+    """
+      .query(varchar ~ varchar ~ varchar ~ varchar ~ varchar)
+      .map:
+        case id ~ name ~ circleId ~ circleName ~ circleDescription =>
+          val circle = CircleOut(circleId, circleName, circleDescription)
+          ExpenseListOut(id, name, circle)
+    session.prepare(query)
+
+  def getExpenseListsQuery: F[PreparedQuery[F, String, ExpenseListOut]] =
+    val query = sql"""
+      SELECT id, name, circle_id, circle_name, circle_description
+      FROM expense_list_circle_view
+      WHERE circle_id = $text
+    """
+      .query(varchar ~ varchar ~ varchar ~ varchar ~ varchar)
+      .map:
+        case id ~ name ~ circleId ~ circleName ~ circleDescription =>
+          val circle = CircleOut(circleId, circleName, circleDescription)
+          ExpenseListOut(id, name, circle)
+    session.prepare(query)
+
+  def createExpenseListCommand
+      : F[PreparedCommand[F, (String, String, String)]] =
+    val command = sql"""
+      INSERT INTO expense_lists (id, circle_id, name)
+      VALUES ($text, $text, $text)
+    """.command
+    session.prepare(command)
+
+  def updateExpenseListCommand: F[PreparedCommand[F, (String, String)]] =
+    val command = sql"""
+      UPDATE expense_lists
+      SET name = $text
+      WHERE id = $text
+    """.command
+    session.prepare(command)
+
+  def deleteExpenseListCommand: F[PreparedCommand[F, String]] =
+    val command = sql"""
+      DELETE FROM expense_lists
+      WHERE id = $text
+    """.command
+    session.prepare(command)
+
+  def getExpenseListDetail: F[PreparedQuery[F, String, ExpenseListDetailOut]] =
+    val query = sql"""
+      SELECT id, name, circle_id, circle_name, circle_description, total_owed,
+      paid_by,
+      FROM expense_list_detail_circle_view
+      WHERE id = $text
+    """
+      .query(varchar ~ varchar ~ varchar ~ varchar ~ varchar ~ numeric)
+      .map:
+        case id ~ name ~ circleId ~ circleName ~ circleDescription ~ totalOwed =>
+          val circle = CircleOut(circleId, circleName, circleDescription)
+          val paidBy = ???
+          val summary = ExpenseListOut(id, name, circle)
+    // TODO: Implement this
+    ???
