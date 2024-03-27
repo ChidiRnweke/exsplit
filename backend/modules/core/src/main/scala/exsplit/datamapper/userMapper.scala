@@ -10,7 +10,6 @@ import cats.effect._
 import cats.syntax.all._
 import cats._
 import cats.data._
-import exsplit.auth._
 import java.util.UUID
 
 /** Represents a user read mapper. This class is a one to one mapping of the
@@ -42,40 +41,6 @@ case class UserWriteMapper(
     password: Option[String]
 )
 
-object UserReadMapper:
-
-  extension (user: UserReadMapper)
-
-    /** Converts a UserReadMapper object to a User object.
-      *
-      * @return
-      *   The converted User object. More or less an isomorphic mapping.
-      */
-    def toUser: User = User(user.id, user.email, user.password)
-
-    /** Updates the user with the specified email and password. This method is
-      * used for updating the user data. The email and password are optional, so
-      * they can be updated independently or together.
-      *
-      * @param email
-      *   The new email for the user (optional).
-      * @param password
-      *   The new password for the user (optional).
-      * @return
-      *   The updated UserWriteMapper object.
-      */
-    def updateUser(
-        email: Option[String],
-        password: Option[String]
-    ): UserWriteMapper =
-      UserWriteMapper(user.id, email, password)
-
-/** A trait representing a user repository. This trait provides methods for
-  * finding and creating users.
-  *
-  * @tparam F
-  *   the effect type, representing the context in which the repository operates
-  */
 trait UserRepository[F[_]]:
   /** Finds the user credentials based on the email.
     *

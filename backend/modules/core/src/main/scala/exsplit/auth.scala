@@ -513,3 +513,36 @@ extension (email: Email)
     email.value.matches(emailRegex) match
       case true  => Right(email)
       case false => Left(ValidationError("Invalid email format."))
+
+extension (user: UserReadMapper)
+
+  /** Converts a UserReadMapper object to a User object.
+    *
+    * @return
+    *   The converted User object. More or less an isomorphic mapping.
+    */
+  def toUser: User = User(user.id, user.email, user.password)
+
+  /** Updates the user with the specified email and password. This method is
+    * used for updating the user data. The email and password are optional, so
+    * they can be updated independently or together.
+    *
+    * @param email
+    *   The new email for the user (optional).
+    * @param password
+    *   The new password for the user (optional).
+    * @return
+    *   The updated UserWriteMapper object.
+    */
+  def updateUser(
+      email: Option[String],
+      password: Option[String]
+  ): UserWriteMapper =
+    UserWriteMapper(user.id, email, password)
+
+/** A trait representing a user repository. This trait provides methods for
+  * finding and creating users.
+  *
+  * @tparam F
+  *   the effect type, representing the context in which the repository operates
+  */
