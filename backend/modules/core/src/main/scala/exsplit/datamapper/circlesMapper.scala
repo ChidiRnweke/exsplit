@@ -9,8 +9,6 @@ import exsplit.spec._
 import cats.effect._
 import cats.syntax.all._
 import cats._
-import exsplit.datamapper.user._
-import exsplit.circles.CircleQueryPreparer
 
 /** Describes a circle read mapper. This class is a one to one mapping of the
   * circle table in the database without the creation and update timestamps.
@@ -196,13 +194,6 @@ trait CircleMemberRepository[F[_]]:
       member: CircleMemberWriteMapper
   ): F[Unit]
 
-/** A trait representing a view for circle members. This trait defines more
-  * complex operations for viewing circle members.
-  *
-  * @tparam F
-  *   the effect type
-  */
-trait CircleMemberView[F[_]]:
   /** Lists the members of a circle.
     *
     * @param circleId
@@ -212,9 +203,19 @@ trait CircleMemberView[F[_]]:
     *   `CircleMemberReadMapper`. The former is returned if the circle is not
     *   found.
     */
+trait CircleMembersView[F[_]]:
+
+  /** Retrieves a list of circle members for the specified circle ID.
+    *
+    * @param circleId
+    *   The ID of the circle.
+    * @return
+    *   A list of CircleMemberReadMapper objects representing the circle
+    *   members.
+    */
   def listCircleMembers(
       circleId: CircleId
-  ): F[Either[NotFoundError, List[CircleMemberReadMapper]]]
+  ): F[List[CircleMemberReadMapper]]
 
 /** A trait representing a view of user circles. This trait defines more complex
   * operations for viewing user circles.
@@ -231,7 +232,7 @@ trait UserCircleView[F[_]]:
     */
   def getCirclesForUser(
       userId: UserId
-  ): F[Either[NotFoundError, List[CircleReadMapper]]]
+  ): F[List[CircleReadMapper]]
 
 object CircleMemberRepository:
   def apply[F[_]: Monad](session: Session[F]): F[CircleMemberRepository[F]] =
@@ -268,6 +269,32 @@ object CircleMemberRepository:
           member: CircleMemberWriteMapper
       ): F[Unit] =
         updateCircleMemberCommand.execute(member.displayName, member.id).void
+
+object UserCircleView:
+  def apply[F[_]: Concurrent](session: Session[F]): F[UserCircleView[F]] =
+    val preparer = UserCircleViewPreparer(session)
+    for getCirclesForUserQuery <- preparer.getCirclesForUserQuery
+    yield new UserCircleView[F]:
+      def getCirclesForUser(
+          userId: UserId
+      ): F[List[CircleReadMapper]] =
+        getCirclesForUserQuery
+          .stream(userId.value, 1024)
+          .compile
+          .toList
+
+object CircleMembersView:
+  def apply[F[_]: Concurrent](session: Session[F]): F[CircleMembersView[F]] =
+    val preparer = CircleMembersViewPreparer(session)
+    for listCircleMembersQuery <- preparer.listCircleMembersQuery
+    yield new CircleMembersView[F]:
+      def listCircleMembers(
+          circleId: CircleId
+      ): F[List[CircleMemberReadMapper]] =
+        listCircleMembersQuery
+          .stream(circleId.value, 1024)
+          .compile
+          .toList
 
 object CirclesRepository:
   def apply[F[_]: Monad](session: Session[F]): F[CirclesRepository[F]] =
@@ -343,6 +370,17 @@ case class CircleMemberQueryPreparer[F[_]](session: Session[F]):
     """.command
     session.prepare(command)
 
+  def listCircleMembersQuery
+      : F[PreparedQuery[F, String, CircleMemberReadMapper]] =
+    val query = sql"""
+      SELECT cm.id, cm.circle_id, cm.user_id, cm.display_name
+      FROM circle_members cm
+      WHERE cm.circle_id = $text
+    """
+      .query(varchar *: varchar *: varchar *: varchar)
+      .to[CircleMemberReadMapper]
+    session.prepare(query)
+
   def updateCircleMemberCommand: F[PreparedCommand[F, (String, String)]] =
     val command = sql"""
       UPDATE circle_members
@@ -403,3 +441,27 @@ case class CircleQueryPreparer[F[_]](session: Session[F]):
       WHERE id = $text
     """.command
     session.prepare(command)
+
+case class UserCircleViewPreparer[F[_]](session: Session[F]):
+  def getCirclesForUserQuery: F[PreparedQuery[F, String, CircleReadMapper]] =
+    val query = sql"""
+      SELECT c.id, c.name, c.description
+      FROM circles c
+      JOIN circle_members cm ON c.id = cm.circle_id
+      WHERE cm.user_id = $text
+    """
+      .query(varchar *: varchar *: varchar)
+      .to[CircleReadMapper]
+    session.prepare(query)
+
+case class CircleMembersViewPreparer[F[_]](session: Session[F]):
+  def listCircleMembersQuery
+      : F[PreparedQuery[F, String, CircleMemberReadMapper]] =
+    val query = sql"""
+      SELECT cm.id, cm.circle_id, cm.user_id, cm.display_name
+      FROM circle_members cm
+      WHERE cm.circle_id = $text
+    """
+      .query(varchar *: varchar *: varchar *: varchar)
+      .to[CircleMemberReadMapper]
+    session.prepare(query)
