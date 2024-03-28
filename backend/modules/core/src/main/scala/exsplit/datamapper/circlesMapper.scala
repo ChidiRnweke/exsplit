@@ -107,7 +107,9 @@ trait CirclesRepository[F[_]]:
     */
   def updateCircle(circle: CircleWriteMapper): F[Unit]
 
-  /** Creates a new circle.
+  /** Creates a new circle. Adds the user creating the circle as a member of the
+    * circle.
+    *
     * @param userId
     *   The ID of the user creating the circle.
     * @param displayName
@@ -230,6 +232,42 @@ trait UserCircleView[F[_]]:
       userId: UserId
   ): F[Either[NotFoundError, List[CircleReadMapper]]]
 
+object CircleMemberRepository:
+  def apply[F[_]: Monad](session: Session[F]): F[CircleMemberRepository[F]] =
+    val preparer = CircleMemberQueryPreparer(session)
+    for
+      findCircleMemberByIdQuery <- preparer.findCircleMemberByIdQuery
+      addCircleMemberQuery <- preparer.addCircleMemberQuery
+      deleteCircleMemberQuery <- preparer.deleteCircleMemberQuery
+      updateCircleMemberQuery <- preparer.updateCircleMemberQuery
+    yield new CircleMemberRepository[F]:
+      def findCircleMemberById(
+          memberId: CircleMemberId
+      ): F[Either[NotFoundError, CircleMemberReadMapper]] =
+        findCircleMemberByIdQuery
+          .option(memberId.value)
+          .map(
+            _.toRight(
+              NotFoundError(s"Circle member with ID = $memberId not found.")
+            )
+          )
+
+      def addCircleMember(
+          circle: CircleReadMapper,
+          userId: UserId,
+          displayName: String
+      ): F[CircleMemberReadMapper] =
+        addCircleMemberQuery
+          .unique(displayName, userId.value, circle.id)
+
+      def deleteCircleMember(memberId: CircleMemberId): F[Unit] =
+        deleteCircleMemberQuery.execute(memberId.value).void
+
+      def updateCircleMember(
+          member: CircleMemberWriteMapper
+      ): F[Unit] =
+        updateCircleMemberQuery.execute(member.displayName, member.id).void
+
 case class CircleMemberQueryPreparer[F[_]](session: Session[F]):
   def findCircleMemberByIdQuery
       : F[PreparedQuery[F, String, CircleMemberReadMapper]] =
@@ -268,39 +306,3 @@ case class CircleMemberQueryPreparer[F[_]](session: Session[F]):
       WHERE id = $text
     """.command
     session.prepare(command)
-
-object CircleMemberRepository:
-  def apply[F[_]: Monad](session: Session[F]): F[CircleMemberRepository[F]] =
-    val preparer = CircleMemberQueryPreparer(session)
-    for
-      findCircleMemberByIdQuery <- preparer.findCircleMemberByIdQuery
-      addCircleMemberQuery <- preparer.addCircleMemberQuery
-      deleteCircleMemberQuery <- preparer.deleteCircleMemberQuery
-      updateCircleMemberQuery <- preparer.updateCircleMemberQuery
-    yield new CircleMemberRepository[F]:
-      def findCircleMemberById(
-          memberId: CircleMemberId
-      ): F[Either[NotFoundError, CircleMemberReadMapper]] =
-        findCircleMemberByIdQuery
-          .option(memberId.value)
-          .map(
-            _.toRight(
-              NotFoundError(s"Circle member with ID = $memberId not found.")
-            )
-          )
-
-      def addCircleMember(
-          circle: CircleReadMapper,
-          userId: UserId,
-          displayName: String
-      ): F[CircleMemberReadMapper] =
-        addCircleMemberQuery
-          .unique(displayName, userId.value, circle.id)
-
-      def deleteCircleMember(memberId: CircleMemberId): F[Unit] =
-        deleteCircleMemberQuery.execute(memberId.value).void
-
-      def updateCircleMember(
-          member: CircleMemberWriteMapper
-      ): F[Unit] =
-        updateCircleMemberQuery.execute(member.displayName, member.id).void
