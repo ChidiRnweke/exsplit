@@ -168,6 +168,7 @@ trait CircleMemberRepository[F[_]]:
     */
   def addCircleMember(
       circle: CircleReadMapper,
+      userId: UserId,
       displayName: String
   ): F[CircleMemberReadMapper]
 
@@ -228,3 +229,78 @@ trait UserCircleView[F[_]]:
   def getCirclesForUser(
       userId: UserId
   ): F[Either[NotFoundError, List[CircleReadMapper]]]
+
+case class CircleMemberQueryPreparer[F[_]](session: Session[F]):
+  def findCircleMemberByIdQuery
+      : F[PreparedQuery[F, String, CircleMemberReadMapper]] =
+    val query = sql"""
+      SELECT cm.id, cm.circle_id, cm.user_id, cm.display_name
+      FROM circle_members cm
+      WHERE cm.id = $text
+    """
+      .query(varchar *: varchar *: varchar *: varchar)
+      .to[CircleMemberReadMapper]
+    session.prepare(query)
+
+  def addCircleMemberQuery: F[
+    PreparedQuery[F, (String, String, String), CircleMemberReadMapper]
+  ] =
+    val query = sql"""
+      INSERT INTO circle_members (display_name, user_id, circle_id)
+      VALUES ($text, $text, $text)
+      RETURNING id, circle_id, user_id, display_name
+    """
+      .query(varchar *: varchar *: varchar *: varchar)
+      .to[CircleMemberReadMapper]
+    session.prepare(query)
+
+  def deleteCircleMemberQuery: F[PreparedCommand[F, String]] =
+    val command = sql"""
+      DELETE FROM circle_members
+      WHERE id = $text
+    """.command
+    session.prepare(command)
+
+  def updateCircleMemberQuery: F[PreparedCommand[F, (String, String)]] =
+    val command = sql"""
+      UPDATE circle_members
+      SET display_name = $text
+      WHERE id = $text
+    """.command
+    session.prepare(command)
+
+object CircleMemberRepository:
+  def apply[F[_]: Monad](session: Session[F]): F[CircleMemberRepository[F]] =
+    val preparer = CircleMemberQueryPreparer(session)
+    for
+      findCircleMemberByIdQuery <- preparer.findCircleMemberByIdQuery
+      addCircleMemberQuery <- preparer.addCircleMemberQuery
+      deleteCircleMemberQuery <- preparer.deleteCircleMemberQuery
+      updateCircleMemberQuery <- preparer.updateCircleMemberQuery
+    yield new CircleMemberRepository[F]:
+      def findCircleMemberById(
+          memberId: CircleMemberId
+      ): F[Either[NotFoundError, CircleMemberReadMapper]] =
+        findCircleMemberByIdQuery
+          .option(memberId.value)
+          .map(
+            _.toRight(
+              NotFoundError(s"Circle member with ID = $memberId not found.")
+            )
+          )
+
+      def addCircleMember(
+          circle: CircleReadMapper,
+          userId: UserId,
+          displayName: String
+      ): F[CircleMemberReadMapper] =
+        addCircleMemberQuery
+          .unique(displayName, userId.value, circle.id)
+
+      def deleteCircleMember(memberId: CircleMemberId): F[Unit] =
+        deleteCircleMemberQuery.execute(memberId.value).void
+
+      def updateCircleMember(
+          member: CircleMemberWriteMapper
+      ): F[Unit] =
+        updateCircleMemberQuery.execute(member.displayName, member.id).void
