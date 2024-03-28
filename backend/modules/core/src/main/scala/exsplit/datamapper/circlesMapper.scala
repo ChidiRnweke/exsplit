@@ -24,7 +24,7 @@ import exsplit.datamapper.user._
 case class CircleReadMapper(
     id: String,
     name: String,
-    description: Option[String]
+    description: String
 )
 
 /** Represents a CircleWriteMapper, which is used to map data for writing
