@@ -19,7 +19,9 @@ import exsplit.datamapper.user._
   * @param name
   *   The name of the circle.
   * @param description
-  *   An optional description of the circle.
+  *   An optional description of the circle. It is listed as required because it
+  *   is read from the database, but it is optional in reality. It will simply
+  *   be an empty string if it is not provided.
   */
 case class CircleReadMapper(
     id: String,
