@@ -24,14 +24,3 @@ trait SessionPoolBootstrap[F[_]: Temporal: natchez.Trace: std.Console: Network](
     database = repositoryConfig.database,
     max = repositoryConfig.max
   )
-
-trait SkunkRepository[F[_]: Concurrent](session: Resource[F, Session[F]]):
-
-  def executeQuery[B](query: Query[Void, B]): F[List[B]] =
-    session.use(_.execute(query))
-
-  def executeQuery[A, B](query: PreparedQuery[F, A, B], param: A): F[List[B]] =
-    query
-      .stream(param, 64)
-      .compile
-      .toList
