@@ -154,18 +154,6 @@ trait CircleMemberRepository[F[_]]:
       memberId: CircleMemberId
   ): F[Either[NotFoundError, CircleMemberReadMapper]]
 
-  /** Finds the related circle for a given circle member.
-    *
-    * @param memberId
-    *   the ID of the circle member
-    * @return
-    *   an effect that may contain either a `NotFoundError` or a
-    *   `CircleReadMapper`. The former is returned if the circle is not found.
-    */
-  def findRelatedCircle(
-      memberId: CircleMemberId
-  ): F[Either[NotFoundError, CircleReadMapper]]
-
   /** Adds a new member to the specified circle. A circleReadMapper is required
     * to add a member to a circle because this ensures that the circle exists.
     *
@@ -180,18 +168,6 @@ trait CircleMemberRepository[F[_]]:
       circle: CircleReadMapper,
       displayName: String
   ): F[CircleMemberReadMapper]
-
-  /** Finds the related user for a given circle member.
-    *
-    * @param memberId
-    *   the ID of the circle member
-    * @return
-    *   an effect that may contain either a `NotFoundError` or a
-    *   `UserReadMapper`. The former is returned if the user is not found.
-    */
-  def findRelatedUser(
-      memberId: CircleMemberId
-  ): F[Either[NotFoundError, UserReadMapper]]
 
   /** Deletes a circle member.
     *
