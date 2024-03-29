@@ -181,15 +181,6 @@ structure CircleOut {
     @required
     description: String
 }
-
-structure CircleMember {
-    @required
-    userId: UserId
-
-    @required
-    displayName: String
-}
-
 structure CircleMemberOut {
     @required
     circleMemberId: String

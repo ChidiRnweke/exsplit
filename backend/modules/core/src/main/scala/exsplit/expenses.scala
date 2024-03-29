@@ -47,7 +47,7 @@ case class ExpenseServiceImpl[F[_]: MonadThrow](
 
   def updateExpense(
       id: ExpenseId,
-      paidBy: Option[CircleMember],
+      paidBy: Option[CircleMemberId],
       description: Option[String],
       price: Option[Amount],
       date: Option[Date],
@@ -75,7 +75,7 @@ trait ExpenseRepository[F[_]]:
 
   def updateExpense(
       expense: ExpenseOut,
-      paidBy: Option[CircleMember],
+      paidBy: Option[CircleMemberId],
       description: Option[String],
       price: Option[Amount],
       date: Option[Date],
