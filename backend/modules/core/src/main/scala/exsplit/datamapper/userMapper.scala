@@ -53,6 +53,12 @@ case class UserWriteMapper(
     password: Option[String]
 )
 
+/** A trait representing a UserMapper, which is responsible for mapping user
+  * data between different representations.
+  *
+  * @tparam F
+  *   The effect type used in the mapping operations.
+  */
 trait UserMapper[F[_]]
     extends DataMapper[
       F,
@@ -113,54 +119,20 @@ trait UserMapper[F[_]]
     */
   def deleteUser(userId: UserId): F[Unit]
 
+/** A companion object for the `UserMapper` trait. This object contains the
+  * implementation of the `UserMapper` trait.
+  */
 object UserMapper:
-  private val userFromEmail: Query[String, UserReadMapper] =
-    sql"""
-      SELECT id, email, password
-      FROM users
-      WHERE email = $text
-    """
-      .query(varchar *: varchar *: varchar)
-      .to[UserReadMapper]
-
-  private val userFromId: Query[String, UserReadMapper] =
-    sql"""
-      SELECT id, email, password
-      FROM users
-      WHERE id = $text
-    """
-      .query(varchar *: varchar *: varchar)
-      .to[UserReadMapper]
-
-  private val createUser: Query[(String, String, String), UserReadMapper] =
-    sql"""
-      INSERT INTO users (id, email, password)
-      VALUES ($varchar, $varchar, $varchar)
-      RETURNING id, email, password
-    """
-      .query(varchar *: varchar *: varchar)
-      .to[UserReadMapper]
-
-  private val updateEmail: Command[(String, String)] =
-    sql"""
-      UPDATE users
-      SET email = $varchar
-      WHERE id = $varchar
-    """.command
-
-  private val updatePassword: Command[(String, String)] =
-    sql"""
-      UPDATE users
-      SET password = $varchar
-      WHERE id = $varchar
-    """.command
-
-  private val deleteUser: Command[String] =
-    sql"""
-      DELETE FROM users
-      WHERE id = $varchar
-    """.command
-
+  /*
+   * Creates a new `UserMapper` instance from the given `Session`.
+   * The `Session` is used for creating the prepared statements for the
+   * queries and commands. This is why this method is effectful.
+   *
+   * @param session
+   *   The session to be used for creating the `UserMapper` instance.
+   * @return
+   *   An effect that yields a new `UserMapper` instance.
+   */
   def fromSession[F[_]: Concurrent: Parallel](
       session: Session[F]
   ): F[UserMapper[F]] =
@@ -226,3 +198,50 @@ object UserMapper:
 
       def deleteUser(userId: UserId): F[Unit] =
         deleteUserCommand.execute(userId.value).void
+
+  private val userFromEmail: Query[String, UserReadMapper] =
+    sql"""
+      SELECT id, email, password
+      FROM users
+      WHERE email = $text
+    """
+      .query(varchar *: varchar *: varchar)
+      .to[UserReadMapper]
+
+  private val userFromId: Query[String, UserReadMapper] =
+    sql"""
+      SELECT id, email, password
+      FROM users
+      WHERE id = $text
+    """
+      .query(varchar *: varchar *: varchar)
+      .to[UserReadMapper]
+
+  private val createUser: Query[(String, String, String), UserReadMapper] =
+    sql"""
+      INSERT INTO users (id, email, password)
+      VALUES ($varchar, $varchar, $varchar)
+      RETURNING id, email, password
+    """
+      .query(varchar *: varchar *: varchar)
+      .to[UserReadMapper]
+
+  private val updateEmail: Command[(String, String)] =
+    sql"""
+      UPDATE users
+      SET email = $varchar
+      WHERE id = $varchar
+    """.command
+
+  private val updatePassword: Command[(String, String)] =
+    sql"""
+      UPDATE users
+      SET password = $varchar
+      WHERE id = $varchar
+    """.command
+
+  private val deleteUser: Command[String] =
+    sql"""
+      DELETE FROM users
+      WHERE id = $varchar
+    """.command
