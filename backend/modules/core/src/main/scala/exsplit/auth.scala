@@ -39,7 +39,7 @@ object AuthEntryPoint:
     */
   def createService[F[_]: MonadThrow](
       authConfig: AuthConfig[F],
-      repo: UserRepository[F],
+      repo: UserMapper[F],
       clock: Clock[F],
       validator: PasswordValidator[F],
       uuid: UUIDGen[F]
@@ -63,7 +63,7 @@ object AuthEntryPoint:
     */
   def createIOService(
       authConfig: AuthConfig[IO],
-      repo: UserRepository[IO]
+      repo: UserMapper[IO]
   ): UserService[IO] =
     val clock = Clock[IO]
     val bcrypt = BCrypt.createValidator[IO]
@@ -83,7 +83,7 @@ object AuthEntryPoint:
   */
 def withValidUser[F[_]: MonadThrow, A](
     userId: UserId,
-    userRepo: UserRepository[F]
+    userRepo: UserMapper[F]
 )(action: User => F[A]): F[A] =
   for
     userRead <- userRepo.findUserById(userId).rethrow
@@ -323,7 +323,7 @@ object BCrypt:
   *   The effect type constructor, providing the necessary type class instances.
   */
 case class UserAuthenticator[F[_]](
-    repo: UserRepository[F],
+    repo: UserMapper[F],
     validator: PasswordValidator[F],
     uuid: UUIDGen[F]
 )(using

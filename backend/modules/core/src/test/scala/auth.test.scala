@@ -9,6 +9,7 @@ import exsplit.spec._
 import cats.effect.std._
 import java.util.UUID
 import exsplit.datamapper.user._
+import exsplit.spec.CirclesServiceGen.input
 
 class TokenDecoderEncoderSuite extends CatsEffectSuite:
   val authConfig = new AuthConfig[IO]:
@@ -185,7 +186,7 @@ case class MockValidator() extends PasswordValidator[IO]:
   def checkPassword(password: String, hash: String): Boolean =
     password == hash
 
-case class MockUserRepository() extends UserRepository[IO]:
+case class MockUserRepository() extends UserMapper[IO]:
   def createUser(id: UUID, email: Email, password: String): IO[Unit] = IO.unit
 
   def findUserByEmail(email: Email): IO[Either[NotFoundError, UserReadMapper]] =
@@ -202,3 +203,10 @@ case class MockUserRepository() extends UserRepository[IO]:
 
   def updateUser(user: UserWriteMapper): IO[Unit] = ().pure[IO]
   def deleteUser(userId: UserId): IO[Unit] = IO.unit
+
+  def delete(id: String): IO[Unit] = IO.unit
+  def create(input: (String, String, String)): IO[UserReadMapper] =
+    IO.pure(UserReadMapper("id", "email", "password"))
+  def get(id: String): IO[Either[NotFoundError, UserReadMapper]] =
+    IO.pure(Right(UserReadMapper("id", "email", "password")))
+  def update(b: UserWriteMapper): IO[Unit] = IO.unit

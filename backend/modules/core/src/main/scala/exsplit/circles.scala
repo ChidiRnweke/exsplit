@@ -11,7 +11,7 @@ import exsplit.datamapper.user._
 object CirclesEntryPoint:
   def createService[F[_]: MonadThrow](
       circleRepository: CirclesRepository[F],
-      userRepository: UserRepository[F]
+      userRepository: UserMapper[F]
   ): CirclesServiceImpl[F] =
     CirclesServiceImpl(circleRepository, userRepository)
 
@@ -35,7 +35,7 @@ def withValidCircleMember[F[_]: MonadThrow, A](
 
 case class CirclesServiceImpl[F[_]: MonadThrow](
     circleRepository: CirclesRepository[F],
-    userRepo: UserRepository[F]
+    userRepo: UserMapper[F]
 ) extends CirclesService[F]:
 
   def listCirclesForUser(userId: UserId): F[ListCirclesForUserOutput] =

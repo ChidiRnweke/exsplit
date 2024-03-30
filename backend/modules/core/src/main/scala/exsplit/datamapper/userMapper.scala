@@ -11,6 +11,7 @@ import cats.syntax.all._
 import cats._
 import cats.data._
 import java.util.UUID
+import exsplit.datamapper._
 
 /** Represents a user read mapper. This class is a one to one mapping of the
   * user table in the database without the creation and update timestamps.
@@ -21,6 +22,17 @@ import java.util.UUID
   *   The email address of the user.
   * @param password
   *   The password of the user.
+  *
+  * ### schema
+  * {{{
+  *  create table "users" (
+  * id text primary key default md5(now()::text || random()::text),
+  * password varchar(255) not null,
+  * email varchar(255) not null,
+  * created_at timestamp not null default current_timestamp,
+  * updated_at timestamp not null default current_timestamp
+  * );
+  * }}}
   */
 case class UserReadMapper(id: String, email: String, password: String)
 
@@ -41,7 +53,13 @@ case class UserWriteMapper(
     password: Option[String]
 )
 
-trait UserRepository[F[_]]:
+trait UserMapper[F[_]]
+    extends DataMapper[
+      F,
+      (String, String, String),
+      UserReadMapper,
+      UserWriteMapper
+    ]:
   /** Finds the user credentials based on the email.
     *
     * @param email
@@ -95,100 +113,116 @@ trait UserRepository[F[_]]:
     */
   def deleteUser(userId: UserId): F[Unit]
 
-object UserRepository:
-  def apply[F[_]: Monad](session: Session[F]): F[UserRepository[F]] =
-    val queryPreparer = UserQueryPreparer(session)
-    for
-      findUserByIdQuery <- queryPreparer.userFromId
-      findUserByEmailQuery <- queryPreparer.userFromEmail
-      createUserCommand <- queryPreparer.createUser
-      updateEmailCommand <- queryPreparer.updateEmail
-      updatePasswordCommand <- queryPreparer.updatePassword
-      deleteUserCommand <- queryPreparer.deleteUser
-
-      userRepository = new UserRepository[F]:
-
-        def findUserById(
-            userId: UserId
-        ): F[Either[NotFoundError, UserReadMapper]] =
-          findUserByEmailQuery
-            .option(userId.value)
-            .map(_.toRight(NotFoundError(s"User with id = $userId not found.")))
-
-        def findUserByEmail(
-            email: Email
-        ): F[Either[NotFoundError, UserReadMapper]] =
-          findUserByEmailQuery
-            .option(email.value)
-            .map(
-              _.toRight(NotFoundError(s"User with email = $email not found."))
-            )
-
-        def createUser(id: UUID, email: Email, password: String): F[Unit] =
-          createUserCommand
-            .execute(id.toString, email.value, password)
-            .void
-
-        def updateUser(user: UserWriteMapper): F[Unit] =
-          user match
-            case UserWriteMapper(id, Some(email), _) =>
-              updateEmailCommand.execute(id, email).void
-
-            case UserWriteMapper(id, _, Some(password)) =>
-              updatePasswordCommand.execute(id, password).void
-            case _ => ().pure[F]
-
-        def deleteUser(userId: UserId): F[Unit] =
-          deleteUserCommand.execute(userId.value).void
-    yield userRepository
-
-case class UserQueryPreparer[F[_]](session: Session[F]):
-  def userFromEmail: F[PreparedQuery[F, String, UserReadMapper]] =
-    val query = sql"""
+object UserMapper:
+  private val userFromEmail: Query[String, UserReadMapper] =
+    sql"""
       SELECT id, email, password
       FROM users
       WHERE email = $text
     """
       .query(varchar *: varchar *: varchar)
       .to[UserReadMapper]
-    session.prepare(query)
 
-  def userFromId: F[PreparedQuery[F, String, UserReadMapper]] =
-    val query = sql"""=
+  private val userFromId: Query[String, UserReadMapper] =
+    sql"""
       SELECT id, email, password
       FROM users
       WHERE id = $text
     """
       .query(varchar *: varchar *: varchar)
       .to[UserReadMapper]
-    session.prepare(query)
 
-  def createUser: F[PreparedCommand[F, (String, String, String)]] =
-    val command = sql"""
+  private val createUser: Query[(String, String, String), UserReadMapper] =
+    sql"""
       INSERT INTO users (id, email, password)
       VALUES ($varchar, $varchar, $varchar)
-    """.command
-    session.prepare(command)
+      RETURNING id, email, password
+    """
+      .query(varchar *: varchar *: varchar)
+      .to[UserReadMapper]
 
-  def updateEmail: F[PreparedCommand[F, (String, String)]] =
-    val command = sql"""
+  private val updateEmail: Command[(String, String)] =
+    sql"""
       UPDATE users
       SET email = $varchar
       WHERE id = $varchar
     """.command
-    session.prepare(command)
 
-  def updatePassword: F[PreparedCommand[F, (String, String)]] =
-    val command = sql"""
+  private val updatePassword: Command[(String, String)] =
+    sql"""
       UPDATE users
       SET password = $varchar
       WHERE id = $varchar
     """.command
-    session.prepare(command)
 
-  def deleteUser: F[PreparedCommand[F, String]] =
-    val command = sql"""
+  private val deleteUser: Command[String] =
+    sql"""
       DELETE FROM users
       WHERE id = $varchar
     """.command
-    session.prepare(command)
+
+  def fromSession[F[_]: Concurrent: Parallel](
+      session: Session[F]
+  ): F[UserMapper[F]] =
+    for
+      findUserByIdQuery <- session.prepare(userFromId)
+      findUserByEmailQuery <- session.prepare(userFromEmail)
+      createUserCommand <- session.prepare(createUser)
+      updateEmailCommand <- session.prepare(updateEmail)
+      updatePasswordCommand <- session.prepare(updatePassword)
+      deleteUserCommand <- session.prepare(deleteUser)
+    yield new UserMapper[F]:
+
+      def get(id: String): F[Either[NotFoundError, UserReadMapper]] =
+        findUserByIdQuery
+          .option(id)
+          .map(_.toRight(NotFoundError(s"User with id = $id not found.")))
+
+      def delete(id: String): F[Unit] =
+        deleteUserCommand.execute(id).void
+
+      def create(input: (String, String, String)): F[UserReadMapper] =
+        createUserCommand.unique(input)
+
+      def findUserById(
+          userId: UserId
+      ): F[Either[NotFoundError, UserReadMapper]] =
+        findUserByEmailQuery
+          .option(userId.value)
+          .map(_.toRight(NotFoundError(s"User with id = $userId not found.")))
+
+      def findUserByEmail(
+          email: Email
+      ): F[Either[NotFoundError, UserReadMapper]] =
+        findUserByEmailQuery
+          .option(email.value)
+          .map(
+            _.toRight(NotFoundError(s"User with email = $email not found."))
+          )
+
+      def createUser(id: UUID, email: Email, password: String): F[Unit] =
+        createUserCommand
+          .unique(id.toString, email.value, password)
+          .void
+
+      def update(user: UserWriteMapper): F[Unit] =
+        val actions = List(
+          user.email.map(email => updateEmailCommand.execute(user.id, email)),
+          user.password.map(password =>
+            updatePasswordCommand.execute(user.id, password)
+          )
+        ).flatten
+
+        actions.parSequence.void
+
+      def updateUser(user: UserWriteMapper): F[Unit] =
+        user match
+          case UserWriteMapper(id, Some(email), _) =>
+            updateEmailCommand.execute(id, email).void
+
+          case UserWriteMapper(id, _, Some(password)) =>
+            updatePasswordCommand.execute(id, password).void
+          case _ => ().pure[F]
+
+      def deleteUser(userId: UserId): F[Unit] =
+        deleteUserCommand.execute(userId.value).void
