@@ -9,7 +9,7 @@ import exsplit.spec._
 import cats.effect._
 import cats.syntax.all._
 import cats._
-import exsplit.datamapper.DataMapper
+import exsplit.datamapper._
 
 /** Describes a circle read mapper. This class is a one to one mapping of the
   * circle table in the database without the creation and update timestamps.
@@ -184,6 +184,109 @@ trait CircleMemberMapper[F[_]]
     *   a `F` effect that resolves to `Unit` when the deletion is successful
     */
   def delete(circleMemberId: String): F[Unit]
+
+/** A trait that represents a mapper for mapping circles to their members.
+  *
+  * @tparam F
+  *   the effect type
+  */
+trait CircleToMembersMapper[F[_]]
+    extends HasMany[F, String, CircleMemberReadMapper]:
+
+  /** Lists the children (members) of a given parent circle.
+    *
+    * @param parent
+    *   the parent circle
+    * @return
+    *   a list of CircleMemberReadMapper instances representing the children
+    */
+  def listChildren(parent: String): F[List[CircleMemberReadMapper]]
+
+/** Represents a mapper for user circles. Provides methods to interact with the
+  * database and retrieve user circles.
+  *
+  * @tparam F
+  *   The effect type, representing the context in which the operations are
+  *   executed.
+  */
+trait UserCirclesMapper[F[_]]
+    extends BelongsToThrough[F, UserId, CircleReadMapper, CircleReadMapper]:
+
+  /** Retrieves a list of primary circles for a given user.
+    *
+    * @param userId
+    *   The ID of the user.
+    * @return
+    *   A list of primary circles.
+    */
+  def listPrimaries(userId: UserId): F[List[CircleReadMapper]]
+
+object UserCirclesMapper:
+
+  /** Creates a new instance of `UserCirclesMapper` from a session. This method
+    * is effectful because it prepares the SQL query for the mapper.
+    *
+    * @param session
+    *   The database session.
+    * @tparam F
+    *   The effect type, representing the context in which the operations are
+    *   executed.
+    * @return
+    *   A new instance of `UserCirclesMapper`.
+    */
+  def fromSession[F[_]: Concurrent: Parallel](
+      session: Session[F]
+  ): F[UserCirclesMapper[F]] =
+    for listCirclesForUserQuery <- session.prepare(listCirclesForUserQuery)
+    yield new UserCirclesMapper[F]:
+
+      /** Retrieves a list of primary circles for a given user.
+        *
+        * @param userId
+        *   The ID of the user.
+        * @return
+        *   A list of primary circles.
+        */
+      def listPrimaries(userId: UserId): F[List[CircleReadMapper]] =
+        listCirclesForUserQuery.stream(userId.value, 1024).compile.toList
+
+  private val listCirclesForUserQuery: Query[String, CircleReadMapper] =
+    sql"""
+      SELECT c.id, c.name, c.description
+      FROM circles c
+      JOIN circle_members cm ON c.id = cm.circle_id
+      WHERE cm.user_id = $text
+    """
+      .query(varchar *: varchar *: varchar)
+      .to[CircleReadMapper]
+
+object CircleToMembersMapper:
+  /** Creates a CircleToMembersMapper instance from the provided session. This
+    * method is effectful because it prepares the SQL query for the mapper.
+    *
+    * @param session
+    *   the session to create the mapper from
+    * @return
+    *   a `F[CircleToMembersMapper[F]]` representing the asynchronous result of
+    *   creating the mapper
+    */
+  def fromSession[F[_]: Concurrent: Parallel](
+      session: Session[F]
+  ): F[CircleToMembersMapper[F]] =
+    for listCircleMembersQuery <- session.prepare(listCircleMembersQuery)
+    yield new CircleToMembersMapper[F]:
+
+      def listChildren(circleId: String): F[List[CircleMemberReadMapper]] =
+        listCircleMembersQuery.stream(circleId, 1024).compile.toList
+
+  private val listCircleMembersQuery: Query[String, CircleMemberReadMapper] =
+    sql"""
+      SELECT cm.id, cm.circle_id, cm.user_id, cm.display_name
+      FROM circle_members cm
+      WHERE cm.circle_id = $text
+    """
+      .query(varchar *: varchar *: varchar *: varchar)
+      .to[CircleMemberReadMapper]
 
 /*
 Contains a factory method for creating a CircleMemberMapper from a session.

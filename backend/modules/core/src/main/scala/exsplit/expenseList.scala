@@ -4,12 +4,18 @@ import cats.syntax.all._
 import cats._
 import cats.data._
 import exsplit.circles._
+import exsplit.datamapper.circles._
 object ExpenseListEntryPoint:
   def createService[F[_]: MonadThrow](
       expenseListRepository: ExpenseListRepository[F],
-      circlesRepository: CirclesRepository[F]
+      circlesMembersRepository: CircleMemberMapper[F],
+      circlesRepository: CirclesMapper[F]
   ): ExpenseListServiceImpl[F] =
-    ExpenseListServiceImpl(expenseListRepository, circlesRepository)
+    ExpenseListServiceImpl(
+      expenseListRepository,
+      circlesMembersRepository,
+      circlesRepository
+    )
 
 def withValidExpenseList[F[_]: MonadThrow, A](
     expenseListId: ExpenseListId,
@@ -33,7 +39,8 @@ def withValidExpenseListDetail[F[_]: MonadThrow, A](
 
 case class ExpenseListServiceImpl[F[_]: MonadThrow](
     expenseListRepository: ExpenseListRepository[F],
-    circlesRepository: CirclesRepository[F]
+    circlesMembersRepository: CircleMemberMapper[F],
+    circlesRepository: CirclesMapper[F]
 ) extends ExpenseListService[F]:
 
   def createExpenseList(
@@ -84,10 +91,12 @@ case class ExpenseListServiceImpl[F[_]: MonadThrow](
       amount: Amount
   ): F[Unit] =
     withValidExpenseList(expenseListId, expenseListRepository): expenseList =>
-      withValidCircleMember(fromMemberId, circlesRepository): fromMember =>
-        withValidCircleMember(toMemberId, circlesRepository): toMember =>
-          expenseListRepository
-            .settleExpenseList(expenseList, fromMember, toMember, amount)
+      withValidCircleMember(fromMemberId, circlesMembersRepository):
+        fromMember =>
+          withValidCircleMember(toMemberId, circlesMembersRepository):
+            toMember =>
+              expenseListRepository
+                .settleExpenseList(expenseList, fromMember, toMember, amount)
 
   def deleteExpenseList(id: ExpenseListId): F[Unit] =
     withValidExpenseList(id, expenseListRepository): expenseList =>
