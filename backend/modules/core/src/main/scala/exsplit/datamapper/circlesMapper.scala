@@ -9,6 +9,7 @@ import exsplit.spec._
 import cats.effect._
 import cats.syntax.all._
 import cats._
+import exsplit.datamapper.DataMapper
 
 /** Describes a circle read mapper. This class is a one to one mapping of the
   * circle table in the database without the creation and update timestamps.
@@ -83,17 +84,23 @@ case class CircleMemberWriteMapper(id: String, displayName: String)
   *   The effect type, representing the context in which the repository
   *   operations are executed.
   */
-trait CirclesRepository[F[_]]:
+trait CirclesMapper[F[_]]
+    extends DataMapper[
+      F,
+      CreateCircleInput,
+      CircleReadMapper,
+      CircleWriteMapper
+    ]:
 
   /** Finds a circle by its ID.
-    * @param circleId
+    * @param String
     *   The ID of the circle to find.
     * @return
     *   An effectful computation that yields either a `NotFoundError` or a
     *   `CircleReadMapper`. The former is returned if the circle is not found.
     */
-  def findCircleById(
-      circleId: CircleId
+  def get(
+      circleId: String
   ): F[Either[NotFoundError, CircleReadMapper]]
 
   /** Updates a circle. The circle is identified by its ID. The name and
@@ -104,36 +111,25 @@ trait CirclesRepository[F[_]]:
     * @return
     *   An effectful computation that yields `Unit`.
     */
-  def updateCircle(circle: CircleWriteMapper): F[Unit]
+  def update(circle: CircleWriteMapper): F[Unit]
 
-  /** Creates a new circle. Adds the user creating the circle as a member of the
-    * circle.
+  /** Creates a new circle based on the provided input. The input is a type
+    * automatically generated from smithy4s.
     *
-    * @param userId
-    *   The ID of the user creating the circle.
-    * @param displayName
-    *   The display name of the circle.
-    * @param circleName
-    *   The name of the circle.
-    * @param description
-    *   An optional description of the circle.
+    * @param input
+    *   The input data for creating the circle.
     * @return
-    *   An effectful computation that yields a `CircleReadMapper`.
+    *   A `CircleReadMapper` representing the created circle.
     */
-  def createCircle(
-      userId: UserId,
-      displayName: String,
-      circleName: String,
-      description: Option[String]
-  ): F[CircleReadMapper]
+  def create(input: CreateCircleInput): F[CircleReadMapper]
 
   /** Deletes a circle by its ID.
-    * @param circleId
+    * @param String
     *   The ID of the circle to delete.
     * @return
     *   An effectful computation that yields `Unit`.
     */
-  def deleteCircle(circleId: CircleId): F[Unit]
+  def delete(circleId: String): F[Unit]
 
 /** Repository trait for managing circle members. Defines the basic read and
   * write operations for circle members. More complex operations are defined
@@ -143,325 +139,224 @@ trait CirclesRepository[F[_]]:
   *   the effect type, representing the context in which the operations are
   *   executed
   */
-trait CircleMemberRepository[F[_]]:
-  /** Finds a circle member by their ID.
+trait CircleMemberMapper[F[_]]
+    extends DataMapper[
+      F,
+      AddUserToCircleInput,
+      CircleMemberReadMapper,
+      CircleMemberWriteMapper
+    ]:
+  /** Retrieves a circle member by their ID.
     *
-    * @param memberId
-    *   the ID of the circle member to find
+    * @param id
+    *   the ID of the circle member to retrieve
     * @return
-    *   an effect that may contain either a `NotFoundError` or a
-    *   `CircleMemberReadMapper`. The former is returned if the circle member is
-    *   not found.
+    *   a `F` effect that resolves to either a `NotFoundError` if the circle
+    *   member is not found, or a `CircleMemberReadMapper` if the circle member
+    *   is found
     */
-  def findCircleMemberById(
-      memberId: CircleMemberId
-  ): F[Either[NotFoundError, CircleMemberReadMapper]]
+  def get(id: String): F[Either[NotFoundError, CircleMemberReadMapper]]
 
-  /** Adds a new member to the specified circle. A circleReadMapper is required
-    * to add a member to a circle because this ensures that the circle exists.
+  /** Creates a new circle member.
     *
-    * @param circle
-    *   The circle to add the member to.
-    * @param displayName
-    *   The display name of the new member.
+    * @param input
+    *   the input data for creating the circle member
     * @return
-    *   A `CircleMemberReadMapper` representing the newly added member.
+    *   a `F` effect that resolves to a `CircleMemberReadMapper` representing
+    *   the created circle member
     */
-  def addCircleMember(
-      circle: CircleReadMapper,
-      userId: UserId,
-      displayName: String
-  ): F[CircleMemberReadMapper]
+  def create(input: AddUserToCircleInput): F[CircleMemberReadMapper]
 
-  /** Deletes a circle member.
+  /** Updates an existing circle member.
     *
-    * @param memberId
+    * @param circleMember
+    *   the updated circle member data
+    * @return
+    *   a `F` effect that resolves to `Unit` when the update is successful
+    */
+  def update(circleMember: CircleMemberWriteMapper): F[Unit]
+
+  /** Deletes a circle member by their ID.
+    *
+    * @param circleMemberId
     *   the ID of the circle member to delete
     * @return
-    *   an effect that represents the completion of the deletion operation.
+    *   a `F` effect that resolves to `Unit` when the deletion is successful
     */
-  def deleteCircleMember(memberId: CircleMemberId): F[Unit]
+  def delete(circleMemberId: String): F[Unit]
 
-  /** Updates a circle member. The display name is the only field that can be
-    * updated.
+/*
+Contains a factory method for creating a CircleMemberMapper from a session.
+ */
+object CircleMemberMapper:
+
+  /** Creates a `CircleMemberMapper` instance from a given `Session`. This
+    * factory method is effectful because it prepares the SQL queries and
+    * commands for the `CircleMemberMapper`.
     *
-    * @param member
-    *   the updated circle member
+    * @param session
+    *   The session to create the `CircleMemberMapper` from.
     * @return
-    *   an effect that represents the completion of the update operation
+    *   A `CircleMemberMapper` instance wrapped in the effect `F`.
     */
-  def updateCircleMember(
-      member: CircleMemberWriteMapper
-  ): F[Unit]
-
-  /** Lists the members of a circle.
-    *
-    * @param circleId
-    *   the ID of the circle
-    * @return
-    *   an effect that yields either a `NotFoundError` or a list of
-    *   `CircleMemberReadMapper`. The former is returned if the circle is not
-    *   found.
-    */
-trait CircleMembersView[F[_]]:
-
-  /** Retrieves a list of circle members for the specified circle ID.
-    *
-    * @param circleId
-    *   The ID of the circle.
-    * @return
-    *   A list of CircleMemberReadMapper objects representing the circle
-    *   members.
-    */
-  def listCircleMembers(
-      circleId: CircleId
-  ): F[List[CircleMemberReadMapper]]
-
-/** A trait representing a view of user circles. This trait defines more complex
-  * operations for viewing user circles.
-  */
-trait UserCircleView[F[_]]:
-  /** Retrieves the circles associated with a user.
-    *
-    * @param userId
-    *   The ID of the user.
-    * @return
-    *   An effectful computation that may result in either a `NotFoundError` or
-    *   a list of `CircleReadMapper`. The former is returned if the user is not
-    *   found.
-    */
-  def getCirclesForUser(
-      userId: UserId
-  ): F[List[CircleReadMapper]]
-
-object CircleMemberRepository:
-  def apply[F[_]: Monad](session: Session[F]): F[CircleMemberRepository[F]] =
-    val preparer = CircleMemberQueryPreparer(session)
+  def fromSession[F[_]: Monad](session: Session[F]): F[CircleMemberMapper[F]] =
     for
-      findCircleMemberByIdQuery <- preparer.findCircleMemberByIdQuery
-      addCircleMemberQuery <- preparer.addCircleMemberQuery
-      deleteCircleMemberCommand <- preparer.deleteCircleMemberCommand
-      updateCircleMemberCommand <- preparer.updateCircleMemberCommand
-    yield new CircleMemberRepository[F]:
-      def findCircleMemberById(
-          memberId: CircleMemberId
-      ): F[Either[NotFoundError, CircleMemberReadMapper]] =
-        findCircleMemberByIdQuery
-          .option(memberId.value)
-          .map(
-            _.toRight(
-              NotFoundError(s"Circle member with ID = $memberId not found.")
-            )
-          )
+      findCircleMember <- session.prepare(findCircleMemberByIdQuery)
+      addCircleMember <- session.prepare(addCircleMemberQuery)
+      updateCircleMember <- session.prepare(updateCircleMemberCommand)
+      deleteCircleMember <- session.prepare(deleteCircleMemberCommand)
+    yield new CircleMemberMapper:
+      def get(id: String): F[Either[NotFoundError, CircleMemberReadMapper]] =
+        findCircleMember
+          .option(id)
+          .map:
+            case Some(value) => Right(value)
+            case None =>
+              Left(NotFoundError(s"Circle member with ID = $id not found."))
 
-      def addCircleMember(
-          circle: CircleReadMapper,
-          userId: UserId,
-          displayName: String
-      ): F[CircleMemberReadMapper] =
-        addCircleMemberQuery
-          .unique(displayName, userId.value, circle.id)
+      def create(input: AddUserToCircleInput): F[CircleMemberReadMapper] =
+        addCircleMember
+          .unique(input.displayName, input.userId.value, input.circleId.value)
 
-      def deleteCircleMember(memberId: CircleMemberId): F[Unit] =
-        deleteCircleMemberCommand.execute(memberId.value).void
+      def update(circleMember: CircleMemberWriteMapper): F[Unit] =
+        updateCircleMember
+          .execute(circleMember.displayName, circleMember.id)
+          .void
 
-      def updateCircleMember(
-          member: CircleMemberWriteMapper
-      ): F[Unit] =
-        updateCircleMemberCommand.execute(member.displayName, member.id).void
+      def delete(circleMemberId: String): F[Unit] =
+        deleteCircleMember.execute(circleMemberId).void
 
-object UserCircleView:
-  def apply[F[_]: Concurrent](session: Session[F]): F[UserCircleView[F]] =
-    val preparer = UserCircleViewPreparer(session)
-    for getCirclesForUserQuery <- preparer.getCirclesForUserQuery
-    yield new UserCircleView[F]:
-      def getCirclesForUser(
-          userId: UserId
-      ): F[List[CircleReadMapper]] =
-        getCirclesForUserQuery
-          .stream(userId.value, 1024)
-          .compile
-          .toList
-
-object CircleMembersView:
-  def apply[F[_]: Concurrent](session: Session[F]): F[CircleMembersView[F]] =
-    val preparer = CircleMembersViewPreparer(session)
-    for listCircleMembersQuery <- preparer.listCircleMembersQuery
-    yield new CircleMembersView[F]:
-      def listCircleMembers(
-          circleId: CircleId
-      ): F[List[CircleMemberReadMapper]] =
-        listCircleMembersQuery
-          .stream(circleId.value, 1024)
-          .compile
-          .toList
-
-object CirclesRepository:
-  def apply[F[_]: Monad](session: Session[F]): F[CirclesRepository[F]] =
-    val preparer = CircleQueryPreparer(session)
-    for
-      findCircleByIdQuery <- preparer.findCircleByIdQuery
-      updateCircleQuery <- preparer.updateCircleQuery
-      updateCircleNameCommand <- preparer.updateCircleNameCommand
-      updateCircleDescQuery <- preparer.updateCircleQueryDescription
-      createCircleQuery <- preparer.createCircleQuery
-      deleteCircleQuery <- preparer.deleteCircleQuery
-    yield new CirclesRepository[F]:
-      def findCircleById(
-          circleId: CircleId
-      ): F[Either[NotFoundError, CircleReadMapper]] =
-        findCircleByIdQuery
-          .option(circleId.value)
-          .map(
-            _.toRight(
-              NotFoundError(s"Circle with ID = $circleId not found.")
-            )
-          )
-
-      def updateCircle(circle: CircleWriteMapper): F[Unit] =
-        circle match
-          case CircleWriteMapper(id, Some(name), Some(description)) =>
-            updateCircleQuery.execute(name, description, id).void
-          case CircleWriteMapper(id, Some(name), None) =>
-            updateCircleNameCommand.execute(name, id).void
-          case CircleWriteMapper(id, None, Some(description)) =>
-            updateCircleDescQuery.execute(description, id).void
-          case _ => ().pure[F]
-      def createCircle(
-          userId: UserId,
-          displayName: String,
-          circleName: String,
-          description: Option[String]
-      ): F[CircleReadMapper] =
-        createCircleQuery
-          .unique(circleName, description.getOrElse(""), userId.value)
-
-      def deleteCircle(circleId: CircleId): F[Unit] =
-        deleteCircleQuery.execute(circleId.value).void
-
-case class CircleMemberQueryPreparer[F[_]](session: Session[F]):
-  def findCircleMemberByIdQuery
-      : F[PreparedQuery[F, String, CircleMemberReadMapper]] =
-    val query = sql"""
+private val findCircleMemberByIdQuery: Query[String, CircleMemberReadMapper] =
+  sql"""
       SELECT cm.id, cm.circle_id, cm.user_id, cm.display_name
       FROM circle_members cm
       WHERE cm.id = $text
     """
-      .query(varchar *: varchar *: varchar *: varchar)
-      .to[CircleMemberReadMapper]
-    session.prepare(query)
+    .query(varchar *: varchar *: varchar *: varchar)
+    .to[CircleMemberReadMapper]
 
-  def addCircleMemberQuery: F[
-    PreparedQuery[F, (String, String, String), CircleMemberReadMapper]
-  ] =
-    val query = sql"""
+private val addCircleMemberQuery
+    : Query[(String, String, String), CircleMemberReadMapper] =
+  sql"""
       INSERT INTO circle_members (display_name, user_id, circle_id)
       VALUES ($text, $text, $text)
       RETURNING id, circle_id, user_id, display_name
     """
-      .query(varchar *: varchar *: varchar *: varchar)
-      .to[CircleMemberReadMapper]
-    session.prepare(query)
+    .query(varchar *: varchar *: varchar *: varchar)
+    .to[CircleMemberReadMapper]
 
-  def deleteCircleMemberCommand: F[PreparedCommand[F, String]] =
-    val command = sql"""
+private val deleteCircleMemberCommand: Command[String] =
+  sql"""
       DELETE FROM circle_members
       WHERE id = $text
     """.command
-    session.prepare(command)
 
-  def listCircleMembersQuery
-      : F[PreparedQuery[F, String, CircleMemberReadMapper]] =
-    val query = sql"""
-      SELECT cm.id, cm.circle_id, cm.user_id, cm.display_name
-      FROM circle_members cm
-      WHERE cm.circle_id = $text
-    """
-      .query(varchar *: varchar *: varchar *: varchar)
-      .to[CircleMemberReadMapper]
-    session.prepare(query)
+private val updateCircleMemberCommand: Command[(String, String)] =
+  sql"""
+        UPDATE circle_members
+        SET display_name = $text
+        WHERE id = $text
+      """.command
 
-  def updateCircleMemberCommand: F[PreparedCommand[F, (String, String)]] =
-    val command = sql"""
-      UPDATE circle_members
-      SET display_name = $text
-      WHERE id = $text
-    """.command
-    session.prepare(command)
+/** A companion object for the `CirclesMapper` trait. This object contains the
+  * implementation of the `CirclesMapper` trait.
+  */
+object CirclesMapper:
 
-case class CircleQueryPreparer[F[_]](session: Session[F]):
-  def findCircleByIdQuery: F[PreparedQuery[F, String, CircleReadMapper]] =
-    val query = sql"""
+  /** This file contains the implementation of the CirclesMapper class, which is
+    * responsible for mapping data between the application and the database for
+    * the Circles module. The CirclesMapper class provides methods for
+    * interacting with the database to perform CRUD operations on circles.
+    *
+    * This method is effectful because it prepares the SQL queries and commands
+    * for the CirclesMapper.
+    *
+    * @param session
+    *   The database session used for executing queries.
+    * @tparam F
+    *   The effect type, representing the context in which the operations are
+    *   executed.
+    */
+  def fromSession[F[_]: Monad: Parallel](
+      session: Session[F]
+  ): F[CirclesMapper[F]] =
+    for
+      findCircleByIdQuery <- session.prepare(findCircleByIdQuery)
+      updateCircleQuery <- session.prepare(updateCircleQuery)
+      updateCircleNameCommand <- session.prepare(updateCircleNameCommand)
+      updateCircleDescQuery <- session.prepare(updateCircleQueryDescription)
+      createCircleQuery <- session.prepare(createCircleQuery)
+      deleteCircleQuery <- session.prepare(deleteCircleQuery)
+    yield new CirclesMapper[F]:
+
+      def get(circleId: String): F[Either[NotFoundError, CircleReadMapper]] =
+        findCircleByIdQuery
+          .option(circleId)
+          .map:
+            case Some(value) => Right(value)
+            case None =>
+              Left(NotFoundError(s"Circle with ID = $circleId not found."))
+
+      def create(input: CreateCircleInput): F[CircleReadMapper] =
+        createCircleQuery
+          .unique(input.circleName, input.description.getOrElse(""))
+
+      def update(circle: CircleWriteMapper): F[Unit] =
+        val actions = List(
+          circle.name.map(name =>
+            updateCircleNameCommand.execute(name, circle.id)
+          ),
+          circle.description.map(desc =>
+            updateCircleDescQuery.execute(desc, circle.id)
+          )
+        ).flatten
+
+        actions.parSequence.void
+
+      def delete(circleId: String): F[Unit] =
+        deleteCircleQuery.execute(circleId).void
+
+  private val findCircleByIdQuery: Query[String, CircleReadMapper] =
+    sql"""
       SELECT c.id, c.name, c.description
       FROM circles c
       WHERE c.id = $text
     """
       .query(varchar *: varchar *: varchar)
       .to[CircleReadMapper]
-    session.prepare(query)
 
-  def updateCircleNameCommand: F[PreparedCommand[F, (String, String)]] =
-    val command = sql"""
+  private val updateCircleNameCommand: Command[(String, String)] =
+    sql"""
       UPDATE circles
       SET name = $text
       WHERE id = $text
     """.command
-    session.prepare(command)
 
-  def updateCircleQueryDescription: F[PreparedCommand[F, (String, String)]] =
-    val command = sql"""
+  private val updateCircleQueryDescription: Command[(String, String)] =
+    sql"""
       UPDATE circles
       SET description = $text
       WHERE id = $text
     """.command
-    session.prepare(command)
 
-  def updateCircleQuery: F[PreparedCommand[F, (String, String, String)]] =
-    val command = sql"""
+  private val updateCircleQuery: Command[(String, String, String)] =
+    sql"""
       UPDATE circles
       SET name = $text, description = $text
       WHERE id = $text
     """.command
-    session.prepare(command)
 
-  def createCircleQuery
-      : F[PreparedQuery[F, (String, String, String), CircleReadMapper]] =
-    val command = sql"""
-      INSERT INTO circles (id, name, description)
-      VALUES ($text, $text, $text)
+  private val createCircleQuery: Query[(String, String), CircleReadMapper] =
+    sql"""
+      INSERT INTO circles (name, description)
+      VALUES ($text, $text)
       RETURNING id, name, description
     """
       .query(varchar *: varchar *: varchar)
       .to[CircleReadMapper]
-    session.prepare(command)
 
-  def deleteCircleQuery: F[PreparedCommand[F, String]] =
-    val command = sql"""
+  private val deleteCircleQuery: Command[String] =
+    sql"""
       DELETE FROM circles
       WHERE id = $text
     """.command
-    session.prepare(command)
-
-case class UserCircleViewPreparer[F[_]](session: Session[F]):
-  def getCirclesForUserQuery: F[PreparedQuery[F, String, CircleReadMapper]] =
-    val query = sql"""
-      SELECT c.id, c.name, c.description
-      FROM circles c
-      JOIN circle_members cm ON c.id = cm.circle_id
-      WHERE cm.user_id = $text
-    """
-      .query(varchar *: varchar *: varchar)
-      .to[CircleReadMapper]
-    session.prepare(query)
-
-case class CircleMembersViewPreparer[F[_]](session: Session[F]):
-  def listCircleMembersQuery
-      : F[PreparedQuery[F, String, CircleMemberReadMapper]] =
-    val query = sql"""
-      SELECT cm.id, cm.circle_id, cm.user_id, cm.display_name
-      FROM circle_members cm
-      WHERE cm.circle_id = $text
-    """
-      .query(varchar *: varchar *: varchar *: varchar)
-      .to[CircleMemberReadMapper]
-    session.prepare(query)
