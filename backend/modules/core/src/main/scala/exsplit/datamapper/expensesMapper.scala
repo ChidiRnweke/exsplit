@@ -54,6 +54,62 @@ case class ExpenseReadMapper(
     date: LocalDate
 )
 
+/** Represents a view of expense detail with the name of the person who paid for
+  * the expense.
+  *
+  * @param id
+  *   The unique identifier of the expense.
+  * @param expenseListId
+  *   The identifier of the expense list that the expense belongs to.
+  * @param paidBy
+  *   The identifier of the circle member who paid for the expense.
+  * @param paidByName
+  *   The name of the person who paid for the expense.
+  * @param description
+  *   The description of the expense.
+  * @param price
+  *   The price of the expense.
+  * @param date
+  *   The date when the expense was made.
+  */
+case class ExpenseDetailRead(
+    id: String,
+    expenseListId: String,
+    paidBy: String,
+    paidByName: String,
+    description: String,
+    price: Float,
+    date: LocalDate
+)
+
+/** Represents a view of owed amount detail with the name of the person who owes
+  * the amount.
+  *
+  * @param id
+  *   The unique identifier of the owed amount.
+  * @param expenseId
+  *   The unique identifier of the expense.
+  * @param fromMember
+  *   The unique identifier of the member who owes the amount.
+  * @param fromMemberName
+  *   The name of the person who owes the amount.
+  * @param toMember
+  *   The unique identifier of the member to whom the amount is owed.
+  * @param toMemberName
+  *   The name of the person to whom the amount is owed.
+  * @param amount
+  *   The amount owed.
+  */
+case class OwedAmountDetailRead(
+    id: String,
+    expenseId: String,
+    fromMember: String,
+    fromMemberName: String,
+    toMember: String,
+    toMemberName: String,
+    amount: Float
+)
+
 /** Represents a mapper for writing expense data. The fields are optional to
   * allow partial updates.
   *
@@ -256,6 +312,108 @@ trait OwedAmountMapper[F[_]]
     *   Unit, wrapped in the effect type F.
     */
   def delete(id: String): F[Unit]
+
+/** Trait defining the methods for retrieving expenses with additional details.
+  * Since this is not a one-to-one mapping of the database table, it is defined
+  * as a separate trait.
+  *
+  * @tparam F
+  *   The effect type.
+  */
+trait ExpenseDetailMapper[F[_]]:
+  /** Retrieves the expense detail for the given expense ID.
+    * @param id
+    *   The ID of the expense.
+    * @return
+    *   Either the expense detail or a NotFoundError if the expense is not
+    *   found.
+    */
+  def get(id: ExpenseId): F[Either[NotFoundError, ExpenseDetailRead]]
+
+/** Trait defining the methods for retrieving owed amounts with additional
+  * details. Since this is not a one-to-one mapping of the database table, it is
+  * defined as a separate trait.
+  * @tparam F
+  *   The effect type.
+  */
+trait OwedAmountDetailMapper[F[_]]:
+  /** Retrieves the list of owed amounts for the given expense ID.
+    * @param id
+    *   The ID of the expense.
+    * @return
+    *   The list of owed amounts.
+    */
+  def get(id: ExpenseId): F[List[OwedAmountDetailRead]]
+
+object ExpenseDetailMapper:
+  /** Creates a new instance of ExpenseDetailMapper using the provided session.
+    * This is an effectful operation because the query needs to be prepared
+    * before the mapper can be created.
+    *
+    * @param session
+    *   The database session.
+    * @tparam F
+    *   The effect type.
+    * @return
+    *   The new ExpenseDetailMapper instance.
+    */
+  def fromSession[F[_]: Monad](
+      session: Session[F]
+  ): F[ExpenseDetailMapper[F]] =
+    for getExpenseDetailQuery <- session.prepare(getExpenseDetailQuery)
+    yield new ExpenseDetailMapper[F]:
+      def get(id: ExpenseId): F[Either[NotFoundError, ExpenseDetailRead]] =
+        getExpenseDetailQuery
+          .option(id.value)
+          .map:
+            case Some(value) => Right(value)
+            case None =>
+              Left(NotFoundError(s"Expense with id = $id not found."))
+
+  private val getExpenseDetailQuery: Query[String, ExpenseDetailRead] =
+    sql"""
+         SELECT e.id, e.expense_list_id, e.paid_by, cm.name, e.description, e.price, e.date
+         FROM expenses e
+         JOIN circle_members cm ON e.paid_by = cm.id
+         WHERE e.id = $text
+       """
+      .query(varchar *: varchar *: varchar *: varchar *: text *: float4 *: date)
+      .to[ExpenseDetailRead]
+
+object OwedAmountDetailMapper:
+  /** Creates a new instance of OwedAmountDetailMapper using the provided
+    * session. This is an effectful operation because the query needs to be
+    * prepared before the mapper can be created.
+    * @param session
+    *   The database session.
+    * @tparam F
+    *   The effect type.
+    * @return
+    *   The new OwedAmountDetailMapper instance.
+    */
+  def fromSession[F[_]: Concurrent](
+      session: Session[F]
+  ): F[OwedAmountDetailMapper[F]] =
+    for getOwedAmountDetailQuery <- session.prepare(getOwedAmountDetailQuery)
+    yield new OwedAmountDetailMapper[F]:
+      def get(id: ExpenseId): F[List[OwedAmountDetailRead]] =
+        getOwedAmountDetailQuery
+          .stream(id.value, 1024)
+          .compile
+          .toList
+
+  private val getOwedAmountDetailQuery: Query[String, OwedAmountDetailRead] =
+    sql"""
+         SELECT oa.id, oa.expense_id, oa.from_member, cm1.name, oa.to_member, cm2.name, oa.amount
+         FROM owed_amounts oa
+         JOIN circle_members cm1 ON oa.from_member = cm1.id
+         JOIN circle_members cm2 ON oa.to_member = cm2.id
+         WHERE oa.id = $text
+       """
+      .query(
+        varchar *: varchar *: varchar *: varchar *: varchar *: varchar *: float4
+      )
+      .to[OwedAmountDetailRead]
 
 /** Companion object for the ExpenseMapper trait. Contains the factory method
   * for creating an instance of the ExpenseMapper.
