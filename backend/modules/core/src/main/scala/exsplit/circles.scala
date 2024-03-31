@@ -10,6 +10,8 @@ import exsplit.circles._
 import exsplit.datamapper.user._
 import exsplit.datamapper.circles._
 import skunk.Session
+import exsplit.domainmapper.CirclesOps._
+import exsplit.domainmapper.CircleMemberOps._
 
 object CirclesEntryPoint:
   def createService[F[_]: MonadThrow](
@@ -49,9 +51,8 @@ def withValidCircle[F[_]: MonadThrow, A](
     circleRepository: CirclesMapper[F]
 )(action: CircleOut => F[A]): F[A] =
   for
-    circleRead <- circleRepository.get(circleId.value).rethrow
-    circle = circleRead.toCircleOut
-    result <- action(circle)
+    circleOut <- circleRepository.getCircleOut(circleId)
+    result <- action(circleOut)
   yield result
 
 def withValidCircleMember[F[_]: MonadThrow, A](
@@ -59,8 +60,7 @@ def withValidCircleMember[F[_]: MonadThrow, A](
     circleMemberRepository: CircleMemberMapper[F]
 )(action: CircleMemberOut => F[A]): F[A] =
   for
-    memberRead <- circleMemberRepository.get(memberId.value).rethrow
-    member = memberRead.toCircleMemberOut
+    member <- circleMemberRepository.getCircleMemberOut(memberId)
     result <- action(member)
   yield result
 
@@ -74,9 +74,7 @@ case class CirclesServiceImpl[F[_]: MonadThrow](
 
   def listCirclesForUser(userId: UserId): F[ListCirclesForUserOutput] =
     withValidUser(userId, userRepo): user =>
-      for
-        circlesRead <- userCirclesMapper.listPrimaries(userId)
-        circles = CirclesOut(circlesRead.map(_.toCircleOut))
+      for circles <- userCirclesMapper.getCirclesOut(userId)
       yield ListCirclesForUserOutput(circles)
 
   def removeMemberFromCircle(
@@ -86,18 +84,14 @@ case class CirclesServiceImpl[F[_]: MonadThrow](
     withValidCircle(circleId, circleRepository): _ =>
       withValidCircleMember(member, circleMemberRepository): _ =>
         for
-          _ <- circleMemberRepository.delete(member.value)
+          _ <- circleMemberRepository.delete(member)
           // TODO: the user is not allowed to have outstanding debts in the circle
-          membersRead <- circleToMembersRepository.listChildren(circleId.value)
-          members = membersRead.map(_.toCircleMemberOut)
+          members <- circleToMembersRepository.getCircleMembersOuts(circleId)
           _ <- handleEmptyCircle(circleId, members)
         yield ()
 
   def getCircle(circleId: CircleId): F[GetCircleOutput] =
-    circleRepository
-      .get(circleId.value)
-      .rethrow
-      .map(out => GetCircleOutput(out.toCircleOut))
+    circleRepository.getCircleOut(circleId).map(GetCircleOutput(_))
 
   def changeDisplayName(
       circleId: CircleId,
@@ -116,11 +110,8 @@ case class CirclesServiceImpl[F[_]: MonadThrow](
       description: Option[String]
   ): F[CreateCircleOutput] =
     withValidUser(userId, userRepo): user =>
-      val input =
-        CreateCircleInput(userId, displayName, circleName, description)
       circleRepository
-        .create(input)
-        .map(_.toCircleOut)
+        .createCircle(userId, displayName, circleName, description)
         .map(CreateCircleOutput(_))
 
   def addUserToCircle(
@@ -130,18 +121,16 @@ case class CirclesServiceImpl[F[_]: MonadThrow](
   ): F[Unit] =
     withValidUser(user, userRepo): validUser =>
       withValidCircle(circleId, circleRepository): circle =>
-        val input = AddUserToCircleInput(user, displayName, circleId)
-        circleMemberRepository.create(input).void
+        circleMemberRepository.addCircleMember(user, displayName, circleId).void
 
   def deleteCircle(circleId: CircleId): F[Unit] =
     // TODO: the circle is not allowed to have outstanding debts
-    circleRepository.delete(circleId.value)
+    circleRepository.delete(circleId)
 
   def listCircleMembers(circleId: CircleId): F[ListCircleMembersOutput] =
     withValidCircle(circleId, circleRepository): circle =>
       for
-        membersWrite <- circleToMembersRepository.listChildren(circleId.value)
-        members = membersWrite.map(_.toCircleMemberOut)
+        members <- circleToMembersRepository.getCircleMembersOuts(circleId)
         membersListOut = MembersListOut(members)
       yield ListCircleMembersOutput(membersListOut)
 
@@ -159,18 +148,5 @@ case class CirclesServiceImpl[F[_]: MonadThrow](
       members: List[CircleMemberOut]
   ): F[Unit] =
     members match
-      case Nil => circleRepository.delete(circleId.value)
+      case Nil => circleRepository.delete(circleId)
       case _   => ().pure[F]
-
-extension (circle: CircleReadMapper)
-  def toCircleOut: CircleOut = CircleOut(
-    circle.id,
-    circle.name,
-    circle.description
-  )
-
-extension (member: CircleMemberReadMapper)
-  def toCircleMemberOut: CircleMemberOut = CircleMemberOut(
-    member.id,
-    member.displayName
-  )
