@@ -266,6 +266,86 @@ case class OwedAmountKey(
     toMember: CircleMemberId
 )
 
+/** This trait represents a mapper that maps a circle member to the owed amount.
+  * It extends the `HasMany` trait with the type parameters `F[_]`,
+  * `CircleMemberId`, and `OwedAmountReadMapper`.
+  */
+trait CircleMemberToOwedAmountMapper[F[_]]
+    extends HasMany[F, CircleMemberId, OwedAmountReadMapper]:
+
+  /** Retrieves a list of owed amounts for a given circle member. This includes
+    * all the amounts that the member owes to others, in all expenseLists.
+    *
+    * @param fromMember
+    *   The ID of the circle member.
+    * @return
+    *   A computation in the context `F` that yields a list of
+    *   `OwedAmountReadMapper`.
+    */
+  def listChildren(fromMember: CircleMemberId): F[List[OwedAmountReadMapper]]
+
+  /** Retrieves a list of owed amounts for a given circle member. This includes
+    * all the amounts that the member is owed by others, in all expenseLists.
+    *
+    * @param toMember
+    *   The ID of the circle member.
+    * @return
+    *   A computation in the context `F` that yields a list of
+    *   `OwedAmountReadMapper`.
+    */
+  def toMember(toMember: CircleMemberId): F[List[OwedAmountReadMapper]]
+
+/** This trait represents a mapper that maps an expense to the owed amount. It
+  * extends the `HasMany` trait with the type parameters `F[_]`, `ExpenseId`,
+  * and `OwedAmountReadMapper`.
+  */
+trait ExpensesToOwedAmountMapper[F[_]]
+    extends HasMany[F, ExpenseId, OwedAmountReadMapper]:
+
+  /** Retrieves a list of owed amounts for the children of a given expense.
+    *
+    * @param parent
+    *   The ID of the expense.
+    * @return
+    *   A computation in the context `F` that yields a list of
+    *   `OwedAmountReadMapper`.
+    */
+  def listChildren(parent: ExpenseId): F[List[OwedAmountReadMapper]]
+
+/** This trait represents a mapper that maps an expense list to an expense. It
+  * extends the `HasMany` trait with the type parameters `F[_]`,
+  * `ExpenseListId`, and `ExpenseReadMapper`.
+  */
+trait ExpenseListToExpenseMapper[F[_]]
+    extends HasMany[F, ExpenseListId, ExpenseReadMapper]:
+
+  /** Retrieves a list of expenses for the children of a given expense list.
+    *
+    * @param parent
+    *   The ID of the expense list.
+    * @return
+    *   A computation in the context `F` that yields a list of
+    *   `ExpenseReadMapper`.
+    */
+  def listChildren(parent: ExpenseListId): F[List[ExpenseReadMapper]]
+
+/** This trait represents a mapper that maps a circle member to an expense. It
+  * extends the `HasMany` trait with the type parameters `F[_]`,
+  * `CircleMemberId`, and `ExpenseReadMapper`.
+  */
+trait CircleMemberToExpenseMapper[F[_]]
+    extends HasMany[F, CircleMemberId, ExpenseReadMapper]:
+
+  /** Retrieves a list of expenses for the children of a given circle member.
+    *
+    * @param paidBy
+    *   The ID of the circle member.
+    * @return
+    *   A computation in the context `F` that yields a list of
+    *   `ExpenseReadMapper`.
+    */
+  def listChildren(paidBy: CircleMemberId): F[List[ExpenseReadMapper]]
+
 /** Trait defining the OwedAmountMapper, which is responsible for mapping owed
   * amount-related data between the application and the underlying data storage.
   * The trait extends the DataMapper trait, which provides the basic CRUD
@@ -655,3 +735,144 @@ object ExpenseMapper:
           DELETE FROM expenses
           WHERE id = $text
         """.command
+
+/** Companion object for the CircleMemberToOwedAmountMapper trait. Contains the
+  * factory method for creating an instance of the
+  * CircleMemberToOwedAmountMapper.
+  */
+object CircleMemberToOwedAmountMapper:
+  /** Creates a CircleMemberToOwedAmountMapper from a session. This is an
+    * effectful operation because the queries need to be prepared before the
+    * mapper can be created.
+    *
+    * @param session
+    *   The session to create the mapper from.
+    * @return
+    *   The created CircleMemberToOwedAmountMapper.
+    */
+  def fromSession[F[_]: Concurrent](
+      session: Session[F]
+  ): F[CircleMemberToOwedAmountMapper[F]] =
+    for
+      listChildrenQuery <- session.prepare(listChildrenQuery)
+      toMemberQuery <- session.prepare(toMemberQuery)
+    yield new CircleMemberToOwedAmountMapper[F]:
+
+      def listChildren(
+          fromMember: CircleMemberId
+      ): F[List[OwedAmountReadMapper]] =
+        listChildrenQuery.stream(fromMember.value, 1024).compile.toList
+
+      def toMember(toMember: CircleMemberId): F[List[OwedAmountReadMapper]] =
+        toMemberQuery.stream(toMember.value, 1024).compile.toList
+
+  private val listChildrenQuery: Query[String, OwedAmountReadMapper] =
+    sql"""
+         SELECT id, expense_id, from_member, to_member, amount
+         FROM owed_amounts
+         WHERE from_member = $varchar
+       """
+      .query(varchar *: varchar *: varchar *: varchar *: float4)
+      .to[OwedAmountReadMapper]
+
+  private val toMemberQuery: Query[String, OwedAmountReadMapper] =
+    sql"""
+         SELECT id, expense_id, from_member, to_member, amount
+         FROM owed_amounts
+         WHERE to_member = $varchar
+       """
+      .query(varchar *: varchar *: varchar *: varchar *: float4)
+      .to[OwedAmountReadMapper]
+
+/** Companion object for the CircleMemberToExpenseMapper trait. Contains the
+  * factory method for creating an instance of the CircleMemberToExpenseMapper.
+  */
+object CircleMemberToExpenseMapper:
+  /** Creates a CircleMemberToExpenseMapper from a database session. This is an
+    * effectful operation because the query needs to be prepared before the
+    * mapper can be created.
+    *
+    * @param session
+    *   The database session.
+    * @return
+    *   A CircleMemberToExpenseMapper wrapped in an effect type F.
+    */
+  def fromSession[F[_]: Concurrent](
+      session: Session[F]
+  ): F[CircleMemberToExpenseMapper[F]] =
+    for listChildrenQuery <- session.prepare(listChildrenQuery)
+    yield new CircleMemberToExpenseMapper[F]:
+
+      def listChildren(paidBy: CircleMemberId): F[List[ExpenseReadMapper]] =
+        listChildrenQuery.stream(paidBy.value, 1024).compile.toList
+
+  private val listChildrenQuery: Query[String, ExpenseReadMapper] =
+    sql"""
+         SELECT id, expense_list_id, paid_by, description, price, date
+         FROM expenses
+         WHERE paid_by = $varchar
+       """
+      .query(varchar *: varchar *: varchar *: text *: float4 *: date)
+      .to[ExpenseReadMapper]
+
+/** Companion object for the ExpenseMapper trait. Contains the factory method
+  * for creating an instance of the ExpenseMapper.
+  */
+object ExpenseListToExpenseMapper:
+  /** Creates a new ExpenseListToExpenseMapper from a session. This is an
+    * effectful operation because the query needs to be prepared before the
+    * mapper can be created.
+    *
+    * @param session
+    *   the session to use for database operations
+    * @return
+    *   a new ExpenseListToExpenseMapper wrapped in an effect type F
+    */
+  def fromSession[F[_]: Concurrent](
+      session: Session[F]
+  ): F[ExpenseListToExpenseMapper[F]] =
+    for listChildrenQuery <- session.prepare(listChildrenQuery)
+    yield new ExpenseListToExpenseMapper[F]:
+
+      def listChildren(parent: ExpenseListId): F[List[ExpenseReadMapper]] =
+        listChildrenQuery.stream(parent.value, 1024).compile.toList
+
+  private val listChildrenQuery: Query[String, ExpenseReadMapper] =
+    sql"""
+         SELECT id, expense_list_id, paid_by, description, price, date
+         FROM expenses
+         WHERE expense_list_id = $text
+       """
+      .query(varchar *: varchar *: varchar *: text *: float4 *: date)
+      .to[ExpenseReadMapper]
+
+/** Companion object for the `ExpensesToOwedAmountMapper` trait. Contains the
+  * factory method for creating an instance of the `ExpensesToOwedAmountMapper`.
+  */
+object ExpensesToOwedAmountMapper:
+  /** Creates an instance of `ExpensesToOwedAmountMapper` from a session. This
+    * is an effectful operation because the query needs to be prepared before
+    * the mapper can be created.
+    *
+    * @param session
+    *   The session to use for database operations.
+    * @return
+    *   A `F` wrapped `ExpensesToOwedAmountMapper`.
+    */
+  def fromSession[F[_]: Concurrent](
+      session: Session[F]
+  ): F[ExpensesToOwedAmountMapper[F]] =
+    for listChildrenQuery <- session.prepare(listChildrenQuery)
+    yield new ExpensesToOwedAmountMapper[F]:
+
+      def listChildren(parent: ExpenseId): F[List[OwedAmountReadMapper]] =
+        listChildrenQuery.stream(parent.value, 1024).compile.toList
+
+  private val listChildrenQuery: Query[String, OwedAmountReadMapper] =
+    sql"""
+         SELECT id, expense_id, from_member, to_member, amount
+         FROM owed_amounts
+         WHERE expense_id = $text
+       """
+      .query(varchar *: varchar *: varchar *: varchar *: float4)
+      .to[OwedAmountReadMapper]
