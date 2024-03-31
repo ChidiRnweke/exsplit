@@ -163,7 +163,7 @@ structure ExpenseListOut {
     name: String
 
     @required
-    circle: CircleOut
+    circleId: String
 }
 
 structure ExpenseListDetailOut {
