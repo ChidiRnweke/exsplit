@@ -10,7 +10,6 @@ import cats.effect._
 import cats.syntax.all._
 import cats._
 import exsplit.datamapper._
-import exsplit.spec.CirclesServiceGen.input
 
 /** Describes a circle read mapper. This class is a one to one mapping of the
   * circle table in the database without the creation and update timestamps.
