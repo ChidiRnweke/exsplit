@@ -1,4 +1,4 @@
-package exsplit.datamapper.expenseMapper
+package exsplit.datamapper.expenses
 
 import exsplit.db._
 import skunk._
@@ -424,14 +424,75 @@ trait ExpenseDetailMapper[F[_]]:
   * @tparam F
   *   The effect type.
   */
-trait OwedAmountDetailMapper[F[_]]:
+trait OwedAmountDetailMapper[F[_]]
+    extends HasMany[F, ExpenseId, OwedAmountDetailRead]:
   /** Retrieves the list of owed amounts for the given expense ID.
     * @param id
     *   The ID of the expense.
     * @return
     *   The list of owed amounts.
     */
-  def get(id: ExpenseId): F[List[OwedAmountDetailRead]]
+  def listChildren(id: ExpenseId): F[List[OwedAmountDetailRead]]
+
+/** A data mapper trait for mapping expense lists to their owed amount details.
+  * This reads the owed amounts for all expenses that belong to a given expense
+  * list.
+  *
+  * @tparam F
+  *   The effect type for performing database operations.
+  */
+trait ExpenseListOwedAmountMapper[F[_]]
+    extends HasMany[F, ExpenseListId, OwedAmountDetailRead]:
+
+  /** Retrieves a list of owed amount details associated with the given expense
+    * list. This includes all the owed amounts for all the expenses in the list.
+    *
+    * @param parent
+    *   The ID of the parent expense list.
+    * @return
+    *   A list of owed amount details.
+    */
+  def listChildren(parent: ExpenseListId): F[List[OwedAmountDetailRead]]
+
+/** Companion object for the ExpenseMapper trait. Contains the factory method
+  * for creating an instance of the ExpenseMapper.
+  */
+object ExpenseListOwedAmountMapper:
+  /** Creates an instance of ExpenseListOwedAmountMapper from a session. This is
+    * an effectful operation because the query needs to be prepared before the
+    * mapper can be created.
+    *
+    * @param session
+    *   The session to use for database operations.
+    * @return
+    *   An effectful computation that yields an instance of
+    *   ExpenseListOwedAmountMapper.
+    */
+  def fromSession[F[_]: Concurrent](
+      session: Session[F]
+  ): F[ExpenseListOwedAmountMapper[F]] =
+    for getOwedAmountDetailQuery <- session.prepare(getOwedAmountDetailQuery)
+    yield new ExpenseListOwedAmountMapper[F]:
+
+      def listChildren(id: ExpenseListId): F[List[OwedAmountDetailRead]] =
+        getOwedAmountDetailQuery
+          .stream(id.value, 1024)
+          .compile
+          .toList
+
+  private val getOwedAmountDetailQuery: Query[String, OwedAmountDetailRead] =
+    sql"""
+         SELECT oa.id, oa.expense_id, oa.from_member, cm1.name, oa.to_member, cm2.name, oa.amount
+         FROM owed_amounts oa
+         INNER JOIN circle_members cm1 ON oa.from_member = cm1.id
+         INNER JOIN circle_members cm2 ON oa.to_member = cm2.id
+         INNER JOIN expenses e ON oa.expense_id = e.id
+         WHERE e.expense_list_id = $text
+       """
+      .query(
+        varchar *: varchar *: varchar *: varchar *: varchar *: varchar *: float4
+      )
+      .to[OwedAmountDetailRead]
 
 object ExpenseDetailMapper:
   /** Creates a new instance of ExpenseDetailMapper using the provided session.
@@ -484,7 +545,7 @@ object OwedAmountDetailMapper:
   ): F[OwedAmountDetailMapper[F]] =
     for getOwedAmountDetailQuery <- session.prepare(getOwedAmountDetailQuery)
     yield new OwedAmountDetailMapper[F]:
-      def get(id: ExpenseId): F[List[OwedAmountDetailRead]] =
+      def listChildren(id: ExpenseId): F[List[OwedAmountDetailRead]] =
         getOwedAmountDetailQuery
           .stream(id.value, 1024)
           .compile
