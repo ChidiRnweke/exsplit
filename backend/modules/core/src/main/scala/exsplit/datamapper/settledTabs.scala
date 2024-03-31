@@ -83,7 +83,8 @@ trait SettledTabMapper[F[_]]
       F,
       SettleExpenseListInput,
       SettledTabReadMapper,
-      SettledTabWriteMapper
+      SettledTabWriteMapper,
+      String
     ]:
 
   /** Creates a new Settled Tab based on the provided input.

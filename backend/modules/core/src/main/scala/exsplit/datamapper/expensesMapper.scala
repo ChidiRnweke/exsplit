@@ -219,7 +219,8 @@ trait ExpenseMapper[F[_]]
       F,
       CreateExpenseInput,
       ExpenseReadMapper,
-      ExpenseWriteMapper
+      ExpenseWriteMapper,
+      ExpenseId
     ]:
 
   /** Creates a new expense based on the provided input.
@@ -239,7 +240,7 @@ trait ExpenseMapper[F[_]]
     *   Either the retrieved expense or a NotFoundError, wrapped in the effect
     *   type F.
     */
-  def get(id: String): F[Either[NotFoundError, ExpenseReadMapper]]
+  def get(id: ExpenseId): F[Either[NotFoundError, ExpenseReadMapper]]
 
   /** Updates an existing expense.
     *
@@ -257,7 +258,13 @@ trait ExpenseMapper[F[_]]
     * @return
     *   Unit, wrapped in the effect type F.
     */
-  def delete(id: String): F[Unit]
+  def delete(id: ExpenseId): F[Unit]
+
+case class OwedAmountKey(
+    expenseId: ExpenseId,
+    fromMember: CircleMemberId,
+    toMember: CircleMemberId
+)
 
 /** Trait defining the OwedAmountMapper, which is responsible for mapping owed
   * amount-related data between the application and the underlying data storage.
@@ -273,7 +280,8 @@ trait OwedAmountMapper[F[_]]
       F,
       CreateOwedAmountInput,
       OwedAmountReadMapper,
-      OwedAmountWriteMapper
+      OwedAmountWriteMapper,
+      OwedAmountKey
     ]:
 
   /** Creates a new owed amount based on the provided input.
@@ -293,7 +301,7 @@ trait OwedAmountMapper[F[_]]
     *   Either the retrieved owed amount or a NotFoundError, wrapped in the
     *   effect type F.
     */
-  def get(id: String): F[Either[NotFoundError, OwedAmountReadMapper]]
+  def get(id: OwedAmountKey): F[Either[NotFoundError, OwedAmountReadMapper]]
 
   /** Updates an existing owed amount.
     *
@@ -311,7 +319,7 @@ trait OwedAmountMapper[F[_]]
     * @return
     *   Unit, wrapped in the effect type F.
     */
-  def delete(id: String): F[Unit]
+  def delete(id: OwedAmountKey): F[Unit]
 
 /** Trait defining the methods for retrieving expenses with additional details.
   * Since this is not a one-to-one mapping of the database table, it is defined
@@ -447,12 +455,15 @@ object OwedAmountMapper:
         createOwedAmountQuery
           .unique(input)
 
-      def get(id: String): F[Either[NotFoundError, OwedAmountReadMapper]] =
+      def get(
+          id: OwedAmountKey
+      ): F[Either[NotFoundError, OwedAmountReadMapper]] =
         getOwedAmountQuery
           .option(id)
-          .map(
-            _.toRight(NotFoundError(s"Owed amount with id = $id not found."))
-          )
+          .map:
+            case Some(value) => Right(value)
+            case None =>
+              Left(NotFoundError(s"Owed amount with id = $id not found."))
 
       def update(b: OwedAmountWriteMapper): F[Unit] =
         val updates = List(
@@ -469,18 +480,20 @@ object OwedAmountMapper:
 
         updates.parSequence.void
 
-      def delete(id: String): F[Unit] =
+      def delete(id: OwedAmountKey): F[Unit] =
         deleteOwedAmountQuery
           .execute(id)
           .void
 
-  private val getOwedAmountQuery: Query[String, OwedAmountReadMapper] =
+  private val getOwedAmountQuery: Query[OwedAmountKey, OwedAmountReadMapper] =
     sql"""
          SELECT id, expense_id, from_member, to_member, amount
          FROM owed_amounts
-         WHERE id = $text
+         WHERE expense_id = $text and from_member = $varchar and to_member = $varchar
        """
       .query(varchar *: varchar *: varchar *: varchar *: float4)
+      .contramap: (key: OwedAmountKey) =>
+        (key.expenseId.value, key.fromMember.value, key.toMember.value)
       .to[OwedAmountReadMapper]
 
   private val createOwedAmountQuery
@@ -500,11 +513,13 @@ object OwedAmountMapper:
         )
       .to[OwedAmountReadMapper]
 
-  private val deleteOwedAmountQuery: Command[String] =
+  private val deleteOwedAmountQuery: Command[OwedAmountKey] =
     sql"""
          DELETE FROM owed_amounts
-         WHERE id = $text
+         WHERE expense_id = $text and from_member = $varchar and to_member = $varchar
        """.command
+      .contramap: (key: OwedAmountKey) =>
+        (key.expenseId.value, key.fromMember.value, key.toMember.value)
 
   private val updateOwedAmountFromMember: Command[(String, String)] =
     sql"""
@@ -559,9 +574,9 @@ object ExpenseMapper:
         createExpenseQuery
           .unique(input)
 
-      def get(id: String): F[Either[NotFoundError, ExpenseReadMapper]] =
+      def get(id: ExpenseId): F[Either[NotFoundError, ExpenseReadMapper]] =
         getExpenseQuery
-          .option(id)
+          .option(id.value)
           .map(_.toRight(NotFoundError(s"Expense with id = $id not found.")))
 
       def update(b: ExpenseWriteMapper): F[Unit] =
@@ -576,9 +591,9 @@ object ExpenseMapper:
 
         updates.parSequence.void
 
-      def delete(id: String): F[Unit] =
+      def delete(id: ExpenseId): F[Unit] =
         deleteExpenseQuery
-          .execute(id)
+          .execute(id.value)
           .void
 
   private val getExpenseQuery: Query[String, ExpenseReadMapper] =

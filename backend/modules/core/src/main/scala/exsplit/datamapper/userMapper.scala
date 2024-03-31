@@ -64,7 +64,8 @@ trait UserMapper[F[_]]
       F,
       (String, String, String),
       UserReadMapper,
-      UserWriteMapper
+      UserWriteMapper,
+      String
     ]:
   /** Finds the user credentials based on the email.
     *

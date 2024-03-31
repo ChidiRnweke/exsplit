@@ -13,6 +13,7 @@ import cats.data._
 import exsplit.auth._
 import java.util.UUID
 import exsplit.datamapper._
+import skunk.syntax.StringContextOps.Str
 
 /** Represents the read model of an expense list. This class is a one to one
   * mapping of the expense list table in the database without the creation and
@@ -50,7 +51,8 @@ trait ExpenseListMapper[F[_]]
       F,
       CreateExpenseListInput,
       ExpenseListReadMapper,
-      ExpenseListWriteMapper
+      ExpenseListWriteMapper,
+      ExpenseListId
     ]:
 
   /** Creates a new expense list.
@@ -78,7 +80,7 @@ trait ExpenseListMapper[F[_]]
     * @return
     *   A unit value indicating the success of the delete operation.
     */
-  def delete(id: String): F[Unit]
+  def delete(id: ExpenseListId): F[Unit]
 
   /** Retrieves an expense list by its unique identifier.
     *
@@ -88,7 +90,7 @@ trait ExpenseListMapper[F[_]]
     *   Either a NotFoundError if the expense list is not found, or the expense
     *   list in the read model.
     */
-  def get(id: String): F[Either[NotFoundError, ExpenseListReadMapper]]
+  def get(id: ExpenseListId): F[Either[NotFoundError, ExpenseListReadMapper]]
 
 /** Trait representing a mapper for expense lists associated with circles.
   */
@@ -168,13 +170,18 @@ object ExpenseListMapper:
       def update(b: ExpenseListWriteMapper): F[Unit] =
         updateQuery.execute(b.name, b.id).void
 
-      def delete(id: String): F[Unit] =
-        deleteQuery.execute(id).void
+      def delete(id: ExpenseListId): F[Unit] =
+        deleteQuery.execute(id.value).void
 
-      def get(id: String): F[Either[NotFoundError, ExpenseListReadMapper]] =
+      def get(
+          id: ExpenseListId
+      ): F[Either[NotFoundError, ExpenseListReadMapper]] =
         getQuery
-          .option(id)
-          .map(_.toRight(NotFoundError(s"ExpenseList with id $id not found")))
+          .option(id.value)
+          .map:
+            case Some(value) => Right(value)
+            case None =>
+              Left(NotFoundError(s"Expense list with id $id not found"))
 
   private val getExpenseListQuery: Query[String, ExpenseListReadMapper] = sql"""
     SELECT id, name, circle_id FROM expense_lists WHERE id = $text

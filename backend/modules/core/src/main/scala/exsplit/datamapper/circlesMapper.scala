@@ -10,6 +10,7 @@ import cats.effect._
 import cats.syntax.all._
 import cats._
 import exsplit.datamapper._
+import exsplit.spec.CirclesServiceGen.input
 
 /** Describes a circle read mapper. This class is a one to one mapping of the
   * circle table in the database without the creation and update timestamps.
@@ -89,18 +90,19 @@ trait CirclesMapper[F[_]]
       F,
       CreateCircleInput,
       CircleReadMapper,
-      CircleWriteMapper
+      CircleWriteMapper,
+      CircleId
     ]:
 
   /** Finds a circle by its ID.
-    * @param String
+    * @param CircleId
     *   The ID of the circle to find.
     * @return
     *   An effectful computation that yields either a `NotFoundError` or a
     *   `CircleReadMapper`. The former is returned if the circle is not found.
     */
   def get(
-      circleId: String
+      circleId: CircleId
   ): F[Either[NotFoundError, CircleReadMapper]]
 
   /** Updates a circle. The circle is identified by its ID. The name and
@@ -124,12 +126,12 @@ trait CirclesMapper[F[_]]
   def create(input: CreateCircleInput): F[CircleReadMapper]
 
   /** Deletes a circle by its ID.
-    * @param String
+    * @param CircleId
     *   The ID of the circle to delete.
     * @return
     *   An effectful computation that yields `Unit`.
     */
-  def delete(circleId: String): F[Unit]
+  def delete(circleId: CircleId): F[Unit]
 
 /** Repository trait for managing circle members. Defines the basic read and
   * write operations for circle members. More complex operations are defined
@@ -144,7 +146,8 @@ trait CircleMemberMapper[F[_]]
       F,
       AddUserToCircleInput,
       CircleMemberReadMapper,
-      CircleMemberWriteMapper
+      CircleMemberWriteMapper,
+      CircleMemberId
     ]:
   /** Retrieves a circle member by their ID.
     *
@@ -155,7 +158,7 @@ trait CircleMemberMapper[F[_]]
     *   member is not found, or a `CircleMemberReadMapper` if the circle member
     *   is found
     */
-  def get(id: String): F[Either[NotFoundError, CircleMemberReadMapper]]
+  def get(id: CircleMemberId): F[Either[NotFoundError, CircleMemberReadMapper]]
 
   /** Creates a new circle member.
     *
@@ -183,7 +186,7 @@ trait CircleMemberMapper[F[_]]
     * @return
     *   a `F` effect that resolves to `Unit` when the deletion is successful
     */
-  def delete(circleMemberId: String): F[Unit]
+  def delete(circleMemberId: CircleMemberId): F[Unit]
 
 /** A trait that represents a mapper for mapping circles to their members.
   *
@@ -191,7 +194,7 @@ trait CircleMemberMapper[F[_]]
   *   the effect type
   */
 trait CircleToMembersMapper[F[_]]
-    extends HasMany[F, String, CircleMemberReadMapper]:
+    extends HasMany[F, CircleId, CircleMemberReadMapper]:
 
   /** Lists the children (members) of a given parent circle.
     *
@@ -200,7 +203,7 @@ trait CircleToMembersMapper[F[_]]
     * @return
     *   a list of CircleMemberReadMapper instances representing the children
     */
-  def listChildren(parent: String): F[List[CircleMemberReadMapper]]
+  def listChildren(parent: CircleId): F[List[CircleMemberReadMapper]]
 
 /** Represents a mapper for user circles. Provides methods to interact with the
   * database and retrieve user circles.
@@ -276,8 +279,8 @@ object CircleToMembersMapper:
     for listCircleMembersQuery <- session.prepare(listCircleMembersQuery)
     yield new CircleToMembersMapper[F]:
 
-      def listChildren(circleId: String): F[List[CircleMemberReadMapper]] =
-        listCircleMembersQuery.stream(circleId, 1024).compile.toList
+      def listChildren(circleId: CircleId): F[List[CircleMemberReadMapper]] =
+        listCircleMembersQuery.stream(circleId.value, 1024).compile.toList
 
   private val listCircleMembersQuery: Query[String, CircleMemberReadMapper] =
     sql"""
@@ -309,57 +312,62 @@ object CircleMemberMapper:
       updateCircleMember <- session.prepare(updateCircleMemberCommand)
       deleteCircleMember <- session.prepare(deleteCircleMemberCommand)
     yield new CircleMemberMapper:
-      def get(id: String): F[Either[NotFoundError, CircleMemberReadMapper]] =
+      def get(
+          id: CircleMemberId
+      ): F[Either[NotFoundError, CircleMemberReadMapper]] =
         findCircleMember
-          .option(id)
+          .option(id.value)
           .map:
             case Some(value) => Right(value)
             case None =>
               Left(NotFoundError(s"Circle member with ID = $id not found."))
 
       def create(input: AddUserToCircleInput): F[CircleMemberReadMapper] =
-        addCircleMember
-          .unique(input.displayName, input.userId.value, input.circleId.value)
+        addCircleMember.unique(input)
 
       def update(circleMember: CircleMemberWriteMapper): F[Unit] =
         updateCircleMember
-          .execute(circleMember.displayName, circleMember.id)
+          .execute(circleMember)
           .void
 
-      def delete(circleMemberId: String): F[Unit] =
-        deleteCircleMember.execute(circleMemberId).void
+      def delete(circleMemberId: CircleMemberId): F[Unit] =
+        deleteCircleMember.execute(circleMemberId.value).void
 
-private val findCircleMemberByIdQuery: Query[String, CircleMemberReadMapper] =
-  sql"""
-      SELECT cm.id, cm.circle_id, cm.user_id, cm.display_name
-      FROM circle_members cm
-      WHERE cm.id = $text
-    """
-    .query(varchar *: varchar *: varchar *: varchar)
-    .to[CircleMemberReadMapper]
+  private val findCircleMemberByIdQuery: Query[String, CircleMemberReadMapper] =
+    sql"""
+        SELECT cm.id, cm.circle_id, cm.user_id, cm.display_name
+        FROM circle_members cm
+        WHERE cm.id = $text
+      """
+      .query(varchar *: varchar *: varchar *: varchar)
+      .to[CircleMemberReadMapper]
 
-private val addCircleMemberQuery
-    : Query[(String, String, String), CircleMemberReadMapper] =
-  sql"""
-      INSERT INTO circle_members (display_name, user_id, circle_id)
-      VALUES ($text, $text, $text)
-      RETURNING id, circle_id, user_id, display_name
-    """
-    .query(varchar *: varchar *: varchar *: varchar)
-    .to[CircleMemberReadMapper]
+  private val addCircleMemberQuery
+      : Query[AddUserToCircleInput, CircleMemberReadMapper] =
+    sql"""
+        INSERT INTO circle_members (display_name, user_id, circle_id)
+        VALUES ($text, $text, $text)
+        RETURNING id, circle_id, user_id, display_name
+      """
+      .query(varchar *: varchar *: varchar *: varchar)
+      .contramap: (input: AddUserToCircleInput) =>
+        (input.displayName, input.userId.value, input.circleId.value)
+      .to[CircleMemberReadMapper]
 
-private val deleteCircleMemberCommand: Command[String] =
-  sql"""
-      DELETE FROM circle_members
-      WHERE id = $text
-    """.command
-
-private val updateCircleMemberCommand: Command[(String, String)] =
-  sql"""
-        UPDATE circle_members
-        SET display_name = $text
+  private val deleteCircleMemberCommand: Command[String] =
+    sql"""
+        DELETE FROM circle_members
         WHERE id = $text
       """.command
+
+  private val updateCircleMemberCommand: Command[CircleMemberWriteMapper] =
+    sql"""
+          UPDATE circle_members
+          SET display_name = $text
+          WHERE id = $text
+        """.command
+      .contramap: (input: CircleMemberWriteMapper) =>
+        (input.displayName, input.id)
 
 /** A companion object for the `CirclesMapper` trait. This object contains the
   * implementation of the `CirclesMapper` trait.
@@ -392,9 +400,9 @@ object CirclesMapper:
       deleteCircleQuery <- session.prepare(deleteCircleQuery)
     yield new CirclesMapper[F]:
 
-      def get(circleId: String): F[Either[NotFoundError, CircleReadMapper]] =
+      def get(circleId: CircleId): F[Either[NotFoundError, CircleReadMapper]] =
         findCircleByIdQuery
-          .option(circleId)
+          .option(circleId.value)
           .map:
             case Some(value) => Right(value)
             case None =>
@@ -416,8 +424,8 @@ object CirclesMapper:
 
         actions.parSequence.void
 
-      def delete(circleId: String): F[Unit] =
-        deleteCircleQuery.execute(circleId).void
+      def delete(circleId: CircleId): F[Unit] =
+        deleteCircleQuery.execute(circleId.value).void
 
   private val findCircleByIdQuery: Query[String, CircleReadMapper] =
     sql"""

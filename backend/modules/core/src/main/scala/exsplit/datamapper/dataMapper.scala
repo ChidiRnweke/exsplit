@@ -20,8 +20,11 @@ import exsplit.spec.NotFoundError
   *   is used to update an existing entity. This type is obtained by making a
   *   change to the domain model. If it contains more than one field that can be
   *   updated independently, all fields except the ID should be optional.
+  *
+  * @tparam D
+  *   The type of the ID of the entity.
   */
-trait DataMapper[F[_], A, B, C]:
+trait DataMapper[F[_], A, B, C, D]:
   /** Creates a new entity.
     *
     * @param input
@@ -39,7 +42,7 @@ trait DataMapper[F[_], A, B, C]:
     *   Either the retrieved entity or a NotFoundError wrapped in the effect
     *   type F.
     */
-  def get(id: String): F[Either[NotFoundError, B]]
+  def get(id: D): F[Either[NotFoundError, B]]
 
   /** Updates an existing entity. Does not return an error if the entity does
     * not exist such that the operation is idempotent.
@@ -59,7 +62,7 @@ trait DataMapper[F[_], A, B, C]:
     * @return
     *   Unit wrapped in the effect type F.
     */
-  def delete(id: String): F[Unit]
+  def delete(id: D): F[Unit]
 
 /** Represents a relationship where a parent entity has many child entities.
   * This is a one-to-many relationship. The parent entity is the entity that is
