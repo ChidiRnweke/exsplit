@@ -179,7 +179,7 @@ object SettledTabMapper:
           )
         ).flatten
 
-        actions.sequence.void
+        actions.parSequence.void
 
       def delete(id: String): F[Unit] =
         deleteSettledTabQuery.execute(id).void
