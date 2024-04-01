@@ -23,10 +23,10 @@ import java.time.LocalDate
  * are children of a specified parent expense list.
  */
 trait ExpenseRepository[F[_]]:
-  val mainMapper: ExpenseMapper[F]
-  val expenseDetail: ExpenseDetailMapper[F]
-  val circleMembers: CircleMemberToExpenseMapper[F]
-  val expenseLists: ExpenseListToExpenseMapper[F]
+  val main: ExpenseMapper[F]
+  val detail: ExpenseDetailMapper[F]
+  val byCircleMember: CircleMemberToExpenseMapper[F]
+  val byExpenseList: ExpenseListToExpenseMapper[F]
 
 /* Represents a repository for managing owed amounts. The main mapper contains the
  * basic CRUD operations for the owed amount. The circle members mapper contains
@@ -35,9 +35,10 @@ trait ExpenseRepository[F[_]]:
  * that are children of a specified parent expense.
  */
 trait OwedAmountRepository[F[_]]:
-  val mainMapper: OwedAmountMapper[F]
-  val circleMembers: CircleMemberToOwedAmountMapper[F]
-  val expenses: ExpensesToOwedAmountMapper[F]
+  val main: OwedAmountMapper[F]
+  val detail: OwedAmountDetailMapper[F]
+  val byCircleMember: CircleMemberToOwedAmountMapper[F]
+  val byExpense: ExpensesToOwedAmountMapper[F]
 
 /* Companion object for the `ExpenseRepository` trait. Provides a method for
  * creating a new instance of the repository.
@@ -63,10 +64,10 @@ object ExpenseRepository:
       circleMembers <- CircleMemberToExpenseMapper.fromSession(session)
       expenseLists <- ExpenseListToExpenseMapper.fromSession(session)
     yield new ExpenseRepository[F]:
-      val mainMapper = mainMapper
-      val expenseDetail = expenseDetail
-      val circleMembers = circleMembers
-      val expenseLists = expenseLists
+      val main = mainMapper
+      val detail = expenseDetail
+      val byCircleMember = circleMembers
+      val byExpenseList = expenseLists
 
 /* Companion object for the `OwedAmountRepository` trait. Provides a method for
  * creating a new instance of the repository.
@@ -90,10 +91,12 @@ object OwedAmountRepository:
       mainMapper <- OwedAmountMapper.fromSession(session)
       circleMembers <- CircleMemberToOwedAmountMapper.fromSession(session)
       expenses <- ExpensesToOwedAmountMapper.fromSession(session)
+      detail <- OwedAmountDetailMapper.fromSession(session)
     yield new OwedAmountRepository[F]:
-      val mainMapper = mainMapper
-      val circleMembers = circleMembers
-      val expenses = expenses
+      val main = mainMapper
+      val byCircleMember = circleMembers
+      val byExpense = expenses
+      val detail = detail
 
 /** Represents an expense read mapper. This class is a one to one mapping of the
   * expense table in the database without the creation and update timestamps.

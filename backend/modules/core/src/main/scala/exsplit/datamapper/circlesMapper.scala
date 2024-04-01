@@ -17,8 +17,8 @@ import exsplit.datamapper._
   * primary circles for a given user.
   */
 trait CirclesRepository[F[_]]:
-  val mainMapper: CirclesMapper[F]
-  val userCircles: UserCirclesMapper[F]
+  val main: CirclesMapper[F]
+  val byUser: UserCirclesMapper[F]
 
 /** Represents a repository for managing circle members. This trait contains the
   * main mapper for circle members and the circle to members mapper. The former
@@ -26,8 +26,8 @@ trait CirclesRepository[F[_]]:
   * has methods for listing the children of a given parent circle.
   */
 trait CircleMembersRepository[F[_]]:
-  val mainMapper: CircleMemberMapper[F]
-  val circleToMembers: CircleToMembersMapper[F]
+  val main: CircleMemberMapper[F]
+  val byCircle: CircleToMembersMapper[F]
 
 /*
 Contains a factory method for creating a CirclesRepository from a session.
@@ -49,8 +49,8 @@ object CirclesRepository:
       mainMapper <- CirclesMapper.fromSession(session)
       userCircles <- UserCirclesMapper.fromSession(session)
     yield new CirclesRepository[F]:
-      val mainMapper = mainMapper
-      val userCircles = userCircles
+      val main = mainMapper
+      val byUser = userCircles
 
 /*
 Contains a factory method for creating a CircleMembersRepository from a session.
@@ -72,8 +72,8 @@ object CircleMembersRepository:
       mainMapper <- CircleMemberMapper.fromSession(session)
       circleToMembers <- CircleToMembersMapper.fromSession(session)
     yield new CircleMembersRepository[F]:
-      val mainMapper = mainMapper
-      val circleToMembers = circleToMembers
+      val main = mainMapper
+      val byCircle = circleToMembers
 
 /** Describes a circle read mapper. This class is a one to one mapping of the
   * circle table in the database without the creation and update timestamps.

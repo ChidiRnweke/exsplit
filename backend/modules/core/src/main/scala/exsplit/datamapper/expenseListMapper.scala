@@ -25,8 +25,8 @@ import exsplit.datamapper._
   *   The circles expense list mapper.
   */
 trait ExpenseListRepository[F[_]]:
-  val mainMapper: ExpenseListMapper[F]
-  val circlesMapper: CirclesExpenseListMapper[F]
+  val main: ExpenseListMapper[F]
+  val byCircle: CirclesExpenseListMapper[F]
 
 /* Companion object for the `ExpenseListRepository` trait. Provides a method for
  * creating a new instance of the repository.
@@ -51,8 +51,8 @@ object ExpenseListRepository:
       mainMapper <- ExpenseListMapper.fromSession(session)
       circlesMapper <- CirclesExpenseListMapper.fromSession(session)
     yield new ExpenseListRepository[F]:
-      val mainMapper = mainMapper
-      val circlesMapper = circlesMapper
+      val main = mainMapper
+      val byCircle = circlesMapper
 
 /** Represents the read model of an expense list. This class is a one to one
   * mapping of the expense list table in the database without the creation and

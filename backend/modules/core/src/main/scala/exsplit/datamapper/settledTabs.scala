@@ -83,7 +83,7 @@ case class SettledTabWriteMapper(
 trait settledTabRepository[F[_]]:
   /** The main mapper for settled tabs.
     */
-  val mainMapper: SettledTabMapper[F]
+  val main: SettledTabMapper[F]
 
   /** Repository for retrieving settled tabs by expenses.
     */
@@ -107,7 +107,7 @@ object settledTabRepository:
       byFromMembers <- FromMemberToSettledTabs.fromSession(session)
       byToMembers <- ToMemberToSettledTabs.fromSession(session)
     yield new settledTabRepository[F]:
-      val mainMapper = mainMapper
+      val main = mainMapper
       val byExpenses = byExpenses
       val byFromMembers = byFromMembers
       val byToMembers = byToMembers
