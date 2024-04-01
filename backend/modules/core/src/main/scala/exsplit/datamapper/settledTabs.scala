@@ -72,6 +72,46 @@ case class SettledTabWriteMapper(
     amount: Option[Float]
 )
 
+/** Repository trait for managing settled tabs. It contains the main mapper for
+  * settled tabs and repositories for retrieving settled tabs by expenses, from
+  * members, and to members.
+  *
+  * @tparam F
+  *   The effect type, representing the context in which the repository
+  *   operates.
+  */
+trait settledTabRepository[F[_]]:
+  /** The main mapper for settled tabs.
+    */
+  val mainMapper: SettledTabMapper[F]
+
+  /** Repository for retrieving settled tabs by expenses.
+    */
+  val byExpenses: ExpenseListToSettledTabs[F]
+
+  /** Repository for retrieving settled tabs by from members.
+    */
+  val byFromMembers: FromMemberToSettledTabs[F]
+
+  /** Repository for retrieving settled tabs by to members.
+    */
+  val byToMembers: ToMemberToSettledTabs[F]
+
+object settledTabRepository:
+  def fromSession[F[_]: Concurrent: Parallel](
+      session: Session[F]
+  ): F[settledTabRepository[F]] =
+    for
+      mainMapper <- SettledTabMapper.fromSession(session)
+      byExpenses <- ExpenseListToSettledTabs.fromSession(session)
+      byFromMembers <- FromMemberToSettledTabs.fromSession(session)
+      byToMembers <- ToMemberToSettledTabs.fromSession(session)
+    yield new settledTabRepository[F]:
+      val mainMapper = mainMapper
+      val byExpenses = byExpenses
+      val byFromMembers = byFromMembers
+      val byToMembers = byToMembers
+
 /** A trait representing a data mapper for Settled Tabs. It provides methods for
   * creating, retrieving, updating, and deleting Settled Tabs.
   *
