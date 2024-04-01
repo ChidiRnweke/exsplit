@@ -80,7 +80,7 @@ case class SettledTabWriteMapper(
   *   The effect type, representing the context in which the repository
   *   operates.
   */
-trait settledTabRepository[F[_]]:
+trait SettledTabRepository[F[_]]:
   /** The main mapper for settled tabs.
     */
   val main: SettledTabMapper[F]
@@ -97,16 +97,16 @@ trait settledTabRepository[F[_]]:
     */
   val byToMembers: ToMemberToSettledTabs[F]
 
-object settledTabRepository:
+object SettledTabRepository:
   def fromSession[F[_]: Concurrent: Parallel](
       session: Session[F]
-  ): F[settledTabRepository[F]] =
+  ): F[SettledTabRepository[F]] =
     for
       mainMapper <- SettledTabMapper.fromSession(session)
       byExpenses <- ExpenseListToSettledTabs.fromSession(session)
       byFromMembers <- FromMemberToSettledTabs.fromSession(session)
       byToMembers <- ToMemberToSettledTabs.fromSession(session)
-    yield new settledTabRepository[F]:
+    yield new SettledTabRepository[F]:
       val main = mainMapper
       val byExpenses = byExpenses
       val byFromMembers = byFromMembers
