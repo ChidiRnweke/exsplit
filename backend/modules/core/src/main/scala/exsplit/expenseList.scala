@@ -4,65 +4,62 @@ import cats.syntax.all._
 import cats._
 import cats.data._
 import exsplit.circles._
+import exsplit.expenses._
 import exsplit.datamapper.circles._
+import exsplit.datamapper.expenseList._
+import exsplit.datamapper.expenses._
+import exsplit.domainmapper.ExpenseListOps._
+import exsplit.domainmapper._
+import exsplit.domainmapper.SettledTabsOps._
+import exsplit.datamapper.settledTabs._
+
 object ExpenseListEntryPoint:
   def createService[F[_]: MonadThrow](
-      expenseListRepository: ExpenseListRepository[F],
-      circlesMembersRepository: CircleMemberMapper[F],
-      circlesRepository: CirclesMapper[F]
+      expenseListDomainMapper: ExpenseListDomainMapper[F],
+      circleMembersRepo: CircleMembersRepository[F],
+      circlesRepo: CirclesRepository[F],
+      settledTabRepository: SettledTabRepository[F]
   ): ExpenseListServiceImpl[F] =
     ExpenseListServiceImpl(
-      expenseListRepository,
-      circlesMembersRepository,
-      circlesRepository
+      expenseListDomainMapper,
+      circleMembersRepo,
+      circlesRepo,
+      settledTabRepository
     )
 
 def withValidExpenseList[F[_]: MonadThrow, A](
     expenseListId: ExpenseListId,
-    expenseListRepository: ExpenseListRepository[F]
-)(action: ExpenseListOut => F[A]): F[A] =
-  for
-    expenseList <- expenseListRepository.getExpenseList(expenseListId).rethrow
-    result <- action(expenseList)
-  yield result
-
-def withValidExpenseListDetail[F[_]: MonadThrow, A](
-    expenseListId: ExpenseListId,
-    expenseListRepository: ExpenseListRepository[F]
+    expenseListMapper: ExpenseListDomainMapper[F]
 )(action: ExpenseListDetailOut => F[A]): F[A] =
   for
-    expenseList <- expenseListRepository
-      .getExpenseListDetail(expenseListId)
-      .rethrow
+    expenseList <- expenseListMapper.getExpenseListDetail(expenseListId)
     result <- action(expenseList)
   yield result
 
 case class ExpenseListServiceImpl[F[_]: MonadThrow](
-    expenseListRepository: ExpenseListRepository[F],
-    circlesMembersRepository: CircleMemberMapper[F],
-    circlesRepository: CirclesMapper[F]
+    expenseListRepo: ExpenseListDomainMapper[F],
+    circleMembersRepo: CircleMembersRepository[F],
+    circlesRepo: CirclesRepository[F],
+    settledTabRepository: SettledTabRepository[F]
 ) extends ExpenseListService[F]:
 
   def createExpenseList(
       circleId: CircleId,
       name: String
   ): F[CreateExpenseListOutput] =
-    withValidCircle(circleId, circlesRepository): circle =>
-      expenseListRepository
-        .createExpenseList(circle, name)
+    withValidCircle(circleId, circlesRepo): circle =>
+      expenseListRepo.repo.main
+        .createExpenseList(circleId, name)
         .map(CreateExpenseListOutput(_))
 
   def getExpenseList(
       expenseListId: ExpenseListId,
       onlyOutstanding: Option[Boolean]
   ): F[GetExpenseListOutput] =
-    withValidExpenseListDetail(expenseListId, expenseListRepository):
-      expenseList =>
-        val filteredExpenseList = handleOutStandingFilter(
-          expenseList,
-          onlyOutstanding
-        )
-        GetExpenseListOutput(filteredExpenseList).pure[F]
+    for
+      expenseList <- expenseListRepo.getExpenseListDetail(expenseListId)
+      filtered = handleOutStandingFilter(expenseList, onlyOutstanding)
+    yield GetExpenseListOutput(filtered)
 
   private def handleOutStandingFilter(
       expenseList: ExpenseListDetailOut,
@@ -80,35 +77,36 @@ case class ExpenseListServiceImpl[F[_]: MonadThrow](
   def getSettledExpenseLists(
       expenseListId: ExpenseListId
   ): F[GetSettledExpenseListsOutput] =
-    withValidExpenseList(expenseListId, expenseListRepository): expenseList =>
-      val tabs = expenseListRepository.getAllTabs(expenseList)
+    withValidExpenseList(expenseListId, expenseListRepo): expenseList =>
+      val tabs = ???
       val settledTabsOut = SettledTabsOut(tabs)
       GetSettledExpenseListsOutput(settledTabsOut).pure[F]
+
   def settleExpenseList(
       expenseListId: ExpenseListId,
       fromMemberId: CircleMemberId,
       toMemberId: CircleMemberId,
       amount: Amount
   ): F[Unit] =
-    withValidExpenseList(expenseListId, expenseListRepository): expenseList =>
-      withValidCircleMember(fromMemberId, circlesMembersRepository):
-        fromMember =>
-          withValidCircleMember(toMemberId, circlesMembersRepository):
-            toMember =>
-              expenseListRepository
-                .settleExpenseList(expenseList, fromMember, toMember, amount)
+    withValidExpenseList(expenseListId, expenseListRepo): expenseList =>
+      withValidCircleMember(fromMemberId, circleMembersRepo): fromMember =>
+        withValidCircleMember(toMemberId, circleMembersRepo): toMember =>
+          settledTabRepository.main
+            .create(expenseListId, fromMemberId, toMemberId, amount)
+            .void
 
   def deleteExpenseList(id: ExpenseListId): F[Unit] =
-    withValidExpenseList(id, expenseListRepository): expenseList =>
-      expenseListRepository.deleteExpenseList(expenseList)
+    withValidExpenseList(id, expenseListRepo): expenseList =>
+      expenseListRepo.repo.main.delete(id)
 
   def getExpenseLists(circleId: CircleId): F[GetExpenseListsOutput] =
-    withValidCircle(circleId, circlesRepository): circle =>
+    withValidCircle(circleId, circlesRepo): circle =>
       for
-        expenseLists <- expenseListRepository.getExpenseLists(circle)
-        output = ExpenseListsOut(expenseLists)
-      yield GetExpenseListsOutput(output)
+        read <- expenseListRepo.repo.byCircle.listChildren(circleId)
+        expenseLists = read.toExpenseListOuts
+      yield GetExpenseListsOutput(ExpenseListsOut(expenseLists))
 
   def updateExpenseList(id: ExpenseListId, name: String): F[Unit] =
-    withValidExpenseList(id, expenseListRepository): expenseList =>
-      expenseListRepository.updateExpenseList(expenseList, name)
+    withValidExpenseList(id, expenseListRepo): expenseList =>
+      val write = ExpenseListWriteMapper(id.value, name)
+      expenseListRepo.repo.main.update(write)
