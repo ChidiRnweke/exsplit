@@ -129,6 +129,9 @@ list OwedAmounts {
 
 structure ExpenseOut {
     @required
+    id: String
+
+    @required
     paidBy: CircleMemberOut
 
     @required
@@ -150,14 +153,6 @@ list ExpensesOut {
 
 structure OwedAmountOut {
     @required
-    user: CircleMemberOut
-
-    @required
-    amount: Float
-}
-
-structure OwedAmountTotalsOut {
-    @required
     fromMember: CircleMemberOut
 
     @required
@@ -166,7 +161,6 @@ structure OwedAmountTotalsOut {
     @required
     amount: Float
 }
-
 list OwedAmountsOut {
     member: OwedAmountOut
 }

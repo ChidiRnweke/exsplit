@@ -177,12 +177,8 @@ structure ExpenseListDetailOut {
     totalExpense: Float
 
     @required
-    totalOwed: OwedAmountsTotalsOut
+    totalOwed: OwedAmountsOut
 }
-
-list OwedAmountsTotalsOut {
-    member: OwedAmountTotalsOut
-}   
 
 structure ExpenseListsOut {
     @required
