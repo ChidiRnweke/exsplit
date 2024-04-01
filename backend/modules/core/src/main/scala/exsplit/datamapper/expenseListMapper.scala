@@ -13,7 +13,46 @@ import cats.data._
 import exsplit.auth._
 import java.util.UUID
 import exsplit.datamapper._
-import skunk.syntax.StringContextOps.Str
+
+/** Represents a repository for managing expense lists. The main mapper contains
+  * the basic CRUD operations for the expense list. The circles mapper contains
+  * operations for finding expense lists that are children of a specified parent
+  * circle.
+  *
+  * @param mainMapper
+  *   The main expense list mapper.
+  * @param circlesMapper
+  *   The circles expense list mapper.
+  */
+trait ExpenseListRepository[F[_]]:
+  val mainMapper: ExpenseListMapper[F]
+  val circlesMapper: CirclesExpenseListMapper[F]
+
+/* Companion object for the `ExpenseListRepository` trait. Provides a method for
+ * creating a new instance of the repository.
+ */
+object ExpenseListRepository:
+  /*
+   * Creates a new instance of `ExpenseListRepository` using the provided
+   * session. This method is effectful and returns a `F[ExpenseListRepository[F]]`
+   * because it requires database operations. It uses prepared statements. This
+   * means it needs to be run inside a session.
+   *
+   * @param session
+   *   The session to be used for database operations.
+   * @return
+   *   A `F[ExpenseListRepository[F]]` representing the created repository
+   *   instance.
+   */
+  def fromSession[F[_]: Concurrent](
+      session: Session[F]
+  ): F[ExpenseListRepository[F]] =
+    for
+      mainMapper <- ExpenseListMapper.fromSession(session)
+      circlesMapper <- CirclesExpenseListMapper.fromSession(session)
+    yield new ExpenseListRepository[F]:
+      val mainMapper = mainMapper
+      val circlesMapper = circlesMapper
 
 /** Represents the read model of an expense list. This class is a one to one
   * mapping of the expense list table in the database without the creation and
@@ -92,7 +131,8 @@ trait ExpenseListMapper[F[_]]
     */
   def get(id: ExpenseListId): F[Either[NotFoundError, ExpenseListReadMapper]]
 
-/** Trait representing a mapper for expense lists associated with circles.
+/** Trait representing a mapper for finding expense lists that are children of a
+  * specified parent circle.
   */
 trait CirclesExpenseListMapper[F[_]]
     extends HasMany[F, CircleId, ExpenseListReadMapper]:
@@ -108,8 +148,10 @@ trait CirclesExpenseListMapper[F[_]]
     */
   def listChildren(parentId: CircleId): F[List[ExpenseListReadMapper]]
 
-/** Companion object for the `CirclesExpenseListMapper` trait. Provides a method
-  * for creating a new instance of the mapper.
+/** Companion object for the `CirclesExpenseListMapper` trait. The trait
+  * represents a mapper for finding expense lists that are children of a
+  * specified parent circle. The companion object provides a method for creating
+  * a new instance of the mapper.
   */
 object CirclesExpenseListMapper:
 
