@@ -11,6 +11,70 @@ import cats.syntax.all._
 import cats._
 import exsplit.datamapper._
 
+/** Represents a repository for managing circles. This trait contains the main
+  * mapper for circles and the user circles mapper. The former has methods for
+  * creating, updating, and deleting circles. The latter has methods for listing
+  * primary circles for a given user.
+  */
+trait CirclesRepository[F[_]]:
+  val mainMapper: CirclesMapper[F]
+  val userCircles: UserCirclesMapper[F]
+
+/** Represents a repository for managing circle members. This trait contains the
+  * main mapper for circle members and the circle to members mapper. The former
+  * has methods for creating, updating, and deleting circle members. The latter
+  * has methods for listing the children of a given parent circle.
+  */
+trait CircleMembersRepository[F[_]]:
+  val mainMapper: CircleMemberMapper[F]
+  val circleToMembers: CircleToMembersMapper[F]
+
+/*
+Contains a factory method for creating a CirclesRepository from a session.
+ */
+object CirclesRepository:
+  /** Creates an instance of CirclesRepository from the given session. This
+    * method is effectful because it prepares the SQL queries and commands for
+    * the underlying mappers.
+    *
+    * @param session
+    *   The session to create the repository from.
+    * @return
+    *   An instance of CirclesRepository.
+    */
+  def fromSession[F[_]: Concurrent: Parallel](
+      session: Session[F]
+  ): F[CirclesRepository[F]] =
+    for
+      mainMapper <- CirclesMapper.fromSession(session)
+      userCircles <- UserCirclesMapper.fromSession(session)
+    yield new CirclesRepository[F]:
+      val mainMapper = mainMapper
+      val userCircles = userCircles
+
+/*
+Contains a factory method for creating a CircleMembersRepository from a session.
+ */
+object CircleMembersRepository:
+  /** Creates an instance of CircleMembersRepository from the given session.
+    * This method is effectful because it prepares the SQL queries and commands
+    * for the underlying mappers.
+    *
+    * @param session
+    *   The session to create the repository from.
+    * @return
+    *   An instance of CircleMembersRepository.
+    */
+  def fromSession[F[_]: Concurrent: Parallel](
+      session: Session[F]
+  ): F[CircleMembersRepository[F]] =
+    for
+      mainMapper <- CircleMemberMapper.fromSession(session)
+      circleToMembers <- CircleToMembersMapper.fromSession(session)
+    yield new CircleMembersRepository[F]:
+      val mainMapper = mainMapper
+      val circleToMembers = circleToMembers
+
 /** Describes a circle read mapper. This class is a one to one mapping of the
   * circle table in the database without the creation and update timestamps.
   *
