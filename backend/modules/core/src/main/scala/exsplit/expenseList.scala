@@ -3,6 +3,7 @@ import exsplit.spec._
 import cats.syntax.all._
 import cats._
 import cats.data._
+import cats.effect._
 import exsplit.circles._
 import exsplit.expenses._
 import exsplit.datamapper.circles._
@@ -12,15 +13,30 @@ import exsplit.domainmapper.ExpenseListOps._
 import exsplit.domainmapper._
 import exsplit.domainmapper.SettledTabsOps._
 import exsplit.datamapper.settledTabs._
+import skunk.Session
 
 object ExpenseListEntryPoint:
-  def createService[F[_]: MonadThrow](
-      expenseListDomainMapper: ExpenseListDomainMapper[F],
-      circleMembersRepo: CircleMembersRepository[F],
-      circlesRepo: CirclesRepository[F],
-      settledTabRepository: SettledTabRepository[F]
-  ): ExpenseListServiceImpl[F] =
-    ExpenseListServiceImpl(
+  def fromSession[F[_]: Concurrent: Parallel](
+      session: Session[F]
+  ): F[ExpenseListService[F]] =
+    for
+      expenseListRepo <- ExpenseListRepository.fromSession(session)
+      circleMembersRepo <- CircleMembersRepository.fromSession(session)
+      circlesRepo <- CirclesRepository.fromSession(session)
+      settledTabRepository <- SettledTabRepository.fromSession(session)
+      owedAmountsRepo <- OwedAmountRepository.fromSession(session)
+      expenseRepo <- ExpenseRepository.fromSession(session)
+      expenseDomainMapper = ExpenseDomainMapper(
+        circleMembersRepo,
+        owedAmountsRepo,
+        expenseRepo
+      )
+      expenseListDomainMapper = ExpenseListDomainMapper(
+        expenseListRepo,
+        expenseDomainMapper,
+        owedAmountsRepo
+      )
+    yield ExpenseListServiceImpl(
       expenseListDomainMapper,
       circleMembersRepo,
       circlesRepo,
