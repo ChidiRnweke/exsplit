@@ -12,6 +12,7 @@ import java.util.UUID
 import cats.effect.std.UUIDGen
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import exsplit.datamapper.user._
+import skunk.Session
 
 /** This file contains the implementation of the AuthEntryPoint object and
   * related functions. The AuthEntryPoint object provides methods for creating a
@@ -69,6 +70,29 @@ object AuthEntryPoint:
     val bcrypt = BCrypt.createValidator[IO]
     val uuid = UUIDGen[IO]
     createService(authConfig, repo, clock, bcrypt, uuid)
+
+  /** Creates a UserService instance using the provided session and
+    * authentication configuration. The service is wrapped in the effect type F
+    * because the user repository is created using the session, which is
+    * effectful.
+    * @param session
+    *   The session to be used for database operations.
+    * @param authConfig
+    *   The authentication configuration. The configuration for JWT
+    *   authentication. Contains the secret key.
+    * @return
+    *   A UserService instance wrapped in the effect type F.
+    */
+  def fromSession[F[_]: Async: Parallel](
+      session: Session[F],
+      authConfig: AuthConfig[F]
+  ): F[UserService[F]] =
+    for
+      userRepo <- UserMapper.fromSession[F](session)
+      uuid = UUIDGen[F]
+      validator = BCrypt.createValidator[F]
+      clock = Clock[F]
+    yield createService(authConfig, userRepo, clock, validator, uuid)
 
 /** Executes the specified action with a valid user.
   *
