@@ -15,6 +15,87 @@ import java.util.UUID
 import exsplit.datamapper._
 import java.time.LocalDate
 
+/*
+ * Represents a repository for managing expenses. The main mapper contains the
+ * basic CRUD operations for the expense. The circle members mapper contains
+ * operations for finding expenses that are children of a specified parent circle
+ * member. The expense lists mapper contains operations for finding expenses that
+ * are children of a specified parent expense list.
+ */
+trait ExpenseRepository[F[_]]:
+  val mainMapper: ExpenseMapper[F]
+  val expenseDetail: ExpenseDetailMapper[F]
+  val circleMembers: CircleMemberToExpenseMapper[F]
+  val expenseLists: ExpenseListToExpenseMapper[F]
+
+/* Represents a repository for managing owed amounts. The main mapper contains the
+ * basic CRUD operations for the owed amount. The circle members mapper contains
+ * operations for finding owed amounts that are children of a specified parent
+ * circle member. The expenses mapper contains operations for finding owed amounts
+ * that are children of a specified parent expense.
+ */
+trait OwedAmountRepository[F[_]]:
+  val mainMapper: OwedAmountMapper[F]
+  val circleMembers: CircleMemberToOwedAmountMapper[F]
+  val expenses: ExpensesToOwedAmountMapper[F]
+
+
+/* Companion object for the `ExpenseRepository` trait. Provides a method for
+  * creating a new instance of the repository.
+  */
+object ExpenseRepository:
+  /*
+   * Creates a new instance of `ExpenseRepository` using the provided session. This
+   * method is effectful and returns a `F[ExpenseRepository[F]]` because it requires
+   * database operations. It uses prepared statements. This means it needs to be run
+   * inside a session.
+   *
+   * @param session
+   *   The session to be used for database operations.
+   * @return
+   *   A `F[ExpenseRepository[F]]` representing the created repository instance.
+   */
+  def fromSession[F[_]: Concurrent](
+      session: Session[F]
+  ): F[ExpenseRepository[F]] =
+    for
+      mainMapper <- ExpenseMapper.fromSession(session)
+      expenseDetail <- ExpenseDetailMapper.fromSession(session)
+      circleMembers <- CircleMemberToExpenseMapper.fromSession(session)
+      expenseLists <- ExpenseListToExpenseMapper.fromSession(session)
+    yield new ExpenseRepository[F]:
+      val mainMapper = mainMapper
+      val expenseDetail = expenseDetail
+      val circleMembers = circleMembers
+      val expenseLists = expenseLists
+
+/* Companion object for the `OwedAmountRepository` trait. Provides a method for
+  * creating a new instance of the repository.
+  */
+object OwedAmountRepository:
+  /*
+   * Creates a new instance of `OwedAmountRepository` using the provided session. This
+   * method is effectful and returns a `F[OwedAmountRepository[F]]` because it requires
+   * database operations. It uses prepared statements. This means it needs to be run
+   * inside a session.
+   *
+   * @param session
+   *   The session to be used for database operations.
+   * @return
+   *   A `F[OwedAmountRepository[F]]` representing the created repository instance.
+   */
+  def fromSession[F[_]: Concurrent](
+      session: Session[F]
+  ): F[OwedAmountRepository[F]] =
+    for
+      mainMapper <- OwedAmountMapper.fromSession(session)
+      circleMembers <- CircleMemberToOwedAmountMapper.fromSession(session)
+      expenses <- ExpensesToOwedAmountMapper.fromSession(session)
+    yield new OwedAmountRepository[F]:
+      val mainMapper = mainMapper
+      val circleMembers = circleMembers
+      val expenses = expenses
+
 /** Represents an expense read mapper. This class is a one to one mapping of the
   * expense table in the database without the creation and update timestamps.
   *
