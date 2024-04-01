@@ -11,6 +11,7 @@ import cats.syntax.all._
 import cats._
 import java.time.LocalDate
 import exsplit.datamapper.DataMapper
+import exsplit.datamapper.HasMany
 
 /** Represents the read model of a settled tab. This class is a one-to-one
   * mapping of the settled tab table in the database without the creation and
@@ -123,6 +124,140 @@ trait SettledTabMapper[F[_]]
     *   An effect that resolves to Unit when the deletion is successful.
     */
   def delete(id: String): F[Unit]
+
+/** Trait representing a mapping from an expense list to settled tabs. It
+  * provides methods to retrieve a list of settled tabs associated with a given
+  * expense list.
+  *
+  * @tparam F
+  *   the effect type
+  */
+trait ExpenseListToSettledTabs[F[_]]
+    extends HasMany[F, ExpenseListId, SettledTabReadMapper]:
+  /** Retrieves a list of settled tabs associated with the specified expense
+    * list.
+    *
+    * @param parent
+    *   the parent expense list ID
+    * @return
+    *   a list of settled tabs
+    */
+  def listChildren(parent: ExpenseListId): F[List[SettledTabReadMapper]]
+
+/** Trait representing a mapping from a member to settled tabs. It provides
+  * methods to retrieve a list of settled tabs associated with a given member.
+  *
+  * @tparam F
+  *   the effect type
+  */
+trait FromMemberToSettledTabs[F[_]]
+    extends HasMany[F, CircleMemberId, SettledTabReadMapper]:
+  /** Retrieves a list of settled tabs associated with the specified member.
+    *
+    * @param parent
+    *   the parent member ID
+    * @return
+    *   a list of settled tabs
+    */
+  def listChildren(parent: CircleMemberId): F[List[SettledTabReadMapper]]
+
+/** Trait representing a mapping to a member from settled tabs. It provides
+  * methods to retrieve a list of settled tabs associated with a given member.
+  *
+  * @tparam F
+  *   the effect type
+  */
+trait ToMemberToSettledTabs[F[_]]
+    extends HasMany[F, CircleMemberId, SettledTabReadMapper]:
+  /** Retrieves a list of settled tabs associated with the specified member.
+    *
+    * @param parent
+    *   the parent member ID
+    * @return
+    *   a list of settled tabs
+    */
+  def listChildren(parent: CircleMemberId): F[List[SettledTabReadMapper]]
+
+object ExpenseListToSettledTabs:
+  /** Creates a new instance of ExpenseListToSettledTabs from a session. This is
+    * effectful because it requires preparing the queries. This is why the
+    * result is wrapped in an effect type `F`.
+    *
+    * @param session
+    *   the session to use for database operations
+    * @return
+    *   a new instance of ExpenseListToSettledTabs wrapped in an effect type `F`
+    */
+  def fromSession[F[_]: Concurrent](
+      session: Session[F]
+  ): F[ExpenseListToSettledTabs[F]] =
+    for getSettledTabsQuery <- session.prepare(getSettledTabsQuery)
+    yield new ExpenseListToSettledTabs[F]:
+      def listChildren(parent: ExpenseListId): F[List[SettledTabReadMapper]] =
+        getSettledTabsQuery.stream(parent.value, 1024).compile.toList
+
+  private val getSettledTabsQuery: Query[String, SettledTabReadMapper] =
+    sql"""
+      SELECT id, expense_list_id, from_member, to_member, amount, settled_at
+      FROM settled_tabs
+      WHERE expense_list_id = $text
+    """
+      .query(varchar *: varchar *: varchar *: varchar *: float4 *: date)
+      .to[SettledTabReadMapper]
+
+object FromMemberToSettledTabs:
+  /** Creates a new instance of FromMemberToSettledTabs from a session. This is
+    * effectful because it requires preparing the queries. This is why the
+    * result is wrapped in an effect type `F`.
+    *
+    * @param session
+    *   the session to use for database operations
+    * @return
+    *   a new instance of FromMemberToSettledTabs wrapped in an effect type `F`
+    */
+  def fromSession[F[_]: Concurrent](
+      session: Session[F]
+  ): F[FromMemberToSettledTabs[F]] =
+    for getSettledTabsQuery <- session.prepare(getSettledTabsQuery)
+    yield new FromMemberToSettledTabs[F]:
+      def listChildren(parent: CircleMemberId): F[List[SettledTabReadMapper]] =
+        getSettledTabsQuery.stream(parent.value, 1024).compile.toList
+
+  private val getSettledTabsQuery: Query[String, SettledTabReadMapper] =
+    sql"""
+      SELECT id, expense_list_id, from_member, to_member, amount, settled_at
+      FROM settled_tabs
+      WHERE from_member = $text
+    """
+      .query(varchar *: varchar *: varchar *: varchar *: float4 *: date)
+      .to[SettledTabReadMapper]
+
+object ToMemberToSettledTabs:
+  /** Creates a new instance of ToMemberToSettledTabs from a session. This is
+    * effectful because it requires preparing the queries. This is why the
+    * result is wrapped in an effect type `F`.
+    *
+    * @param session
+    *   the session to use for database operations
+    * @return
+    *   a new instance of ToMemberToSettledTabs wrapped in an effect type `F`
+    */
+  def fromSession[F[_]: Concurrent](
+      session: Session[F]
+  ): F[ToMemberToSettledTabs[F]] =
+    for getSettledTabsQuery <- session.prepare(getSettledTabsQuery)
+    yield new ToMemberToSettledTabs[F]:
+      def listChildren(parent: CircleMemberId): F[List[SettledTabReadMapper]] =
+        getSettledTabsQuery.stream(parent.value, 1024).compile.toList
+
+  private val getSettledTabsQuery: Query[String, SettledTabReadMapper] =
+    sql"""
+      SELECT id, expense_list_id, from_member, to_member, amount, settled_at
+      FROM settled_tabs
+      WHERE to_member = $text
+    """
+      .query(varchar *: varchar *: varchar *: varchar *: float4 *: date)
+      .to[SettledTabReadMapper]
 
 /** A companion object for the SettledTabMapper trait. It provides a method for
   * creating a new instance of SettledTabMapper from a session.
