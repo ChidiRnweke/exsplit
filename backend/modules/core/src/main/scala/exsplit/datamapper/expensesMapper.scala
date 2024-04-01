@@ -39,10 +39,9 @@ trait OwedAmountRepository[F[_]]:
   val circleMembers: CircleMemberToOwedAmountMapper[F]
   val expenses: ExpensesToOwedAmountMapper[F]
 
-
 /* Companion object for the `ExpenseRepository` trait. Provides a method for
-  * creating a new instance of the repository.
-  */
+ * creating a new instance of the repository.
+ */
 object ExpenseRepository:
   /*
    * Creates a new instance of `ExpenseRepository` using the provided session. This
@@ -55,7 +54,7 @@ object ExpenseRepository:
    * @return
    *   A `F[ExpenseRepository[F]]` representing the created repository instance.
    */
-  def fromSession[F[_]: Concurrent](
+  def fromSession[F[_]: Concurrent: Parallel](
       session: Session[F]
   ): F[ExpenseRepository[F]] =
     for
@@ -70,8 +69,8 @@ object ExpenseRepository:
       val expenseLists = expenseLists
 
 /* Companion object for the `OwedAmountRepository` trait. Provides a method for
-  * creating a new instance of the repository.
-  */
+ * creating a new instance of the repository.
+ */
 object OwedAmountRepository:
   /*
    * Creates a new instance of `OwedAmountRepository` using the provided session. This
@@ -84,7 +83,7 @@ object OwedAmountRepository:
    * @return
    *   A `F[OwedAmountRepository[F]]` representing the created repository instance.
    */
-  def fromSession[F[_]: Concurrent](
+  def fromSession[F[_]: Concurrent: Parallel](
       session: Session[F]
   ): F[OwedAmountRepository[F]] =
     for
