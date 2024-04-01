@@ -119,7 +119,10 @@ string ExpenseId
 string Date
 
 structure OwedAmount {
+    @required
     circleMemberId: CircleMemberId
+    
+    @required
     amount: Amount
 }
 
