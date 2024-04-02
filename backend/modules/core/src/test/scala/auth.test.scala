@@ -12,10 +12,8 @@ import exsplit.datamapper.user._
 import exsplit.spec.CirclesServiceGen.input
 
 class TokenDecoderEncoderSuite extends CatsEffectSuite:
-  val authConfig = new AuthConfig[IO]:
-    val secretKey = "test".pure[IO]
-
-  val encoderDecoder = TokenEncoderDecoder(authConfig)
+  val authConfig = AuthConfig("test")
+  val encoderDecoder = TokenEncoderDecoder[IO](authConfig)
 
   test("Smithy4s prevents non-emails from being parsed without a type error"):
     val expected = IO.fromEither(Email("test@test.com").validate)
@@ -28,8 +26,8 @@ class TokenDecoderEncoderSuite extends CatsEffectSuite:
     val result = for
       now <- IONow
       token = encoderDecoder.makeClaim(tokenLifespan, Email(email), now)
-      encoded <- encoderDecoder.encodeClaim(token)
-      decoded <- encoderDecoder.decodeClaim(encoded)
+      encoded = encoderDecoder.encodeClaim(token)
+      decoded = encoderDecoder.decodeClaim(encoded)
     yield decoded.isRight
     assertIOBoolean(result)
 
@@ -40,8 +38,10 @@ class TokenDecoderEncoderSuite extends CatsEffectSuite:
     val result = for
       now <- IONow
       token = encoderDecoder.makeClaim(tokenLifespan, Email(email), now)
-      encoded <- encoderDecoder.encodeClaim(token)
-      decoded <- encoderDecoder.decodeClaim(encoded).rethrow
+      encoded = encoderDecoder.encodeClaim(token)
+      decoded = encoderDecoder
+        .decodeClaim(encoded)
+        .getOrElse(throw Exception("Failed to parse"))
       subject = decoded.subject.getOrElse("Failed to get subject")
     yield assertEquals(subject, email)
 
@@ -54,8 +54,10 @@ class TokenDecoderEncoderSuite extends CatsEffectSuite:
     val result = for
       now <- IONow
       token = encoderDecoder.makeClaim(tokenLifespan, Email(email), now)
-      encoded <- encoderDecoder.encodeClaim(token)
-      decoded <- encoderDecoder.decodeClaim(encoded).rethrow
+      encoded = encoderDecoder.encodeClaim(token)
+      decoded = encoderDecoder
+        .decodeClaim(encoded)
+        .getOrElse(throw Exception("Failed to parse"))
       expiration = decoded.expiration.get
     yield assertEquals(expiration, token.expiration.get)
 
@@ -164,8 +166,7 @@ class TokenDecoderEncoderSuite extends CatsEffectSuite:
 
 class UserServiceSuite extends CatsEffectSuite:
   val userService: UserService[IO] =
-    val authConfig = new AuthConfig[IO]:
-      val secretKey = "test".pure[IO]
+    val authConfig = AuthConfig("test")
     val repository = MockUserRepository()
     AuthEntryPoint.createIOService(authConfig, repository)
 
