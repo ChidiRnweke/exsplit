@@ -49,9 +49,10 @@ object Routes:
       .build
 
 object Main extends IOApp.Simple:
-  val authConfig = readConfig[AuthConfig]("auth.conf")
-  val repoConfig = readConfig[PostgresConfig]("database.conf")
-  val migrationConfig = readConfig[MigrationsConfig]("database.conf")
+  val appConfig = readConfig[AppConfig]("application.conf")
+  val authConfig = appConfig.auth
+  val repoConfig = appConfig.postgres
+  val migrationConfig = appConfig.migrations
 
   val run =
     migrateDb(migrationConfig) >> SessionPool
