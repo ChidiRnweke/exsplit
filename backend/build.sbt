@@ -1,8 +1,7 @@
-import scala.util.hashing.Hashing.Default
 ThisBuild / scalaVersion := "3.3.1"
 ThisBuild / version := "0.1.0-SNAPSHOT"
-ThisBuild / organization := "com.example"
-ThisBuild / organizationName := "example"
+ThisBuild / organization := "be.chidinweke"
+ThisBuild / organizationName := "chidi nweke"
 
 lazy val root = (project in file("."))
   .aggregate(core, shared)
@@ -28,7 +27,9 @@ lazy val core = project
     ),
     Compile / run / fork := true,
     Compile / run / connectInput := true,
-    Test / fork := true
+    Test / fork := true,
+    assembly / mainClass := Some("exsplit.Main"),
+    assembly / assemblyJarName := "exsplit.jar"
   )
 
 lazy val shared = project
@@ -37,7 +38,8 @@ lazy val shared = project
   .settings(
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
-    )
+    ),
+    assembly / assemblyJarName := "shared.jar"
   )
 
 lazy val integration = project
@@ -59,3 +61,9 @@ lazy val integration = project
     Compile / run / connectInput := true,
     Test / fork := true
   )
+
+ThisBuild / assemblyMergeStrategy := {
+  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case "application.conf"            => MergeStrategy.concat
+  case _                             => MergeStrategy.first
+}
