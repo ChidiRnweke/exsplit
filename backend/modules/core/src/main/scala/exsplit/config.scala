@@ -18,6 +18,12 @@ import natchez._
 import scala.annotation.targetName
 import fs2._
 
+case class AppConfig(
+    auth: AuthConfig,
+    postgres: PostgresConfig,
+    migrations: MigrationsConfig
+) derives ConfigReader
+
 case class AuthConfig(
     secretKey: String
 ) derives ConfigReader
