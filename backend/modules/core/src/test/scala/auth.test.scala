@@ -9,7 +9,6 @@ import exsplit.spec._
 import cats.effect.std._
 import java.util.UUID
 import exsplit.datamapper.user._
-import exsplit.spec.CirclesServiceGen.input
 
 class TokenDecoderEncoderSuite extends CatsEffectSuite:
   val authConfig = AuthConfig("test")
