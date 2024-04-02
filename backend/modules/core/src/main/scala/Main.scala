@@ -49,16 +49,15 @@ object Routes:
       .build
 
 object Main extends IOApp.Simple:
-  val authConfig = ??? // TODO: Implement AuthConfig
-  val repoConfig = ??? // TODO: Implement RepositoryConfig
-
+  val authConfig = readConfig[AuthConfig]("auth.conf")
+  val repoConfig = readConfig[PostgresConfig]("database.conf")
   val migrationConfig = readConfig[MigrationsConfig]("database.conf")
 
   val run =
     migrateDb(migrationConfig) >> SessionPool
       .makePool(repoConfig)
-      .use: session =>
-        session.use: session =>
+      .use: sessionPool =>
+        sessionPool.use: session =>
           Routes
             .fromSession(authConfig, session)
             .flatMap: routes =>
