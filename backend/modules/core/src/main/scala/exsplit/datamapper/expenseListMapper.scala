@@ -1,6 +1,5 @@
 package exsplit.datamapper.expenseList
 
-import exsplit.db._
 import skunk._
 import skunk.implicits._
 import skunk.codec.all._
