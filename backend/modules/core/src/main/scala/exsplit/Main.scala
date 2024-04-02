@@ -1,3 +1,5 @@
+package exsplit
+
 import exsplit.spec._
 import cats.effect._
 import cats.syntax.all._
