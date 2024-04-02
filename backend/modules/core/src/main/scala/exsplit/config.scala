@@ -18,10 +18,11 @@ import natchez._
 import scala.annotation.targetName
 import fs2._
 
-trait AuthConfig[F[_]: Functor]:
-  val secretKey: F[String]
+case class AuthConfig(
+    secretKey: String
+) derives ConfigReader
 
-case class RepositoryConfig(
+case class PostgresConfig(
     host: String,
     user: String,
     password: String,
@@ -37,14 +38,14 @@ case class MigrationsConfig(
     migrationsLocations: List[String]
 ) derives ConfigReader
 
-def configToClassFromResource[T](
+def readConfig[T](
     resourcePath: String
 )(using ConfigReader[T], ClassTag[T]): T =
   ConfigSource.resources(resourcePath).loadOrThrow[T]
 
 object SessionPool:
   def makePool[F[_]: Temporal: natchez.Trace: std.Console: Network](
-      repositoryConfig: RepositoryConfig
+      repositoryConfig: PostgresConfig
   ): Resource[F, Resource[F, Session[F]]] =
     Session.pooled[F](
       host = repositoryConfig.host,

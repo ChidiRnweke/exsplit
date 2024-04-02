@@ -39,7 +39,7 @@ object AuthEntryPoint:
     *   A UserService instance.
     */
   def createService[F[_]: MonadThrow](
-      authConfig: AuthConfig[F],
+      authConfig: AuthConfig,
       repo: UserMapper[F],
       clock: Clock[F],
       validator: PasswordValidator[F],
@@ -63,7 +63,7 @@ object AuthEntryPoint:
     *   A UserService instance for the IO effect.
     */
   def createIOService(
-      authConfig: AuthConfig[IO],
+      authConfig: AuthConfig,
       repo: UserMapper[IO]
   ): UserService[IO] =
     val clock = Clock[IO]
@@ -85,7 +85,7 @@ object AuthEntryPoint:
     */
   def fromSession[F[_]: Async: Parallel](
       session: Session[F],
-      authConfig: AuthConfig[F]
+      authConfig: AuthConfig
   ): F[UserService[F]] =
     for
       userRepo <- UserMapper.fromSession[F](session)
@@ -217,8 +217,8 @@ case class AuthTokenCreator[F[_]](
     *   The generated access token.
     */
   def generateAccessToken(refresh: RefreshToken): F[AccessToken] =
+    val claimEither = tokenParser.decodeClaim(refresh.value)
     for
-      claimEither <- tokenParser.decodeClaim(refresh.value)
       claim <- F.fromEither(claimEither)
       now <- clock.realTimeInstant
       _ <- claimValidator.validateClaimExpiration(claim, now)
@@ -240,7 +240,7 @@ case class AuthTokenCreator[F[_]](
     for
       now <- clock.realTimeInstant
       claim = tokenParser.makeClaim(lifeSpan, email, now)
-      token <- tokenParser.encodeClaim(claim)
+      token = tokenParser.encodeClaim(claim)
     yield token
 
   private def validateSubject(
@@ -406,7 +406,7 @@ case class UserAuthenticator[F[_]](
   * @tparam F
   *   The effect type for the encoding and decoding operations.
   */
-case class TokenEncoderDecoder[F[_]: Functor](authConfig: AuthConfig[F]):
+case class TokenEncoderDecoder[F[_]: Functor](authConfig: AuthConfig):
 
   /** Decodes the given refresh token and returns the decoded JWT claim.
     *
@@ -416,10 +416,10 @@ case class TokenEncoderDecoder[F[_]: Functor](authConfig: AuthConfig[F]):
     *   Either a Throwable if decoding fails, or the decoded JwtClaim wrapped in
     *   the effect F.
     */
-  def decodeClaim(token: String): F[Either[Throwable, JwtClaim]] =
-    authConfig.secretKey.map(key =>
-      JwtUpickle.decode(token, key, Seq(JwtAlgorithm.HS256)).toEither
-    )
+  def decodeClaim(token: String): Either[Throwable, JwtClaim] =
+    JwtUpickle
+      .decode(token, authConfig.secretKey, Seq(JwtAlgorithm.HS256))
+      .toEither
 
   /** Encodes the given JwtClaim and returns the encoded JWT token as a string.
     *
@@ -430,10 +430,8 @@ case class TokenEncoderDecoder[F[_]: Functor](authConfig: AuthConfig[F]):
     *   secret key from the `authConfig` to encode the claim that is why it is
     *   wrapped in the effect F.
     */
-  def encodeClaim(claim: JwtClaim): F[String] =
-    authConfig.secretKey.map(key =>
-      JwtUpickle.encode(claim, key, JwtAlgorithm.HS256)
-    )
+  def encodeClaim(claim: JwtClaim): String =
+    JwtUpickle.encode(claim, authConfig.secretKey, JwtAlgorithm.HS256)
 
   /** Creates a JwtClaim with the specified lifespan, email, and current time.
     *

@@ -17,10 +17,11 @@ import exsplit.expenseList.ExpenseListEntryPoint
 import exsplit.circles.CirclesEntryPoint
 import natchez.Trace.Implicits.noop
 import cats.effect.IO.asyncForIO
+import exsplit.migration.migrateDb
 
 object Routes:
   def fromSession(
-      config: AuthConfig[IO],
+      config: AuthConfig,
       session: Session[IO]
   ) =
     for
@@ -39,15 +40,22 @@ object Routes:
     smithy4s.http4s.swagger
       .docs[IO](UserService, ExpenseService, ExpenseListService, CirclesService)
 
+  def makeServer(routes: HttpRoutes[IO]) =
+    EmberServerBuilder
+      .default[IO]
+      .withPort(port"9000")
+      .withHost(ipv4"0.0.0.0")
+      .withHttpApp(routes.orNotFound)
+      .build
+
 object Main extends IOApp.Simple:
   val authConfig = ??? // TODO: Implement AuthConfig
   val repoConfig = ??? // TODO: Implement RepositoryConfig
 
-  val dbConfig =
-    ConfigSource.resources("database.conf").loadOrThrow[MigrationsConfig]
+  val migrationConfig = readConfig[MigrationsConfig]("database.conf")
 
   val run =
-    SessionPool
+    migrateDb(migrationConfig) >> SessionPool
       .makePool(repoConfig)
       .use: session =>
         session.use: session =>
@@ -55,11 +63,5 @@ object Main extends IOApp.Simple:
             .fromSession(authConfig, session)
             .flatMap: routes =>
               routes
-                .flatMap: routes =>
-                  EmberServerBuilder
-                    .default[IO]
-                    .withPort(port"9000")
-                    .withHost(ipv4"0.0.0.0")
-                    .withHttpApp(routes.orNotFound)
-                    .build
+                .flatMap(Routes.makeServer)
                 .use(_ => IO.never)
