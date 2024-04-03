@@ -52,3 +52,4 @@ metals.sbt
 backend/build/smithy/classpath.json
 build/smithy/*
 todo.md
+backend/config/.secrets.env
