@@ -118,7 +118,7 @@ object OwedAmountRepository:
   * create table expenses(
   * id text primary key default md5(now()::text || random()::text),
   * expense_list_id text not null references expense_lists(id),
-  * paid_by varchar(255) not null references circle_members(id),
+  * paid_by text not null references circle_members(id),
   * description text not null,
   * price float not null,
   * date date not null,
@@ -223,8 +223,8 @@ case class ExpenseWriteMapper(
   * create table owed_amounts (
   * id text primary key default md5(now()::text || random()::text),
   * expense_id text not null references expenses(id),
-  * from_member varchar(255) not null references circle_members(id),
-  * to_member varchar(255) not null references circle_members(id),
+  * from_member text not null references circle_members(id),
+  * to_member text not null references circle_members(id),
   * amount float not null,
   * created_at timestamp not null default current_timestamp,
   * updated_at timestamp not null default current_timestamp
@@ -572,7 +572,7 @@ object ExpenseListOwedAmountMapper:
          WHERE e.expense_list_id = $text
        """
       .query(
-        varchar *: varchar *: varchar *: varchar *: varchar *: varchar *: float4
+        text *: text *: text *: text *: text *: text *: float4
       )
       .to[OwedAmountDetailRead]
 
@@ -608,7 +608,7 @@ object ExpenseDetailMapper:
          JOIN circle_members cm ON e.paid_by = cm.id
          WHERE e.id = $text
        """
-      .query(varchar *: varchar *: varchar *: varchar *: text *: float4 *: date)
+      .query(text *: text *: text *: text *: text *: float4 *: date)
       .to[ExpenseDetailRead]
 
 object OwedAmountDetailMapper:
@@ -642,7 +642,7 @@ object OwedAmountDetailMapper:
          WHERE oa.id = $text
        """
       .query(
-        varchar *: varchar *: varchar *: varchar *: varchar *: varchar *: float4
+        text *: text *: text *: text *: text *: text *: float4
       )
       .to[OwedAmountDetailRead]
 
@@ -712,9 +712,9 @@ object OwedAmountMapper:
     sql"""
          SELECT id, expense_id, from_member, to_member, amount
          FROM owed_amounts
-         WHERE expense_id = $text and from_member = $varchar and to_member = $varchar
+         WHERE expense_id = $text and from_member = $text and to_member = $text
        """
-      .query(varchar *: varchar *: varchar *: varchar *: float4)
+      .query(text *: text *: text *: text *: float4)
       .contramap: (key: OwedAmountKey) =>
         (key.expenseId.value, key.fromMember.value, key.toMember.value)
       .to[OwedAmountReadMapper]
@@ -723,10 +723,10 @@ object OwedAmountMapper:
       : Query[CreateOwedAmountInput, OwedAmountReadMapper] =
     sql"""
           INSERT INTO owed_amounts (expense_id, from_member, to_member, amount)
-          VALUES ($text, $varchar, $varchar, $float4)
+          VALUES ($text, $text, $text, $float4)
           RETURNING id, expense_id, from_member, to_member, amount
         """
-      .query(varchar *: varchar *: varchar *: varchar *: float4)
+      .query(text *: text *: text *: text *: float4)
       .contramap: (input: CreateOwedAmountInput) =>
         (
           input.expenseId.value,
@@ -739,7 +739,7 @@ object OwedAmountMapper:
   private val deleteOwedAmountQuery: Command[OwedAmountKey] =
     sql"""
          DELETE FROM owed_amounts
-         WHERE expense_id = $text and from_member = $varchar and to_member = $varchar
+         WHERE expense_id = $text and from_member = $text and to_member = $text
        """.command
       .contramap: (key: OwedAmountKey) =>
         (key.expenseId.value, key.fromMember.value, key.toMember.value)
@@ -825,16 +825,16 @@ object ExpenseMapper:
          FROM expenses
          WHERE id = $text
        """
-      .query(varchar *: varchar *: varchar *: text *: float4 *: date)
+      .query(text *: text *: text *: text *: float4 *: date)
       .to[ExpenseReadMapper]
 
   private val createExpenseQuery: Query[CreateExpenseInput, ExpenseReadMapper] =
     sql"""
           INSERT INTO expenses (expense_list_id, paid_by, description, price, date)
-          VALUES ($text, $varchar, $text, $float4, $date)
+          VALUES ($text, $text, $text, $float4, $date)
           RETURNING id, expense_list_id, paid_by, description, price, date
         """
-      .query(varchar *: varchar *: varchar *: text *: float4 *: date)
+      .query(text *: text *: text *: text *: float4 *: date)
       .contramap: (input: CreateExpenseInput) =>
         (
           input.expenseListId.value,
@@ -869,7 +869,7 @@ object ExpenseMapper:
   private val updateExpensePaidByQuery: Command[(String, String)] =
     sql"""
           UPDATE expenses
-          SET paid_by = $varchar
+          SET paid_by = $text
           WHERE id = $text
         """.command
 
@@ -913,18 +913,18 @@ object CircleMemberToOwedAmountMapper:
     sql"""
          SELECT id, expense_id, from_member, to_member, amount
          FROM owed_amounts
-         WHERE from_member = $varchar
+         WHERE from_member = $text
        """
-      .query(varchar *: varchar *: varchar *: varchar *: float4)
+      .query(text *: text *: text *: text *: float4)
       .to[OwedAmountReadMapper]
 
   private val toMemberQuery: Query[String, OwedAmountReadMapper] =
     sql"""
          SELECT id, expense_id, from_member, to_member, amount
          FROM owed_amounts
-         WHERE to_member = $varchar
+         WHERE to_member = $text
        """
-      .query(varchar *: varchar *: varchar *: varchar *: float4)
+      .query(text *: text *: text *: text *: float4)
       .to[OwedAmountReadMapper]
 
 /** Companion object for the CircleMemberToExpenseMapper trait. Contains the
@@ -953,9 +953,9 @@ object CircleMemberToExpenseMapper:
     sql"""
          SELECT id, expense_list_id, paid_by, description, price, date
          FROM expenses
-         WHERE paid_by = $varchar
+         WHERE paid_by = $text
        """
-      .query(varchar *: varchar *: varchar *: text *: float4 *: date)
+      .query(text *: text *: text *: text *: float4 *: date)
       .to[ExpenseReadMapper]
 
 /** Companion object for the ExpenseMapper trait. Contains the factory method
@@ -986,7 +986,7 @@ object ExpenseListToExpenseMapper:
          FROM expenses
          WHERE expense_list_id = $text
        """
-      .query(varchar *: varchar *: varchar *: text *: float4 *: date)
+      .query(text *: text *: text *: text *: float4 *: date)
       .to[ExpenseReadMapper]
 
 /** Companion object for the `ExpensesToOwedAmountMapper` trait. Contains the
@@ -1017,5 +1017,5 @@ object ExpensesToOwedAmountMapper:
          FROM owed_amounts
          WHERE expense_id = $text
        """
-      .query(varchar *: varchar *: varchar *: varchar *: float4)
+      .query(text *: text *: text *: text *: float4)
       .to[OwedAmountReadMapper]

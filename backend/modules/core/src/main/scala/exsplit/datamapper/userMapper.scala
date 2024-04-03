@@ -26,8 +26,8 @@ import exsplit.datamapper._
   * {{{
   *  create table "users" (
   * id text primary key default md5(now()::text || random()::text),
-  * password varchar(255) not null,
-  * email varchar(255) not null,
+  * password text not null,
+  * email text not null,
   * created_at timestamp not null default current_timestamp,
   * updated_at timestamp not null default current_timestamp
   * );
@@ -205,7 +205,7 @@ object UserMapper:
       FROM users
       WHERE email = $text
     """
-      .query(varchar *: varchar *: varchar)
+      .query(text *: text *: text)
       .to[UserReadMapper]
 
   private val userFromId: Query[String, UserReadMapper] =
@@ -214,7 +214,7 @@ object UserMapper:
       FROM users
       WHERE id = $text
     """
-      .query(varchar *: varchar *: varchar)
+      .query(text *: text *: text)
       .to[UserReadMapper]
 
   private val createUser: Query[(String, String, String), UserReadMapper] =
@@ -223,7 +223,7 @@ object UserMapper:
       VALUES ($varchar, $varchar, $varchar)
       RETURNING id, email, password
     """
-      .query(varchar *: varchar *: varchar)
+      .query(text *: text *: text)
       .to[UserReadMapper]
 
   private val updateEmail: Command[(String, String)] =

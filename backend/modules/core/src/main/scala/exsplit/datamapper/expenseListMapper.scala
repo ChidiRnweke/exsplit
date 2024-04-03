@@ -181,7 +181,7 @@ object CirclesExpenseListMapper:
 
   private val getExpenseListQuery: Query[String, ExpenseListReadMapper] = sql"""
     SELECT id, name, circle_id FROM expense_lists WHERE circle_id = $text
-  """.query(varchar *: varchar *: varchar).to[ExpenseListReadMapper]
+  """.query(text *: text *: text).to[ExpenseListReadMapper]
 
 /** Companion object for the `ExpenseListMapper` trait. Provides a method for
   * creating a new instance of the mapper.
@@ -226,17 +226,17 @@ object ExpenseListMapper:
 
   private val getExpenseListQuery: Query[String, ExpenseListReadMapper] = sql"""
     SELECT id, name, circle_id FROM expense_lists WHERE id = $text
-  """.query(varchar *: varchar *: varchar).to[ExpenseListReadMapper]
+  """.query(text *: text *: text).to[ExpenseListReadMapper]
 
   private val createExpenseListQuery
       : Query[(String, String), ExpenseListReadMapper] =
     sql"""
-    INSERT INTO expense_lists (circle_id, name) VALUES ($text, $varchar)
+    INSERT INTO expense_lists (circle_id, name) VALUES ($text, $text)
     RETURNING id, name, circle_id
-  """.query(varchar *: varchar *: varchar).to[ExpenseListReadMapper]
+  """.query(text *: text *: text).to[ExpenseListReadMapper]
 
   private val updateExpenseListQuery: Command[(String, String)] = sql"""
-    UPDATE expense_lists SET name = $varchar WHERE id = $text
+    UPDATE expense_lists SET name = $text WHERE id = $text
   """.command
 
   private val deleteExpenseListQuery: Command[String] = sql"""

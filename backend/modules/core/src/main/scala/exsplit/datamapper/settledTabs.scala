@@ -241,7 +241,7 @@ object ExpenseListToSettledTabs:
       FROM settled_tabs
       WHERE expense_list_id = $text
     """
-      .query(varchar *: varchar *: varchar *: varchar *: float4 *: date)
+      .query(text *: text *: text *: text *: float4 *: date)
       .to[SettledTabReadMapper]
 
 object FromMemberToSettledTabs:
@@ -268,7 +268,7 @@ object FromMemberToSettledTabs:
       FROM settled_tabs
       WHERE from_member = $text
     """
-      .query(varchar *: varchar *: varchar *: varchar *: float4 *: date)
+      .query(text *: text *: text *: text *: float4 *: date)
       .to[SettledTabReadMapper]
 
 object ToMemberToSettledTabs:
@@ -295,7 +295,7 @@ object ToMemberToSettledTabs:
       FROM settled_tabs
       WHERE to_member = $text
     """
-      .query(varchar *: varchar *: varchar *: varchar *: float4 *: date)
+      .query(text *: text *: text *: text *: float4 *: date)
       .to[SettledTabReadMapper]
 
 /** A companion object for the SettledTabMapper trait. It provides a method for
@@ -364,7 +364,7 @@ object SettledTabMapper:
       FROM settled_tabs
       WHERE id = $text
     """
-      .query(varchar *: varchar *: varchar *: varchar *: float4 *: date)
+      .query(text *: text *: text *: text *: float4 *: date)
       .to[SettledTabReadMapper]
 
   private val createSettledTabQuery
@@ -374,7 +374,7 @@ object SettledTabMapper:
       VALUES ($text, $text, $text, $float4)
       RETURNING id, expense_list_id, from_member, to_member, amount, settled_at
     """
-      .query(varchar *: varchar *: varchar *: varchar *: float4 *: date)
+      .query(text *: text *: text *: text *: float4 *: date)
       .contramap: (input: SettleExpenseListInput) =>
         (
           input.expenseListId.value,

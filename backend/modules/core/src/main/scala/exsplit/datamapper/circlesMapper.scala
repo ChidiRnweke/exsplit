@@ -322,7 +322,7 @@ object UserCirclesMapper:
       JOIN circle_members cm ON c.id = cm.circle_id
       WHERE cm.user_id = $text
     """
-      .query(varchar *: varchar *: varchar)
+      .query(text *: text *: text)
       .to[CircleReadMapper]
 
 object CircleToMembersMapper:
@@ -350,7 +350,7 @@ object CircleToMembersMapper:
       FROM circle_members cm
       WHERE cm.circle_id = $text
     """
-      .query(varchar *: varchar *: varchar *: varchar)
+      .query(text *: text *: text *: text)
       .to[CircleMemberReadMapper]
 
 /*
@@ -401,7 +401,7 @@ object CircleMemberMapper:
         FROM circle_members cm
         WHERE cm.id = $text
       """
-      .query(varchar *: varchar *: varchar *: varchar)
+      .query(text *: text *: text *: text)
       .to[CircleMemberReadMapper]
 
   private val addCircleMemberQuery
@@ -411,7 +411,7 @@ object CircleMemberMapper:
         VALUES ($text, $text, $text)
         RETURNING id, circle_id, user_id, display_name
       """
-      .query(varchar *: varchar *: varchar *: varchar)
+      .query(text *: text *: text *: text)
       .contramap: (input: AddUserToCircleInput) =>
         (input.displayName, input.userId.value, input.circleId.value)
       .to[CircleMemberReadMapper]
@@ -495,7 +495,7 @@ object CirclesMapper:
       FROM circles c
       WHERE c.id = $text
     """
-      .query(varchar *: varchar *: varchar)
+      .query(text *: text *: text)
       .to[CircleReadMapper]
 
   private val updateCircleNameCommand: Command[(String, String)] =
@@ -525,7 +525,7 @@ object CirclesMapper:
       VALUES ($text, $text)
       RETURNING id, name, description
     """
-      .query(varchar *: varchar *: varchar)
+      .query(text *: text *: text)
       .to[CircleReadMapper]
 
   private val deleteCircleQuery: Command[String] =
