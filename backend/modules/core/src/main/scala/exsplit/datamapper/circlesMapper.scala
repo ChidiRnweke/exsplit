@@ -41,7 +41,7 @@ object CirclesRepository:
     * @return
     *   An instance of CirclesRepository.
     */
-  def fromSession[F[_]: Concurrent: Parallel](
+  def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[CirclesRepository[F]] =
     for
@@ -64,7 +64,7 @@ object CircleMembersRepository:
     * @return
     *   An instance of CircleMembersRepository.
     */
-  def fromSession[F[_]: Concurrent: Parallel](
+  def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[CircleMembersRepository[F]] =
     for
@@ -299,7 +299,7 @@ object UserCirclesMapper:
     * @return
     *   A new instance of `UserCirclesMapper`.
     */
-  def fromSession[F[_]: Concurrent: Parallel](
+  def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[UserCirclesMapper[F]] =
     for listCirclesForUserQuery <- session.prepare(listCirclesForUserQuery)
@@ -335,7 +335,7 @@ object CircleToMembersMapper:
     *   a `F[CircleToMembersMapper[F]]` representing the asynchronous result of
     *   creating the mapper
     */
-  def fromSession[F[_]: Concurrent: Parallel](
+  def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[CircleToMembersMapper[F]] =
     for listCircleMembersQuery <- session.prepare(listCircleMembersQuery)
@@ -450,7 +450,7 @@ object CirclesMapper:
     *   The effect type, representing the context in which the operations are
     *   executed.
     */
-  def fromSession[F[_]: Monad: Parallel](
+  def fromSession[F[_]: Monad](
       session: Session[F]
   ): F[CirclesMapper[F]] =
     for
