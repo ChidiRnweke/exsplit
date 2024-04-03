@@ -133,7 +133,7 @@ object UserMapper:
    * @return
    *   An effect that yields a new `UserMapper` instance.
    */
-  def fromSession[F[_]: Concurrent: Parallel](
+  def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[UserMapper[F]] =
     for
@@ -185,7 +185,7 @@ object UserMapper:
           )
         ).flatten
 
-        actions.parSequence.void
+        actions.sequence.void
 
       def updateUser(user: UserWriteMapper): F[Unit] =
         user match
