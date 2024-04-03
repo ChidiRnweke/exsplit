@@ -484,7 +484,7 @@ object CirclesMapper:
           )
         ).flatten
 
-        actions.parSequence.void
+        actions.sequence.void
 
       def delete(circleId: CircleId): F[Unit] =
         deleteCircleQuery.execute(circleId.value).void
