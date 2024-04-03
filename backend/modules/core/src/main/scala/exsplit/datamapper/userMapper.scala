@@ -179,22 +179,16 @@ object UserMapper:
 
       def update(user: UserWriteMapper): F[Unit] =
         val actions = List(
-          user.email.map(email => updateEmailCommand.execute(user.id, email)),
+          user.email.map(email => updateEmailCommand.execute(email, user.id)),
           user.password.map(password =>
-            updatePasswordCommand.execute(user.id, password)
+            updatePasswordCommand.execute(password, user.id)
           )
         ).flatten
 
         actions.sequence.void
 
       def updateUser(user: UserWriteMapper): F[Unit] =
-        user match
-          case UserWriteMapper(id, Some(email), _) =>
-            updateEmailCommand.execute(id, email).void
-
-          case UserWriteMapper(id, _, Some(password)) =>
-            updatePasswordCommand.execute(id, password).void
-          case _ => ().pure[F]
+        update(user).void
 
       def deleteUser(userId: UserId): F[Unit] =
         deleteUserCommand.execute(userId.value).void
@@ -220,7 +214,7 @@ object UserMapper:
   private val createUser: Query[(String, String, String), UserReadMapper] =
     sql"""
       INSERT INTO users (id, email, password)
-      VALUES ($varchar, $varchar, $varchar)
+      VALUES ($text, $text, $text)
       RETURNING id, email, password
     """
       .query(text *: text *: text)
@@ -229,19 +223,19 @@ object UserMapper:
   private val updateEmail: Command[(String, String)] =
     sql"""
       UPDATE users
-      SET email = $varchar
-      WHERE id = $varchar
+      SET email = $text
+      WHERE id = $text
     """.command
 
   private val updatePassword: Command[(String, String)] =
     sql"""
       UPDATE users
-      SET password = $varchar
-      WHERE id = $varchar
+      SET password = $text
+      WHERE id = $text
     """.command
 
   private val deleteUser: Command[String] =
     sql"""
       DELETE FROM users
-      WHERE id = $varchar
+      WHERE id = $text
     """.command
