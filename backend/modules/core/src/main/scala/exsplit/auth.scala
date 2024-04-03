@@ -351,6 +351,13 @@ object BCrypt:
   *   The UUID generator for creating user IDs.
   * @param F
   *   The effect type constructor, providing the necessary type class instances.
+  *
+  * @note
+  *   The uuid parameter is a type class instance of UUIDGen. The auth package
+  *   is the only place where the UUIDGen type class is used. The rest of the
+  *   application lets the database handle the generation of random IDs. In the
+  *   future, the UUIDGen type class could be removed and the UUID generation
+  *   could be handled by the database as well.
   */
 case class UserAuthenticator[F[_]](
     repo: UserMapper[F],
