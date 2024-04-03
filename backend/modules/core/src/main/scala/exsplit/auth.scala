@@ -301,6 +301,12 @@ object BCrypt:
     *   for a password is an effectful operation because it involves generating
     *   a random salt for the hash. The effect type must have a `Sync` instance
     *   to create the password validator.
+    *
+    * The underlying BCryptPasswordEncoder is from the Spring Security library.
+    * The `Sync` instance is used to create the password validator because the
+    * `hashPassword` method is effectful and must be delayed. It generates a
+    * random salt for the hash. The `checkPassword` method is not effectful
+    * because it does not require any effectful operations.
     */
   def createValidator[F[_]](using F: Sync[F]): PasswordValidator[F] =
     new PasswordValidator[F]:
