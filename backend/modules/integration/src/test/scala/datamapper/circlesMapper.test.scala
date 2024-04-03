@@ -6,6 +6,8 @@ import exsplit.config._
 import exsplit.integration._
 import exsplit.spec._
 import exsplit.datamapper.circles._
+import exsplit.datamapper.user._
+import cats.effect.std.UUIDGen
 
 class CirclesRepositorySuite extends DatabaseSuite:
   test("It is possible to write a circle to the database"):
@@ -123,4 +125,125 @@ class CirclesRepositorySuite extends DatabaseSuite:
         _ <- circlesRepo.main.create(input2)
         circles <- circlesRepo.byUser.listPrimaries(UserId("4"))
       yield assertEquals(circles.length, 2)
+    )
+
+class CircleMembersRepositorySuite extends DatabaseSuite:
+  test("You should be able to add a member to a circle"):
+    val session = sessionPool()
+    val testCircle = CreateCircleInput(UserId("5"), "User", "Test Circle")
+    val testUser = (UserId("5"), "User", "User")
+    session.use(session =>
+      for
+        circlesRepo <- CirclesRepository.fromSession(session)
+        circleMembersRepo <- CircleMembersRepository.fromSession(session)
+        createdCircle <- circlesRepo.main.create(testCircle)
+        userRepo <- UserMapper.fromSession(session)
+        uuid <- UUIDGen[IO].randomUUID
+        _ <- userRepo.createUser(uuid, Email("foo@bar.com"), "password")
+        createUser = AddUserToCircleInput(
+          UserId(uuid.toString()),
+          "User",
+          CircleId(createdCircle.id)
+        )
+        createdMember <- circleMembersRepo.main.create(createUser).attempt
+      yield assertEquals(createdMember.isRight, true)
+    )
+
+  test("You should be able to add a member to a circle and then read it"):
+    val session = sessionPool()
+    val testCircle = CreateCircleInput(UserId("6"), "User", "Test Circle")
+    val testUser = (UserId("6"), "User", "User")
+    session.use(session =>
+      for
+        circlesRepo <- CirclesRepository.fromSession(session)
+        circleMembersRepo <- CircleMembersRepository.fromSession(session)
+        createdCircle <- circlesRepo.main.create(testCircle)
+        userRepo <- UserMapper.fromSession(session)
+        uuid <- UUIDGen[IO].randomUUID
+        _ <- userRepo.createUser(uuid, Email("foo@bar.com"), "password")
+        createUser = AddUserToCircleInput(
+          UserId(uuid.toString()),
+          "User",
+          CircleId(createdCircle.id)
+        )
+        member <- circleMembersRepo.main.create(createUser)
+        readMember <- circleMembersRepo.main
+          .get(CircleMemberId(member.id))
+          .rethrow
+      yield assertEquals(readMember, member)
+    )
+
+  test("You should be able to add a member to a circle and then delete it"):
+    val session = sessionPool()
+    val testCircle = CreateCircleInput(UserId("7"), "User", "Test Circle")
+    session.use(session =>
+      for
+        circlesRepo <- CirclesRepository.fromSession(session)
+        circleMembersRepo <- CircleMembersRepository.fromSession(session)
+        createdCircle <- circlesRepo.main.create(testCircle)
+        userRepo <- UserMapper.fromSession(session)
+        uuid <- UUIDGen[IO].randomUUID
+        _ <- userRepo.createUser(uuid, Email("foo@bar.com"), "password")
+        createUser = AddUserToCircleInput(
+          UserId(uuid.toString()),
+          "User",
+          CircleId(createdCircle.id)
+        )
+        member <- circleMembersRepo.main.create(createUser)
+        _ <- circleMembersRepo.main.delete(CircleMemberId(member.id))
+        readMember <- circleMembersRepo.main
+          .get(CircleMemberId(member.id))
+      yield assert(readMember.isLeft)
+    )
+
+  test("You should be able to add a member to a circle and then update it"):
+    val session = sessionPool()
+    val testCircle = CreateCircleInput(UserId("8"), "User", "Test Circle")
+    session.use(session =>
+      for
+        circlesRepo <- CirclesRepository.fromSession(session)
+        circleMembersRepo <- CircleMembersRepository.fromSession(session)
+        createdCircle <- circlesRepo.main.create(testCircle)
+        userRepo <- UserMapper.fromSession(session)
+        uuid <- UUIDGen[IO].randomUUID
+        _ <- userRepo.createUser(uuid, Email("foo@bar.com"), "password")
+        createUser = AddUserToCircleInput(
+          UserId(uuid.toString()),
+          "User",
+          CircleId(createdCircle.id)
+        )
+        member <- circleMembersRepo.main.create(createUser)
+        updatedMember = CircleMemberWriteMapper(
+          member.id,
+          "Updated User"
+        )
+        _ <- circleMembersRepo.main.update(updatedMember)
+        readMember <- circleMembersRepo.main
+          .get(CircleMemberId(member.id))
+          .rethrow
+      yield assertEquals(readMember.displayName, "Updated User")
+    )
+
+  test("You should be able to list all members from a circle"):
+    val session = sessionPool()
+    val testCircle = CreateCircleInput(UserId("9"), "User", "Test Circle")
+    val testUser = (UserId("9"), "User", "User")
+    session.use(session =>
+      for
+        circlesRepo <- CirclesRepository.fromSession(session)
+        circleMembersRepo <- CircleMembersRepository.fromSession(session)
+        createdCircle <- circlesRepo.main.create(testCircle)
+        userRepo <- UserMapper.fromSession(session)
+        uuid <- UUIDGen[IO].randomUUID
+        _ <- userRepo.createUser(uuid, Email("foo@bar.com"), "password")
+        createUser = AddUserToCircleInput(
+          UserId(uuid.toString()),
+          "User",
+          CircleId(createdCircle.id)
+        )
+        _ <- circleMembersRepo.main.create(createUser)
+        members <- circleMembersRepo.byCircle.listChildren(
+          CircleId(createdCircle.id)
+        )
+      yield assertEquals(members.length, 1)
     )
