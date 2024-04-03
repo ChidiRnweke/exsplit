@@ -12,7 +12,7 @@ import exsplit.datamapper.user._
 
 class TokenDecoderEncoderSuite extends CatsEffectSuite:
   val authConfig = AuthConfig("test")
-  val encoderDecoder = TokenEncoderDecoder[IO](authConfig)
+  val encoderDecoder = TokenEncoderDecoder(authConfig)
 
   test("Smithy4s prevents non-emails from being parsed without a type error"):
     val expected = IO.fromEither(Email("test@test.com").validate)
@@ -34,7 +34,7 @@ class TokenDecoderEncoderSuite extends CatsEffectSuite:
     val email = "foo@bar.com"
     val tokenLifespan = TokenLifespan.ShortLived
     val IONow = Clock[IO].realTimeInstant
-    val result = for
+    for
       now <- IONow
       token = encoderDecoder.makeClaim(tokenLifespan, Email(email), now)
       encoded = encoderDecoder.encodeClaim(token)
@@ -50,7 +50,7 @@ class TokenDecoderEncoderSuite extends CatsEffectSuite:
     val email = "foo@bar.com"
     val tokenLifespan = TokenLifespan.ShortLived
     val IONow = Clock[IO].realTimeInstant
-    val result = for
+    for
       now <- IONow
       token = encoderDecoder.makeClaim(tokenLifespan, Email(email), now)
       encoded = encoderDecoder.encodeClaim(token)
@@ -64,12 +64,11 @@ class TokenDecoderEncoderSuite extends CatsEffectSuite:
     val email = "foo@bar.com"
     val tokenLifespan = TokenLifespan.ShortLived
     val IONow = Clock[IO].realTimeInstant
-    val claimValidator = ClaimValidator[IO]()
-    val result = for
+    for
       now <- IONow
       claim = encoderDecoder.makeClaim(tokenLifespan, Email(email), now)
-      potentialError <- claimValidator
-        .validateClaimExpiration(claim, now)
+      potentialError <- IO
+        .fromEither(ClaimValidator.claimNotExpired(claim, now))
         .attempt
     yield assert(potentialError.isRight)
 
@@ -77,15 +76,13 @@ class TokenDecoderEncoderSuite extends CatsEffectSuite:
     val email = "foo@bar.com"
     val tokenLifespan = TokenLifespan.ShortLived
     val IONow = Clock[IO].realTimeInstant
-    val claimValidator = ClaimValidator[IO]()
-    val result = for
+    for
       now <- IONow
-      yesterday = now.minusSeconds(1000)
+      yesterday = now.minusSeconds(100000000) // 3 years in the past
       claim = encoderDecoder.makeClaim(tokenLifespan, Email(email), yesterday)
-      potentialError <- claimValidator
-        .validateClaimExpiration(claim, now)
-        .attempt
-    yield assert(potentialError.isLeft)
+      expired <- IO
+        .fromEither(ClaimValidator.claimNotExpired(claim, now))
+    yield assertEquals(expired, false)
 
   test("hashing a password and checking it should return true"):
     val validator = BCrypt.createValidator[IO]
