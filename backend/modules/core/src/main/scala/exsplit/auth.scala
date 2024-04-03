@@ -594,10 +594,3 @@ extension (user: UserReadMapper)
       password: Option[String]
   ): UserWriteMapper =
     UserWriteMapper(user.id, email, password)
-
-/** A trait representing a user repository. This trait provides methods for
-  * finding and creating users.
-  *
-  * @tparam F
-  *   the effect type, representing the context in which the repository operates
-  */
