@@ -18,12 +18,12 @@ lazy val core = project
       "com.github.jwt-scala" %% "jwt-upickle" % "10.0.0",
       "org.springframework.security" % "spring-security-crypto" % "6.2.3",
       "com.github.pureconfig" %% "pureconfig-core" % "0.17.6",
-      "org.flywaydb" % "flyway-database-postgresql" % "10.0.0",
+      "org.flywaydb" % "flyway-database-postgresql" % "10.10.0",
       "commons-logging" % "commons-logging" % "1.2",
       "com.github.geirolz" %% "fly4s" % "1.0.0",
       "org.postgresql" % "postgresql" % "42.5.1",
       "org.tpolecat" %% "skunk-core" % "0.6.3",
-      "org.typelevel" %% "munit-cats-effect" % "2.0.0-M4" % Test
+      "org.typelevel" %% "munit-cats-effect-3" % "1.0.6" % Test
     ),
     Compile / run / fork := true,
     Compile / run / connectInput := true,
@@ -49,13 +49,13 @@ lazy val integration = project
     publish / skip := true,
     libraryDependencies ++= Seq(
       "com.github.geirolz" %% "fly4s" % "1.0.0",
-      "org.flywaydb" % "flyway-database-postgresql" % "10.0.0",
+      "org.flywaydb" % "flyway-database-postgresql" % "10.10.0",
       "com.github.pureconfig" %% "pureconfig-core" % "0.17.6",
       "com.dimafeng" %% "testcontainers-scala-munit" % "0.40.8" % Test,
       "com.dimafeng" %% "testcontainers-scala-postgresql" % "0.40.8" % Test,
       "org.postgresql" % "postgresql" % "42.5.1",
       "org.tpolecat" %% "skunk-core" % "0.6.3",
-      "org.typelevel" %% "munit-cats-effect" % "2.0.0-M4" % Test
+      "org.typelevel" %% "munit-cats-effect-3" % "1.0.6" % Test
     ),
     Compile / run / fork := true,
     Compile / run / connectInput := true,
