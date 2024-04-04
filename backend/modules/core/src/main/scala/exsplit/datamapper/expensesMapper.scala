@@ -838,10 +838,10 @@ object ExpenseMapper:
       .contramap: (input: CreateExpenseInput) =>
         (
           input.expenseListId.value,
-          input.expense.paidBy.value,
-          input.expense.description,
-          input.expense.price.value,
-          LocalDate.parse(input.expense.date.value)
+          input.paidBy.value,
+          input.description,
+          input.price.value,
+          LocalDate.parse(input.date.value)
         )
       .to[ExpenseReadMapper]
 

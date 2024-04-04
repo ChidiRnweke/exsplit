@@ -59,16 +59,26 @@ case class ExpenseServiceImpl[F[_]: MonadThrow](
 
   def createExpense(
       expenseListId: ExpenseListId,
-      expense: Expense
+      paidBy: CircleMemberId,
+      description: String,
+      price: Amount,
+      date: Date,
+      owedToPayer: List[OwedAmount]
   ): F[CreateExpenseOutput] =
     withValidExpenseList(expenseListId, expenseListRepo): expenseList =>
-      val createExpenseInput = CreateExpenseInput(expenseListId, expense)
+      val createExpenseInput = CreateExpenseInput(
+        expenseListId,
+        paidBy,
+        description,
+        price,
+        date,
+        owedToPayer
+      )
       for
         expenseRead <- expenseRepo.repo.main.create(createExpenseInput)
-        member <- membersRepo.main.getCircleMemberOut(expense.paidBy)
-        owedAmounts <- owedAmountRepo.detail.getOwedAmounts(
-          ExpenseId(expenseRead.id)
-        )
+        member <- membersRepo.main.getCircleMemberOut(paidBy)
+        expenseId = ExpenseId(expenseRead.id)
+        owedAmounts <- owedAmountRepo.detail.getOwedAmounts(expenseId)
         out = ExpenseOut(
           expenseRead.id,
           member,

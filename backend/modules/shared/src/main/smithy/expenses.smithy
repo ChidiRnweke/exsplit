@@ -4,6 +4,7 @@ namespace exsplit.spec
 
 use alloy#dateFormat
 use alloy#simpleRestJson
+use smithy4s.meta#packedInputs
 
 @simpleRestJson
 @httpBearerAuth
@@ -80,7 +81,19 @@ operation CreateExpense {
         expenseListId: ExpenseListId
 
         @required
-        expense: Expense
+        paidBy: CircleMemberId
+
+        @required
+        description: String
+
+        @required
+        price: Amount
+
+        @required
+        date: Date
+
+        @required
+        owedToPayer: OwedAmounts
     }
 
     output := {
@@ -91,23 +104,6 @@ operation CreateExpense {
     errors: [
         NotFoundError
     ]
-}
-
-structure Expense {
-    @required
-    paidBy: CircleMemberId
-
-    @required
-    description: String
-
-    @required
-    price: Amount
-
-    @required
-    date: Date
-
-    @required
-    owedToPayer: OwedAmounts
 }
 
 @range(min: 0)
