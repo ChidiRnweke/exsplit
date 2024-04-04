@@ -7,7 +7,6 @@ import exsplit.config._
 import exsplit.integration._
 import exsplit.spec._
 import exsplit.datamapper.circles._
-import exsplit.spec.CirclesServiceOperation.reified.createCircle
 import exsplit.spec.UserId
 import exsplit.datamapper.user._
 

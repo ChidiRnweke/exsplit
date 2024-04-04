@@ -38,7 +38,6 @@ class ExpenseListMapperSuite extends DatabaseSuite:
         expenseListRepo <- ExpenseListRepository.fromSession(session)
         circle <- createTestCircle(session)
         result <- createExpenseList(expenseListRepo, session).attempt
-        _ <- IO.println(result)
       yield assertEquals(result.isRight, true)
     )
 
