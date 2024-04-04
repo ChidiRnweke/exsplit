@@ -502,7 +502,7 @@ case class TokenEncoderDecoder(authConfig: AuthConfig):
       subject = Some(email.value)
     )
 
-/** TokenValidator is responsible for validating JWT tokens. It provides methods
+/** ClaimValidator is responsible for validating JWT tokens. It provides methods
   * for validating the expiration of a claim and checking if a given epoch time
   * is expired based on the current time.
   */

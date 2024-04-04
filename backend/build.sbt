@@ -23,7 +23,7 @@ lazy val core = project
       "com.github.geirolz" %% "fly4s" % "1.0.0",
       "org.postgresql" % "postgresql" % "42.5.1",
       "org.tpolecat" %% "skunk-core" % "0.6.3",
-      "org.typelevel" %% "munit-cats-effect-3" % "1.0.6" % Test
+      "org.typelevel" %% "munit-cats-effect" % "2.0.0-M4" % Test
     ),
     Compile / run / fork := true,
     Compile / run / connectInput := true,
@@ -55,7 +55,7 @@ lazy val integration = project
       "com.dimafeng" %% "testcontainers-scala-postgresql" % "0.40.8" % Test,
       "org.postgresql" % "postgresql" % "42.5.1",
       "org.tpolecat" %% "skunk-core" % "0.6.3",
-      "org.typelevel" %% "munit-cats-effect-3" % "1.0.6" % Test
+      "org.typelevel" %% "munit-cats-effect" % "2.0.0-M4" % Test
     ),
     Compile / run / fork := true,
     Compile / run / connectInput := true,
