@@ -5,6 +5,7 @@ import cats.syntax.all._
 import cats.data._
 import cats._
 import cats.effect._
+import smithy4s.Timestamp
 import exsplit.expenseList._
 import exsplit.datamapper.expenses._
 import exsplit.datamapper.circles._
@@ -62,7 +63,7 @@ case class ExpenseServiceImpl[F[_]: MonadThrow](
       paidBy: CircleMemberId,
       description: String,
       price: Amount,
-      date: Date,
+      date: Timestamp,
       owedToPayer: List[OwedAmount]
   ): F[CreateExpenseOutput] =
     withValidExpenseList(expenseListId, expenseListRepo): expenseList =>
@@ -84,7 +85,7 @@ case class ExpenseServiceImpl[F[_]: MonadThrow](
           member,
           expenseRead.description,
           expenseRead.price,
-          expenseRead.date.toString(),
+          date,
           owedAmounts
         )
       yield CreateExpenseOutput(out)
@@ -101,7 +102,7 @@ case class ExpenseServiceImpl[F[_]: MonadThrow](
       paidBy: Option[CircleMemberId],
       description: Option[String],
       price: Option[Amount],
-      date: Option[Date],
+      date: Option[Timestamp],
       owedToPayer: Option[List[OwedAmount]]
   ): F[Unit] =
     val expenseWriter = ExpenseWriteMapper(
@@ -109,6 +110,7 @@ case class ExpenseServiceImpl[F[_]: MonadThrow](
       paidBy.map(_.value),
       description,
       price.map(_.value),
-      date.map(day => LocalDate.parse(day.value))
+      date
     )
+
     expenseRepo.repo.main.update(expenseWriter)

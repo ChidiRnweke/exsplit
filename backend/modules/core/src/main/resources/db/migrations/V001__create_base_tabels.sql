@@ -39,8 +39,8 @@ create table expenses (
     expense_list_id text not null references expense_lists(id),
     paid_by text not null references circle_members(id),
     description text not null,
-    price float not null,
-    date date not null,
+    price float4 not null,
+    date int8 not null,
     created_at timestamp not null default current_timestamp,
     updated_at timestamp not null default current_timestamp
 );

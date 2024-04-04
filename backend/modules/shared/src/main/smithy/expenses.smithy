@@ -52,8 +52,9 @@ operation UpdateExpense {
         description: String
 
         price: Amount
-
-        date: Date
+        
+        @timestampFormat("epoch-seconds")
+        date: Timestamp
 
         owedToPayer: OwedAmounts
     }
@@ -90,7 +91,8 @@ operation CreateExpense {
         price: Amount
 
         @required
-        date: Date
+        @timestampFormat("epoch-seconds")
+        date: Timestamp
 
         @required
         owedToPayer: OwedAmounts
@@ -110,9 +112,6 @@ operation CreateExpense {
 float Amount
 
 string ExpenseId
-
-@dateFormat
-string Date
 
 structure OwedAmount {
     @required
@@ -140,7 +139,8 @@ structure ExpenseOut {
     price: Float
 
     @required
-    date: String
+    @timestampFormat("epoch-seconds")
+    date: Timestamp
 
     @required
     owedToPayer: OwedAmountsOut

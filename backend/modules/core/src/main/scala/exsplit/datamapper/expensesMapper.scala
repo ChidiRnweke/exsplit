@@ -8,6 +8,7 @@ import exsplit.spec._
 import cats.effect._
 import cats.syntax.all._
 import cats._
+import smithy4s.Timestamp
 import cats.data._
 import exsplit.auth._
 import java.util.UUID
@@ -133,7 +134,7 @@ case class ExpenseReadMapper(
     paidBy: String,
     description: String,
     price: Float,
-    date: LocalDate
+    date: Timestamp
 )
 
 /** Represents a view of expense detail with the name of the person who paid for
@@ -161,7 +162,7 @@ case class ExpenseDetailRead(
     paidByName: String,
     description: String,
     price: Float,
-    date: LocalDate
+    date: Timestamp
 )
 
 /** Represents a view of owed amount detail with the name of the person who owes
@@ -211,7 +212,7 @@ case class ExpenseWriteMapper(
     paidBy: Option[String],
     description: Option[String],
     price: Option[Float],
-    date: Option[LocalDate]
+    date: Option[Timestamp]
 )
 
 /** Represents the data mapper for the owed amount read model. This class is a
@@ -603,14 +604,31 @@ object ExpenseDetailMapper:
 
   private val getExpenseDetailQuery: Query[String, ExpenseDetailRead] =
     sql"""
-         SELECT e.id, e.expense_list_id, e.paid_by, cm.name, e.description, e.price, e.date
+         SELECT e.id, e.expense_list_id, e.paid_by, cm.display_name, e.description, e.price, e.date
          FROM expenses e
          JOIN circle_members cm ON e.paid_by = cm.id
          WHERE e.id = $text
        """
-      .query(text *: text *: text *: text *: text *: float4 *: date)
-      .to[ExpenseDetailRead]
-
+      .query(text *: text *: text *: text *: text *: float4 *: int8)
+      .map:
+        case (
+              id,
+              expenseListId,
+              paidById,
+              paidByName,
+              description,
+              price,
+              epochSeconds
+            ) =>
+          ExpenseDetailRead(
+            id,
+            expenseListId,
+            paidById,
+            paidByName,
+            description,
+            price,
+            Timestamp(epochSeconds, 0)
+          )
 object OwedAmountDetailMapper:
   /** Creates a new instance of OwedAmountDetailMapper using the provided
     * session. This is an effectful operation because the query needs to be
@@ -825,25 +843,43 @@ object ExpenseMapper:
          FROM expenses
          WHERE id = $text
        """
-      .query(text *: text *: text *: text *: float4 *: date)
-      .to[ExpenseReadMapper]
+      .query(text *: text *: text *: text *: float4 *: int8)
+      .map:
+        case (id, expenseListId, paidById, description, price, epochSeconds) =>
+          ExpenseReadMapper(
+            id,
+            expenseListId,
+            paidById,
+            description,
+            price,
+            Timestamp(epochSeconds, 0)
+          )
 
   private val createExpenseQuery: Query[CreateExpenseInput, ExpenseReadMapper] =
     sql"""
           INSERT INTO expenses (expense_list_id, paid_by, description, price, date)
-          VALUES ($text, $text, $text, $float4, $date)
+          VALUES ($text, $text, $text, $float4, $int8)
           RETURNING id, expense_list_id, paid_by, description, price, date
         """
-      .query(text *: text *: text *: text *: float4 *: date)
+      .query(text *: text *: text *: text *: float4 *: int8)
       .contramap: (input: CreateExpenseInput) =>
         (
           input.expenseListId.value,
           input.paidBy.value,
           input.description,
           input.price.value,
-          LocalDate.parse(input.date.value)
+          input.date.epochSecond
         )
-      .to[ExpenseReadMapper]
+      .map:
+        case (id, expenseListId, paidById, description, price, epochSeconds) =>
+          ExpenseReadMapper(
+            id,
+            expenseListId,
+            paidById,
+            description,
+            price,
+            Timestamp(epochSeconds, 0)
+          )
 
   private val updateExpenseDescriptionQuery: Command[(String, String)] =
     sql"""
@@ -859,12 +895,13 @@ object ExpenseMapper:
           WHERE id = $text
         """.command
 
-  private val updateExpenseDateQuery: Command[(LocalDate, String)] =
+  private val updateExpenseDateQuery: Command[(Timestamp, String)] =
     sql"""
           UPDATE expenses
-          SET date = $date
+          SET date = $int8
           WHERE id = $text
-        """.command
+        """.command.contramap:
+      case (date: Timestamp, id: String) => (date.epochSecond, id)
 
   private val updateExpensePaidByQuery: Command[(String, String)] =
     sql"""
@@ -955,8 +992,17 @@ object CircleMemberToExpenseMapper:
          FROM expenses
          WHERE paid_by = $text
        """
-      .query(text *: text *: text *: text *: float4 *: date)
-      .to[ExpenseReadMapper]
+      .query(text *: text *: text *: text *: float4 *: int8)
+      .map:
+        case (id, expenseListId, paidById, description, price, epochSeconds) =>
+          ExpenseReadMapper(
+            id,
+            expenseListId,
+            paidById,
+            description,
+            price,
+            Timestamp(epochSeconds, 0)
+          )
 
 /** Companion object for the ExpenseMapper trait. Contains the factory method
   * for creating an instance of the ExpenseMapper.
@@ -986,8 +1032,17 @@ object ExpenseListToExpenseMapper:
          FROM expenses
          WHERE expense_list_id = $text
        """
-      .query(text *: text *: text *: text *: float4 *: date)
-      .to[ExpenseReadMapper]
+      .query(text *: text *: text *: text *: float4 *: int8)
+      .map:
+        case (id, expenseListId, paidById, description, price, epochSeconds) =>
+          ExpenseReadMapper(
+            id,
+            expenseListId,
+            paidById,
+            description,
+            price,
+            Timestamp(epochSeconds, 0)
+          )
 
 /** Companion object for the `ExpensesToOwedAmountMapper` trait. Contains the
   * factory method for creating an instance of the `ExpensesToOwedAmountMapper`.
@@ -1013,7 +1068,7 @@ object ExpensesToOwedAmountMapper:
 
   private val listChildrenQuery: Query[String, OwedAmountReadMapper] =
     sql"""
-         SELECT id, expense_id, from_member, to_member, amount
+         SELECT id, expense_id, from_member, to_member, amount  
          FROM owed_amounts
          WHERE expense_id = $text
        """

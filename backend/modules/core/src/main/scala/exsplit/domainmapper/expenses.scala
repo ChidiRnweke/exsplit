@@ -26,7 +26,7 @@ case class ExpenseDomainMapper[F[_]: MonadThrow: Parallel](
       paidBy,
       expense.description,
       expense.price,
-      expense.date.toString(),
+      expense.date,
       owedAmounts
     )
 
