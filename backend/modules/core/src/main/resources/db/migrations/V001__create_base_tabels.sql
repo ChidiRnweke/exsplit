@@ -60,7 +60,7 @@ create table settled_tabs (
     expense_list_id text not null references expense_lists(id),
     from_member text not null references circle_members(id),
     to_member text not null references circle_members(id),
-    amount float not null,  
+    amount float4 not null,  
     settled_at date not null default current_date
 );
 

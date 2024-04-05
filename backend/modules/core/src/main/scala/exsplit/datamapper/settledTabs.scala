@@ -102,14 +102,14 @@ object SettledTabRepository:
   ): F[SettledTabRepository[F]] =
     for
       mainMapper <- SettledTabMapper.fromSession(session)
-      byExpenses <- ExpenseListToSettledTabs.fromSession(session)
-      byFromMembers <- FromMemberToSettledTabs.fromSession(session)
-      byToMembers <- ToMemberToSettledTabs.fromSession(session)
+      byExpenses_ <- ExpenseListToSettledTabs.fromSession(session)
+      byFromMembers_ <- FromMemberToSettledTabs.fromSession(session)
+      byToMembers_ <- ToMemberToSettledTabs.fromSession(session)
     yield new SettledTabRepository[F]:
       val main = mainMapper
-      val byExpenses = byExpenses
-      val byFromMembers = byFromMembers
-      val byToMembers = byToMembers
+      val byExpenses = byExpenses_
+      val byFromMembers = byFromMembers_
+      val byToMembers = byToMembers_
 
 /** A trait representing a data mapper for Settled Tabs. It provides methods for
   * creating, retrieving, updating, and deleting Settled Tabs.
