@@ -30,7 +30,7 @@ object ExpenseListOps:
     def toExpenseListOuts: List[ExpenseListOut] =
       expenseLists.map(_.toExpenseListOut)
 
-case class ExpenseListDomainMapper[F[_]: MonadThrow: Parallel](
+case class ExpenseListDomainMapper[F[_]: MonadThrow](
     repo: ExpenseListRepository[F],
     expenseRepo: ExpenseDomainMapper[F],
     owedAmountRepo: OwedAmountRepository[F]
@@ -40,7 +40,7 @@ case class ExpenseListDomainMapper[F[_]: MonadThrow: Parallel](
     for
       expenseList <- repo.main.getExpenseListOut(id)
       expenses <- expenseRepo.listExpenseOut(id)
-      owedAmounts <- expenses.parFlatTraverse(e =>
+      owedAmounts <- expenses.flatTraverse(e =>
         owedAmountRepo.detail.getOwedAmounts(ExpenseId(e.id))
       )
       owedTotal = owedAmounts.toTotalOwed

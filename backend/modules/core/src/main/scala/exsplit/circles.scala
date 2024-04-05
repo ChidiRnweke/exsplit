@@ -14,7 +14,7 @@ import exsplit.domainmapper.CirclesOps._
 import exsplit.domainmapper.CircleMemberOps._
 
 object CirclesEntryPoint:
-  def fromSession[F[_]: Concurrent: Parallel](
+  def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[CirclesService[F]] =
     for

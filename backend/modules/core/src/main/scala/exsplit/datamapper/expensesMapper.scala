@@ -55,7 +55,7 @@ object ExpenseRepository:
    * @return
    *   A `F[ExpenseRepository[F]]` representing the created repository instance.
    */
-  def fromSession[F[_]: Concurrent: Parallel](
+  def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[ExpenseRepository[F]] =
     for
@@ -84,7 +84,7 @@ object OwedAmountRepository:
    * @return
    *   A `F[OwedAmountRepository[F]]` representing the created repository instance.
    */
-  def fromSession[F[_]: Concurrent: Parallel](
+  def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[OwedAmountRepository[F]] =
     for
@@ -678,7 +678,7 @@ object OwedAmountMapper:
     * @return
     *   The created OwedAmountMapper.
     */
-  def fromSession[F[_]: Concurrent: Parallel](
+  def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[OwedAmountMapper[F]] =
     for
@@ -719,7 +719,7 @@ object OwedAmountMapper:
           )
         ).flatten
 
-        updates.parSequence.void
+        updates.sequence.void
 
       def delete(id: OwedAmountKey): F[Unit] =
         deleteOwedAmountQuery
@@ -797,7 +797,7 @@ object ExpenseMapper:
     * @return
     *   The created ExpenseMapper.
     */
-  def fromSession[F[_]: Concurrent: Parallel](
+  def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[ExpenseMapper[F]] =
     for
@@ -830,7 +830,7 @@ object ExpenseMapper:
           b.date.map(date => updateExpenseDateQuery.execute(date, b.id))
         ).flatten
 
-        updates.parSequence.void
+        updates.sequence.void
 
       def delete(id: ExpenseId): F[Unit] =
         deleteExpenseQuery

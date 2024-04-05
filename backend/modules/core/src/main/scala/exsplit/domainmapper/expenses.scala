@@ -10,7 +10,7 @@ import exsplit.datamapper.circles._
 import exsplit.domainmapper.CircleMemberOps._
 import exsplit.domainmapper.OwedAmountsOps._
 
-case class ExpenseDomainMapper[F[_]: MonadThrow: Parallel](
+case class ExpenseDomainMapper[F[_]: MonadThrow](
     circleMemberRepo: CircleMembersRepository[F],
     owedAmountsRepo: OwedAmountRepository[F],
     repo: ExpenseRepository[F]
@@ -33,7 +33,7 @@ case class ExpenseDomainMapper[F[_]: MonadThrow: Parallel](
   def listExpenseOut(id: ExpenseListId): F[List[ExpenseOut]] =
     for
       expenses <- repo.byExpenseList.listChildren(id)
-      expenseOuts <- expenses.parTraverse: expense =>
+      expenseOuts <- expenses.traverse: expense =>
         getExpenseOut(ExpenseId(expense.id))
     yield expenseOuts
 

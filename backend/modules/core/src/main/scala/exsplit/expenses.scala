@@ -17,7 +17,7 @@ import java.time.LocalDate
 import skunk.Session
 
 object ExpensesEntryPoint:
-  def fromSession[F[_]: Concurrent: Parallel](
+  def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[ExpenseServiceImpl[F]] =
     for

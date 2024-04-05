@@ -16,7 +16,7 @@ import exsplit.datamapper.settledTabs._
 import skunk.Session
 
 object ExpenseListEntryPoint:
-  def fromSession[F[_]: Concurrent: Parallel](
+  def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[ExpenseListService[F]] =
     for

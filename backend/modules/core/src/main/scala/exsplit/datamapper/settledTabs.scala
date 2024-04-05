@@ -97,7 +97,7 @@ trait SettledTabRepository[F[_]]:
   val byToMembers: ToMemberToSettledTabs[F]
 
 object SettledTabRepository:
-  def fromSession[F[_]: Concurrent: Parallel](
+  def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[SettledTabRepository[F]] =
     for
@@ -312,7 +312,7 @@ object SettledTabMapper:
     * @return
     *   a new instance of SettledTabMapper
     */
-  def fromSession[F[_]: Concurrent: Parallel](
+  def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[SettledTabMapper[F]] =
     for
@@ -353,7 +353,7 @@ object SettledTabMapper:
           )
         ).flatten
 
-        actions.parSequence.void
+        actions.sequence.void
 
       def delete(id: String): F[Unit] =
         deleteSettledTabQuery.execute(id).void
