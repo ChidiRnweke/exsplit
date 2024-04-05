@@ -91,12 +91,12 @@ object OwedAmountRepository:
       mainMapper <- OwedAmountMapper.fromSession(session)
       circleMembers <- CircleMemberToOwedAmountMapper.fromSession(session)
       expenses <- ExpensesToOwedAmountMapper.fromSession(session)
-      detail <- OwedAmountDetailMapper.fromSession(session)
+      detailMapper <- OwedAmountDetailMapper.fromSession(session)
     yield new OwedAmountRepository[F]:
       val main = mainMapper
       val byCircleMember = circleMembers
       val byExpense = expenses
-      val detail = detail
+      val detail = detailMapper
 
 /** Represents an expense read mapper. This class is a one to one mapping of the
   * expense table in the database without the creation and update timestamps.
@@ -565,7 +565,7 @@ object ExpenseListOwedAmountMapper:
 
   private val getOwedAmountDetailQuery: Query[String, OwedAmountDetailRead] =
     sql"""
-         SELECT oa.id, oa.expense_id, oa.from_member, cm1.name, oa.to_member, cm2.name, oa.amount
+         SELECT oa.id, oa.expense_id, oa.from_member, cm1.display_name, oa.to_member, cm2.display_name, oa.amount
          FROM owed_amounts oa
          INNER JOIN circle_members cm1 ON oa.from_member = cm1.id
          INNER JOIN circle_members cm2 ON oa.to_member = cm2.id
@@ -653,11 +653,11 @@ object OwedAmountDetailMapper:
 
   private val getOwedAmountDetailQuery: Query[String, OwedAmountDetailRead] =
     sql"""
-         SELECT oa.id, oa.expense_id, oa.from_member, cm1.name, oa.to_member, cm2.name, oa.amount
+         SELECT oa.id, oa.expense_id, oa.from_member, cm1.display_name, oa.to_member, cm2.display_name, oa.amount
          FROM owed_amounts oa
          JOIN circle_members cm1 ON oa.from_member = cm1.id
          JOIN circle_members cm2 ON oa.to_member = cm2.id
-         WHERE oa.id = $text
+         WHERE oa.expense_id = $text
        """
       .query(
         text *: text *: text *: text *: text *: text *: float4
