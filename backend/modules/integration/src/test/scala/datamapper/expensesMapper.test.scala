@@ -31,13 +31,13 @@ class ExpenseMapperSuite extends DatabaseSuite:
       circlesRepo <- CirclesRepository.fromSession(session)
       circleMembersRepo <- CircleMembersRepository.fromSession(session)
       expenseListRepo <- ExpenseListRepository.fromSession(session)
-
       circle <- circlesRepo.main.create(input)
       memberInput = AddUserToCircleInput(userId, "User", CircleId(circle.id))
       memberInput2 = AddUserToCircleInput(userId2, "User2", CircleId(circle.id))
       member <- circleMembersRepo.main.create(memberInput)
       member2 <- circleMembersRepo.main.create(memberInput2)
       expListInput = CreateExpenseListInput(CircleId(circle.id), "Test")
+
       expenseList <- expenseListRepo.main.create(expListInput)
     yield (
       ExpenseListId(expenseList.id),
@@ -78,6 +78,7 @@ class ExpenseMapperSuite extends DatabaseSuite:
         Timestamp(now.getEpochSecond(), 0),
         owedAmounts
       )
+
       _ <- expenseRepo.main.create(expenseInput)
       _ <- expenseRepo.main.create(expenseInput)
       result <- expenseRepo.main.create(expenseInput)
@@ -156,3 +157,112 @@ class ExpenseMapperSuite extends DatabaseSuite:
           ExpenseListId(last.expenseListId)
         )
       yield assertEquals(expenses.length, 3)
+
+  test("You should be able to create an owed amount without errors"):
+    val session = sessionPool()
+    session.use: session =>
+      for
+        expenseRepo <- ExpenseRepository.fromSession(session)
+        owedAmountsRepo <- OwedAmountRepository.fromSession(session)
+        last <- createExpenses(session)
+        expenseId = ExpenseId(last.id)
+        from = CircleMemberId(last.paidBy)
+        owed = CreateOwedAmountInput(expenseId, from, from, Amount(10))
+        obtained <- owedAmountsRepo.main.create(owed).attempt
+      yield assert(obtained.isRight)
+
+  test("You should be able to create and then read an owed amount"):
+    val session = sessionPool()
+    session.use: session =>
+      for
+        expenseRepo <- ExpenseRepository.fromSession(session)
+        owedAmountsRepo <- OwedAmountRepository.fromSession(session)
+        last <- createExpenses(session)
+        expenseId = ExpenseId(last.id)
+        from = CircleMemberId(last.paidBy)
+        owed = CreateOwedAmountInput(expenseId, from, from, Amount(10))
+        expected <- owedAmountsRepo.main.create(owed)
+        key = OwedAmountKey(expenseId, from, from)
+        obtained <- owedAmountsRepo.main.get(key).rethrow
+      yield assertEquals(expected, obtained)
+
+  test("You should be able to delete an owned amount"):
+    val session = sessionPool()
+    session.use: session =>
+      for
+        expenseRepo <- ExpenseRepository.fromSession(session)
+        owedAmountsRepo <- OwedAmountRepository.fromSession(session)
+        last <- createExpenses(session)
+        expenseId = ExpenseId(last.id)
+        from = CircleMemberId(last.paidBy)
+        owed = CreateOwedAmountInput(expenseId, from, from, Amount(10))
+        key = OwedAmountKey(expenseId, from, from)
+        expected <- owedAmountsRepo.main.create(owed)
+        _ <- owedAmountsRepo.main.delete(key)
+        obtained <- owedAmountsRepo.main.get(key)
+      yield assert(obtained.isLeft)
+
+  test("You should be able to update an owed amount"):
+    val session = sessionPool()
+    session.use: session =>
+      for
+        expenseRepo <- ExpenseRepository.fromSession(session)
+        owedAmountsRepo <- OwedAmountRepository.fromSession(session)
+        last <- createExpenses(session)
+        expenseId = ExpenseId(last.id)
+        from = CircleMemberId(last.paidBy)
+        owed = CreateOwedAmountInput(expenseId, from, from, Amount(10))
+        key = OwedAmountKey(expenseId, from, from)
+        result <- owedAmountsRepo.main.create(owed)
+        write = OwedAmountWriteMapper(result.id, None, None, Some(20))
+        _ <- owedAmountsRepo.main.update(write)
+        obtained <- owedAmountsRepo.main.get(key).rethrow
+      yield assertEquals(obtained.amount, 20f)
+
+  test("You should be able to get all owed amounts for an expense"):
+    val session = sessionPool()
+    session.use: session =>
+      for
+        expenseRepo <- ExpenseRepository.fromSession(session)
+        owedAmountsRepo <- OwedAmountRepository.fromSession(session)
+        last <- createExpenses(session)
+        expenseId = ExpenseId(last.id)
+        from = CircleMemberId(last.paidBy)
+        owed = CreateOwedAmountInput(expenseId, from, from, Amount(10))
+        owed2 = CreateOwedAmountInput(expenseId, from, from, Amount(20))
+        _ <- owedAmountsRepo.main.create(owed)
+        _ <- owedAmountsRepo.main.create(owed2)
+        obtained <- owedAmountsRepo.byExpense.listChildren(expenseId)
+      yield assertEquals(obtained.length, 2)
+
+  test("You should be able to get all owed amounts by a circle member"):
+    val session = sessionPool()
+    session.use: session =>
+      for
+        expenseRepo <- ExpenseRepository.fromSession(session)
+        owedAmountsRepo <- OwedAmountRepository.fromSession(session)
+        last <- createExpenses(session)
+        expenseId = ExpenseId(last.id)
+        from = CircleMemberId(last.paidBy)
+        owed = CreateOwedAmountInput(expenseId, from, from, Amount(10))
+        owed2 = CreateOwedAmountInput(expenseId, from, from, Amount(20))
+        _ <- owedAmountsRepo.main.create(owed)
+        _ <- owedAmountsRepo.main.create(owed2)
+        obtained <- owedAmountsRepo.byCircleMember.listChildren(from)
+      yield assertEquals(obtained.length, 2)
+
+  test("You should be able to get all owed amount details for an expense"):
+    val session = sessionPool()
+    session.use: session =>
+      for
+        expenseRepo <- ExpenseRepository.fromSession(session)
+        owedAmountsRepo <- OwedAmountRepository.fromSession(session)
+        last <- createExpenses(session)
+        expenseId = ExpenseId(last.id)
+        from = CircleMemberId(last.paidBy)
+        owed = CreateOwedAmountInput(expenseId, from, from, Amount(10))
+        owed2 = CreateOwedAmountInput(expenseId, from, from, Amount(20))
+        _ <- owedAmountsRepo.main.create(owed)
+        _ <- owedAmountsRepo.main.create(owed2)
+        obtained <- owedAmountsRepo.detail.listChildren(expenseId)
+      yield assertEquals(obtained.length, 2)
