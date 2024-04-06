@@ -139,7 +139,7 @@ object UserMapper:
     for
       findUserByIdQuery <- session.prepare(userFromId)
       findUserByEmailQuery <- session.prepare(userFromEmail)
-      createUserCommand <- session.prepare(createUser)
+      createUserCommand <- session.prepare(_createUser)
       updateEmailCommand <- session.prepare(updateEmail)
       updatePasswordCommand <- session.prepare(updatePassword)
       deleteUserCommand <- session.prepare(deleteUser)
@@ -159,7 +159,7 @@ object UserMapper:
       def findUserById(
           userId: UserId
       ): F[Either[NotFoundError, UserReadMapper]] =
-        findUserByEmailQuery
+        findUserByIdQuery
           .option(userId.value)
           .map(_.toRight(NotFoundError(s"User with id = $userId not found.")))
 
@@ -174,7 +174,7 @@ object UserMapper:
 
       def createUser(id: UUID, email: Email, password: String): F[Unit] =
         createUserCommand
-          .unique(id.toString, email.value, password)
+          .unique(id.toString(), email.value, password)
           .void
 
       def update(user: UserWriteMapper): F[Unit] =
@@ -211,7 +211,7 @@ object UserMapper:
       .query(text *: text *: text)
       .to[UserReadMapper]
 
-  private val createUser: Query[(String, String, String), UserReadMapper] =
+  private val _createUser: Query[(String, String, String), UserReadMapper] =
     sql"""
       INSERT INTO users (id, email, password)
       VALUES ($text, $text, $text)
