@@ -13,6 +13,9 @@ service UserService {
         Register
         Refresh
     ]
+    errors: [
+        ValidationError
+    ]
 }
 
 @http(method: "POST", uri: "/auth/register")
@@ -46,10 +49,6 @@ operation Login {
         @required
         refreshToken: RefreshToken
     }
-
-    errors: [
-        ValidationError
-    ]
 }
 
 @http(method: "POST", uri: "/auth/refresh")
@@ -65,7 +64,6 @@ operation Refresh {
     }
 
     errors: [
-        ValidationError
         AuthError
         InvalidTokenError
     ]
