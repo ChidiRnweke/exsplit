@@ -440,14 +440,12 @@ case class UserAuthenticator[F[_]](
       makeUser(email, password)
     )
 
-  private def createUserId: F[UUID] = uuid.randomUUID
-
   private def makeUser(email: Email, password: Password): F[String] =
-    createUserId.flatMap: userId =>
-      for
-        hashedPassword <- validator.hashPassword(password.value)
-        _ <- repo.createUser(userId, email, hashedPassword)
-      yield userId.toString()
+    for
+      userId <- uuid.randomUUID
+      hashedPassword <- validator.hashPassword(password.value)
+      _ <- repo.createUser(userId, email, hashedPassword)
+    yield userId.toString()
 
 /** TokenEncoderDecoder is responsible for encoding and decoding JWT tokens.
   *
