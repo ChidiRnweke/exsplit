@@ -31,12 +31,26 @@ object Routes:
       expenseService <- ExpensesEntryPoint.fromSession(session)
       expenseListService <- ExpenseListEntryPoint.fromSession(session)
       circlesService <- CirclesEntryPoint.fromSession(session)
-      userRoute = SimpleRestJsonBuilder.routes(userService).resource
-      expenseRoute = SimpleRestJsonBuilder.routes(expenseService).resource
-      expListRoute = SimpleRestJsonBuilder.routes(expenseListService).resource
-      circlesRoute = SimpleRestJsonBuilder.routes(circlesService).resource
-      routes = userRoute <+> expenseRoute <+> expListRoute <+> circlesRoute
-    yield routes.map(_ <+> docs)
+      routes = servicesToRoutes(
+        userService,
+        expenseService,
+        expenseListService,
+        circlesService
+      )
+    yield routes
+
+  private def servicesToRoutes(
+      userService: UserService[IO],
+      expenseService: ExpenseService[IO],
+      expenseListService: ExpenseListService[IO],
+      circlesService: CirclesService[IO]
+  ): Resource[IO, HttpRoutes[IO]] =
+    for
+      userRoute <- SimpleRestJsonBuilder.routes(userService).resource
+      expenseRoute <- SimpleRestJsonBuilder.routes(expenseService).resource
+      expListRoute <- SimpleRestJsonBuilder.routes(expenseListService).resource
+      circlesRoute <- SimpleRestJsonBuilder.routes(circlesService).resource
+    yield userRoute <+> expenseRoute <+> expListRoute <+> circlesRoute <+> docs
 
   private val docs: HttpRoutes[IO] =
     smithy4s.http4s.swagger
@@ -67,3 +81,4 @@ object Main extends IOApp.Simple:
               routes
                 .flatMap(Routes.makeServer)
                 .use(_ => IO.never)
+                .as(ExitCode.Success)
