@@ -37,6 +37,7 @@ operation GetCircle {
         @required
         circle: CircleOut
     }
+    errors: [NotFoundError]
 }
 
 @readonly
@@ -48,10 +49,9 @@ operation ListCirclesForUser {
         userId: UserId
     }
 
-    output := {
-        @required
-        circles: CirclesOut
-    }
+    output: CirclesOut
+    errors: [NotFoundError]
+
 }
 
 @http(method: "POST", uri: "/users/{userId}/circles")
@@ -74,6 +74,7 @@ operation CreateCircle {
         @required
         circle: CircleOut
     }
+    errors: [NotFoundError]
 }
 
 @idempotent
@@ -88,6 +89,7 @@ operation UpdateCircle {
 
         description: String
     }
+    errors: [NotFoundError]
 }
 
 @idempotent
@@ -114,6 +116,7 @@ operation AddUserToCircle {
         @httpLabel
         circleId: CircleId
     }
+    errors: [NotFoundError]
 }
 
 @readonly
@@ -125,10 +128,8 @@ operation ListCircleMembers {
         circleId: CircleId
     }
 
-    output := {
-        @required
-        members: MembersListOut
-    }
+    output: MembersListOut
+    errors: [NotFoundError]
 }
 
 @idempotent
@@ -143,6 +144,7 @@ operation RemoveMemberFromCircle {
         @httpLabel
         memberId: CircleMemberId
     }
+    errors: [NotFoundError]
 }
 
 @idempotent
@@ -160,6 +162,7 @@ operation ChangeDisplayName {
         @required
         displayName: String
     }
+    errors: [NotFoundError]
 }
 
 structure CirclesOut {

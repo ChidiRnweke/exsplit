@@ -47,10 +47,10 @@ case class CirclesServiceImpl[F[_]: MonadThrow](
     userRepo: UserMapper[F]
 ) extends CirclesService[F]:
 
-  def listCirclesForUser(userId: UserId): F[ListCirclesForUserOutput] =
+  def listCirclesForUser(userId: UserId): F[CirclesOut] =
     withValidUser(userId, userRepo): user =>
       for circles <- circlesRepo.byUser.getCirclesOut(userId)
-      yield ListCirclesForUserOutput(circles)
+      yield circles
 
   def removeMemberFromCircle(
       circleId: CircleId,
@@ -102,12 +102,10 @@ case class CirclesServiceImpl[F[_]: MonadThrow](
     // TODO: the circle is not allowed to have outstanding debts
     circlesRepo.main.delete(circleId)
 
-  def listCircleMembers(circleId: CircleId): F[ListCircleMembersOutput] =
+  def listCircleMembers(circleId: CircleId): F[MembersListOut] =
     withValidCircle(circleId, circlesRepo): circle =>
-      for
-        members <- circleMembersRepo.byCircle.getCircleMembersOuts(circleId)
-        membersListOut = MembersListOut(members)
-      yield ListCircleMembersOutput(membersListOut)
+      for members <- circleMembersRepo.byCircle.getCircleMembersOuts(circleId)
+      yield MembersListOut(members)
 
   def updateCircle(
       circleId: CircleId,
