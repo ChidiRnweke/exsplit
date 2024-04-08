@@ -217,10 +217,6 @@ case class UserServiceImpl[F[_]](
   * @param clock
   *   The typeclass instance for the clock used for retrieving the current time.
   *
-  * @param claimValidator
-  *   The validator used for validating token claims. Used to validate the
-  *   expiration of the refresh token.
-  *
   * @param F
   *   The effect type that provides the necessary capabilities for token
   *   creation. It must have a `MonadThrow` instance because it is used for
@@ -243,11 +239,11 @@ case class AuthTokenCreator[F[_]](
     for
       claim <- F.fromEither(claimEither)
       now <- clock.realTimeInstant
-      notExpiredEither = ClaimValidator.claimNotExpired(claim, now)
+      notExpiredEither = tokenParser.claimNotExpired(claim, now)
       notExpired <- F.fromEither(notExpiredEither)
       _ <- F.raiseWhen(!notExpired)(AuthError("Token is expired."))
-      email <- F.fromEither(validateSubject(claim.subject))
-      token <- generateToken(TokenLifespan.ShortLived, Email(email))
+      email <- F.fromEither(tokenParser.extractEmail(claim))
+      token <- generateToken(TokenLifespan.ShortLived, email)
     yield AccessToken(token)
 
   /** Generates a refresh token based on the provided email.
@@ -266,11 +262,6 @@ case class AuthTokenCreator[F[_]](
       claim = tokenParser.makeClaim(lifeSpan, email, now)
       token = tokenParser.encodeClaim(claim)
     yield token
-
-  private def validateSubject(
-      subjectOpt: Option[String]
-  ): Either[InvalidTokenError, String] =
-    subjectOpt.toRight(InvalidTokenError("Subject wasn't found in JWT claim."))
 
 /** the domain model for a user. It has two counterparts: `UserReadMapper` and
   * `UserWriteMapper`. The `UserReadMapper` is used for reading user data from
@@ -462,10 +453,11 @@ case class TokenEncoderDecoder(authConfig: AuthConfig):
     *   The decoded JWT claim wrapped in an Either. If the token is invalid, an
     *   exception is raised.
     */
-  def decodeClaim(token: String): Either[Throwable, JwtClaim] =
+  def decodeClaim(token: String): Either[InvalidTokenError, JwtClaim] =
     JwtUpickle
       .decode(token, authConfig.secretKey, Seq(JwtAlgorithm.HS256))
       .toEither
+      .leftMap(_ => InvalidTokenError("Failed to parse the bearer token."))
 
   /** Encodes the given JwtClaim and returns the encoded JWT token as a string.
     *
@@ -500,11 +492,35 @@ case class TokenEncoderDecoder(authConfig: AuthConfig):
       subject = Some(email.value)
     )
 
-/** ClaimValidator is responsible for validating JWT tokens. It provides methods
-  * for validating the expiration of a claim and checking if a given epoch time
-  * is expired based on the current time.
-  */
-object ClaimValidator:
+  /** Converts a bearer token to an email address. The subject of the claim is
+    * used as the email address.
+    *
+    * @param encoded
+    *   The encoded bearer token.
+    * @return
+    *   Either an InvalidTokenError or the decoded email address. There are two
+    *   possible errors: the subject is not found in the claim, or the token is
+    *   invalid.
+    */
+  def bearerTokenToEmail(encoded: String): Either[InvalidTokenError, Email] =
+    val claimEither = decodeClaim(encoded)
+    for
+      claim <- claimEither
+      email <- extractEmail(claim)
+    yield email
+
+  /** Extracts the subject from the JWT claim. The subject is the email address
+    * of the user.
+    *
+    * @param claim
+    *   The JWT claim to extract the subject from.
+    * @return
+    *   Either an InvalidTokenError or the email address.
+    */
+  def extractEmail(claim: JwtClaim): Either[InvalidTokenError, Email] =
+    claim.subject
+      .toRight(InvalidTokenError("Subject not found in claim."))
+      .map(Email(_))
 
   /** Checks if the claim has not expired.
     *
