@@ -15,13 +15,14 @@ import exsplit.domainmapper.CircleMemberOps._
 
 object CirclesEntryPoint:
   def fromSession[F[_]: Concurrent](
+      userInfo: F[Email],
       session: Session[F]
   ): F[CirclesService[F]] =
     for
       circlesRepo <- CirclesRepository.fromSession(session)
       circleMembersRepo <- CircleMembersRepository.fromSession(session)
       userRepo <- UserMapper.fromSession(session)
-    yield CirclesServiceImpl(circlesRepo, circleMembersRepo, userRepo)
+    yield CirclesServiceImpl(userInfo, circlesRepo, circleMembersRepo, userRepo)
 
 def withValidCircle[F[_]: MonadThrow, A](
     circleId: CircleId,
@@ -42,6 +43,7 @@ def withValidCircleMember[F[_]: MonadThrow, A](
   yield result
 
 case class CirclesServiceImpl[F[_]: MonadThrow](
+    userInfo: F[Email],
     circlesRepo: CirclesRepository[F],
     circleMembersRepo: CircleMembersRepository[F],
     userRepo: UserMapper[F]

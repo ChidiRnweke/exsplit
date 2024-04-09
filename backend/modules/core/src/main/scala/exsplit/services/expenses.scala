@@ -18,6 +18,7 @@ import skunk.Session
 
 object ExpensesEntryPoint:
   def fromSession[F[_]: Concurrent](
+      userInfo: F[Email],
       session: Session[F]
   ): F[ExpenseServiceImpl[F]] =
     for
@@ -36,6 +37,7 @@ object ExpensesEntryPoint:
         owedAmountsRepo
       )
     yield ExpenseServiceImpl(
+      userInfo,
       expenseDomainMapper,
       expenseListDomainMapper,
       circleMembersRepo,
@@ -52,6 +54,7 @@ def withValidExpense[F[_]: MonadThrow, A](
   yield result
 
 case class ExpenseServiceImpl[F[_]: MonadThrow](
+    userInfo: F[Email],
     expenseRepo: ExpenseDomainMapper[F],
     expenseListRepo: ExpenseListDomainMapper[F],
     membersRepo: CircleMembersRepository[F],

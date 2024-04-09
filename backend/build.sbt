@@ -22,6 +22,7 @@ lazy val core = project
       "commons-logging" % "commons-logging" % "1.2",
       "com.github.geirolz" %% "fly4s" % "1.0.0",
       "org.postgresql" % "postgresql" % "42.7.2",
+      "io.chrisdavenport" %% "fiberlocal" % "0.1.2",
       "org.tpolecat" %% "skunk-core" % "0.6.3",
       "org.typelevel" %% "munit-cats-effect-3" % "1.0.6" % Test
     ),

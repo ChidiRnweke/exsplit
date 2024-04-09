@@ -20,24 +20,29 @@ import exsplit.circles.CirclesEntryPoint
 import natchez.Trace.Implicits.noop
 import cats.effect.IO.asyncForIO
 import exsplit.migration.migrateDb
-
+import exsplit.middleware.Middleware
+import io.chrisdavenport.fiberlocal.FiberLocal
 object Routes:
   def fromSession(
       config: AuthConfig,
+      local: FiberLocal[IO, Either[InvalidTokenError, Email]],
       session: Session[IO]
   ) =
     for
+      emailEither <- local.get
+      email = IO.fromEither(emailEither)
       userService <- AuthEntryPoint.fromSession[IO](session, config)
-      expenseService <- ExpensesEntryPoint.fromSession(session)
-      expenseListService <- ExpenseListEntryPoint.fromSession(session)
-      circlesService <- CirclesEntryPoint.fromSession(session)
+      expenseService <- ExpensesEntryPoint.fromSession(email, session)
+      expenseListService <- ExpenseListEntryPoint.fromSession(email, session)
+      circlesService <- CirclesEntryPoint.fromSession(email, session)
       routes = servicesToRoutes(
         userService,
         expenseService,
         expenseListService,
         circlesService
       )
-    yield routes
+      routesWithLocal = routes.map(Middleware.withRequestInfo(_, config, local))
+    yield routesWithLocal
 
   private def servicesToRoutes(
       userService: UserService[IO],
@@ -70,15 +75,20 @@ object Main extends IOApp.Simple:
   val repoConfig = appConfig.postgres
   val migrationConfig = appConfig.migrations
 
+  private val local: IO[IOLocal[Either[InvalidTokenError, Email]]] =
+    IOLocal(Left(InvalidTokenError("No token found")))
+
   val run =
     migrateDb(migrationConfig) >> SessionPool
       .makePool(repoConfig)
       .use: sessionPool =>
         sessionPool.use: session =>
-          Routes
-            .fromSession(authConfig, session)
-            .flatMap: routes =>
-              routes
-                .flatMap(Routes.makeServer)
-                .use(_ => IO.never)
-                .as(ExitCode.Success)
+          local.flatMap: local =>
+            val fiberLocal = FiberLocal.fromIOLocal(local)
+            Routes
+              .fromSession(authConfig, fiberLocal, session)
+              .flatMap: routes =>
+                routes
+                  .flatMap(Routes.makeServer)
+                  .use(_ => IO.never)
+                  .as(ExitCode.Success)
