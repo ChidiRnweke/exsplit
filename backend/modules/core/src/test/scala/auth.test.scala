@@ -68,7 +68,7 @@ class TokenDecoderEncoderSuite extends CatsEffectSuite:
       now <- IONow
       claim = encoderDecoder.makeClaim(tokenLifespan, Email(email), now)
       potentialError <- IO
-        .fromEither(ClaimValidator.claimNotExpired(claim, now))
+        .fromEither(encoderDecoder.claimNotExpired(claim, now))
         .attempt
     yield assert(potentialError.isRight)
 
@@ -81,7 +81,7 @@ class TokenDecoderEncoderSuite extends CatsEffectSuite:
       yesterday = now.minusSeconds(100000000) // 3 years in the past
       claim = encoderDecoder.makeClaim(tokenLifespan, Email(email), yesterday)
       expired <- IO
-        .fromEither(ClaimValidator.claimNotExpired(claim, now))
+        .fromEither(encoderDecoder.claimNotExpired(claim, now))
     yield assertEquals(expired, false)
 
   test("hashing a password and checking it should return true"):
