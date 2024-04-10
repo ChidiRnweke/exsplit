@@ -138,32 +138,11 @@ object SettledTabRepository:
       byFromMembers_ <- FromMemberToSettledTabs.fromSession(session)
       byToMembers_ <- ToMemberToSettledTabs.fromSession(session)
     yield new SettledTabRepository[F]:
-      def create(input: SettleExpenseListInput): F[SettledTabReadMapper] =
-        mainMapper.create(input)
 
-      def get(id: String): F[Either[NotFoundError, SettledTabReadMapper]] =
-        mainMapper.get(id)
-
-      def update(b: SettledTabWriteMapper): F[Unit] =
-        mainMapper.update(b)
-
-      def delete(id: String): F[Unit] =
-        mainMapper.delete(id)
-
-      def fromExpenseList(
-          expenseListId: ExpenseListId
-      ): F[List[SettledTabReadMapper]] =
-        byExpenses_.listChildren(expenseListId)
-
-      def byFromMembers(
-          fromMemberId: CircleMemberId
-      ): F[List[SettledTabReadMapper]] =
-        byFromMembers_.listChildren(fromMemberId)
-
-      def byToMembers(
-          toMemberId: CircleMemberId
-      ): F[List[SettledTabReadMapper]] =
-        byToMembers_.listChildren(toMemberId)
+      export mainMapper._
+      export byExpenses_.{listChildren as fromExpenseList}
+      export byFromMembers_.{listChildren as byFromMembers}
+      export byToMembers_.{listChildren as byToMembers}
 
 /** A trait representing a data mapper for Settled Tabs. It provides methods for
   * creating, retrieving, updating, and deleting Settled Tabs.

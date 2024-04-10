@@ -11,20 +11,21 @@ import exsplit.datamapper.user._
 import exsplit.datamapper.circles._
 import skunk.Session
 import exsplit.domainmapper._
+import exsplit.authorization.extractors._
+import exsplit.authorization._
 
 object CirclesEntryPoint:
   def fromSession[F[_]: Concurrent](
-      userInfo: F[Email],
       session: Session[F]
   ): F[CirclesService[F]] =
     for
       circlesRepo <- CirclesRepository.fromSession(session)
       circleMembersRepo <- CircleMembersRepository.fromSession(session)
       userRepo <- UserMapper.fromSession(session)
-    yield CirclesServiceImpl(userInfo, circlesRepo, circleMembersRepo, userRepo)
+      service = CirclesServiceImpl(circlesRepo, circleMembersRepo, userRepo)
+    yield service
 
 case class CirclesServiceImpl[F[_]: MonadThrow](
-    userInfo: F[Email],
     circlesRepo: CirclesRepository[F],
     circleMembersRepo: CircleMembersRepository[F],
     userRepo: UserMapper[F]

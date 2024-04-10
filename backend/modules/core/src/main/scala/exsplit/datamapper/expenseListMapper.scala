@@ -55,22 +55,9 @@ object ExpenseListRepository:
       mainMapper <- ExpenseListMapper.fromSession(session)
       circlesMapper <- CirclesExpenseListMapper.fromSession(session)
     yield new ExpenseListRepository[F]:
-      def create(a: CreateExpenseListInput): F[ExpenseListReadMapper] =
-        mainMapper.create(a)
 
-      def update(b: ExpenseListWriteMapper): F[Unit] =
-        mainMapper.update(b)
-
-      def delete(id: ExpenseListId): F[Unit] =
-        mainMapper.delete(id)
-
-      def get(
-          id: ExpenseListId
-      ): F[Either[NotFoundError, ExpenseListReadMapper]] =
-        mainMapper.get(id)
-
-      def byCircleId(circleId: CircleId): F[List[ExpenseListReadMapper]] =
-        circlesMapper.listChildren(circleId)
+      export mainMapper._
+      export circlesMapper.{listChildren as byCircleId}
 
 /** Represents the read model of an expense list. This class is a one to one
   * mapping of the expense list table in the database without the creation and

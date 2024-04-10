@@ -45,17 +45,11 @@ object CirclesRepository:
       mainMapper <- CirclesMapper.fromSession(session)
       userCircles <- UserCirclesMapper.fromSession(session)
     yield new CirclesRepository[F]:
-      def create(input: CreateCircleInput): F[CircleReadMapper] =
-        mainMapper.create(input)
-      def get(circleId: CircleId): F[Either[NotFoundError, CircleReadMapper]] =
-        mainMapper.get(circleId)
-      def delete(circleId: CircleId): F[Unit] = mainMapper.delete(circleId)
-      def update(circle: CircleWriteMapper): F[Unit] = mainMapper.update(circle)
-      def listPrimaries(userId: UserId): F[List[CircleReadMapper]] =
-        userCircles.listPrimaries(userId)
 
-      def byUserId(userId: UserId): F[List[CircleReadMapper]] =
-        userCircles.listPrimaries(userId)
+      export mainMapper._
+
+      export userCircles.{listPrimaries as byUserId}
+      export userCircles.{listPrimaries}
 
 /*
 Contains a factory method for creating a CircleMembersRepository from a session.
@@ -77,21 +71,9 @@ object CircleMembersRepository:
       mainMapper <- CircleMemberMapper.fromSession(session)
       circleToMembers <- CircleToMembersMapper.fromSession(session)
     yield new CircleMembersRepository[F]:
-      def create(input: AddUserToCircleInput): F[CircleMemberReadMapper] =
-        mainMapper.create(input)
-      def get(
-          id: CircleMemberId
-      ): F[Either[NotFoundError, CircleMemberReadMapper]] =
-        mainMapper.get(id)
-      def update(circleMember: CircleMemberWriteMapper): F[Unit] =
-        mainMapper.update(circleMember)
-      def delete(circleMemberId: CircleMemberId): F[Unit] =
-        mainMapper.delete(circleMemberId)
-      def listChildren(parent: CircleId): F[List[CircleMemberReadMapper]] =
-        circleToMembers.listChildren(parent)
 
-      def byCircleId(circleId: CircleId): F[List[CircleMemberReadMapper]] =
-        circleToMembers.listChildren(circleId)
+      export mainMapper._
+      export circleToMembers.{listChildren, listChildren as byCircleId}
 
 /** Describes a circle read mapper. This class is a one to one mapping of the
   * circle table in the database without the creation and update timestamps.
