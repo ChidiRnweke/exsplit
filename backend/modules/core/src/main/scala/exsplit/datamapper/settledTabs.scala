@@ -9,8 +9,7 @@ import cats.effect._
 import cats.syntax.all._
 import cats._
 import java.time.LocalDate
-import exsplit.datamapper.DataMapper
-import exsplit.datamapper.HasMany
+import exsplit.datamapper._
 
 /** Represents the read model of a settled tab. This class is a one-to-one
   * mapping of the settled tab table in the database without the creation and
@@ -79,22 +78,19 @@ case class SettledTabWriteMapper(
   *   The effect type, representing the context in which the repository
   *   operates.
   */
-trait SettledTabRepository[F[_]]:
-  /** The main mapper for settled tabs.
-    */
-  val main: SettledTabMapper[F]
+trait SettledTabRepository[F[_]] extends SettledTabMapper[F]:
 
-  /** Repository for retrieving settled tabs by expenses.
-    */
-  val byExpenses: ExpenseListToSettledTabs[F]
+  def fromExpenseList(
+      expenseListId: ExpenseListId
+  ): F[List[SettledTabReadMapper]]
 
-  /** Repository for retrieving settled tabs by from members.
-    */
-  val byFromMembers: FromMemberToSettledTabs[F]
+  def byFromMembers(
+      fromMemberId: CircleMemberId
+  ): F[List[SettledTabReadMapper]]
 
-  /** Repository for retrieving settled tabs by to members.
-    */
-  val byToMembers: ToMemberToSettledTabs[F]
+  def byToMembers(
+      toMemberId: CircleMemberId
+  ): F[List[SettledTabReadMapper]]
 
 object SettledTabRepository:
   def fromSession[F[_]: Concurrent](
@@ -106,10 +102,32 @@ object SettledTabRepository:
       byFromMembers_ <- FromMemberToSettledTabs.fromSession(session)
       byToMembers_ <- ToMemberToSettledTabs.fromSession(session)
     yield new SettledTabRepository[F]:
-      val main = mainMapper
-      val byExpenses = byExpenses_
-      val byFromMembers = byFromMembers_
-      val byToMembers = byToMembers_
+      def create(input: SettleExpenseListInput): F[SettledTabReadMapper] =
+        mainMapper.create(input)
+
+      def get(id: String): F[Either[NotFoundError, SettledTabReadMapper]] =
+        mainMapper.get(id)
+
+      def update(b: SettledTabWriteMapper): F[Unit] =
+        mainMapper.update(b)
+
+      def delete(id: String): F[Unit] =
+        mainMapper.delete(id)
+
+      def fromExpenseList(
+          expenseListId: ExpenseListId
+      ): F[List[SettledTabReadMapper]] =
+        byExpenses_.listChildren(expenseListId)
+
+      def byFromMembers(
+          fromMemberId: CircleMemberId
+      ): F[List[SettledTabReadMapper]] =
+        byFromMembers_.listChildren(fromMemberId)
+
+      def byToMembers(
+          toMemberId: CircleMemberId
+      ): F[List[SettledTabReadMapper]] =
+        byToMembers_.listChildren(toMemberId)
 
 /** A trait representing a data mapper for Settled Tabs. It provides methods for
   * creating, retrieving, updating, and deleting Settled Tabs.

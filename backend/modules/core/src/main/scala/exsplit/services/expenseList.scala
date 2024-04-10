@@ -98,7 +98,7 @@ case class ExpenseListServiceImpl[F[_]: MonadThrow](
     expenseListRepo.withValidExpenseList(expenseListId): expenseList =>
       circleMembersRepo.withValidCircleMember(fromMemberId): fromMember =>
         circleMembersRepo.withValidCircleMember(toMemberId): toMember =>
-          settledTabRepository.main
+          settledTabRepository
             .create(expenseListId, fromMemberId, toMemberId, amount)
             .void
 
