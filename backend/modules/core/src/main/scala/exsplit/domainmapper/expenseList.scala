@@ -6,29 +6,25 @@ import cats.effect._
 import cats.syntax.all._
 import cats._
 import exsplit.datamapper.expenses._
-import exsplit.domainmapper.OwedAmountsOps._
-import ExpenseListOps._
-import cats.instances.list
+import exsplit.domainmapper._
 
-object ExpenseListOps:
+extension [F[_]: MonadThrow](expenseMapper: ExpenseListMapper[F])
+  def getExpenseListOut(id: ExpenseListId): F[ExpenseListOut] =
+    for expenseList <- expenseMapper.get(id).rethrow
+    yield expenseList.toExpenseListOut
 
-  extension [F[_]: MonadThrow](expenseMapper: ExpenseListMapper[F])
-    def getExpenseListOut(id: ExpenseListId): F[ExpenseListOut] =
-      for expenseList <- expenseMapper.get(id).rethrow
-      yield expenseList.toExpenseListOut
+  def createExpenseList(circleId: CircleId, name: String): F[ExpenseListOut] =
+    val input = CreateExpenseListInput(circleId, name)
+    for expenseList <- expenseMapper.create(input)
+    yield expenseList.toExpenseListOut
 
-    def createExpenseList(circleId: CircleId, name: String): F[ExpenseListOut] =
-      val input = CreateExpenseListInput(circleId, name)
-      for expenseList <- expenseMapper.create(input)
-      yield expenseList.toExpenseListOut
+extension (expenseList: ExpenseListReadMapper)
+  def toExpenseListOut: ExpenseListOut =
+    ExpenseListOut(expenseList.id, expenseList.name, expenseList.circleId)
 
-  extension (expenseList: ExpenseListReadMapper)
-    def toExpenseListOut: ExpenseListOut =
-      ExpenseListOut(expenseList.id, expenseList.name, expenseList.circleId)
-
-  extension (expenseLists: List[ExpenseListReadMapper])
-    def toExpenseListOuts: List[ExpenseListOut] =
-      expenseLists.map(_.toExpenseListOut)
+extension (expenseLists: List[ExpenseListReadMapper])
+  def toExpenseListOuts: List[ExpenseListOut] =
+    expenseLists.map(_.toExpenseListOut)
 
 case class ExpenseListDomainMapper[F[_]: MonadThrow](
     repo: ExpenseListRepository[F],
@@ -51,3 +47,11 @@ case class ExpenseListDomainMapper[F[_]: MonadThrow](
       totalExpense,
       owedTotal
     )
+
+  def withValidExpenseList[A](
+      expenseListId: ExpenseListId
+  )(action: ExpenseListDetailOut => F[A]): F[A] =
+    for
+      expenseList <- getExpenseListDetail(expenseListId)
+      result <- action(expenseList)
+    yield result

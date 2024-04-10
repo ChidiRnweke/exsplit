@@ -9,9 +9,7 @@ import exsplit.expenses._
 import exsplit.datamapper.circles._
 import exsplit.datamapper.expenseList._
 import exsplit.datamapper.expenses._
-import exsplit.domainmapper.ExpenseListOps._
 import exsplit.domainmapper._
-import exsplit.domainmapper.SettledTabsOps._
 import exsplit.datamapper.settledTabs._
 import skunk.Session
 
@@ -45,15 +43,6 @@ object ExpenseListEntryPoint:
       settledTabRepository
     )
 
-def withValidExpenseList[F[_]: MonadThrow, A](
-    expenseListId: ExpenseListId,
-    expenseListMapper: ExpenseListDomainMapper[F]
-)(action: ExpenseListDetailOut => F[A]): F[A] =
-  for
-    expenseList <- expenseListMapper.getExpenseListDetail(expenseListId)
-    result <- action(expenseList)
-  yield result
-
 case class ExpenseListServiceImpl[F[_]: MonadThrow](
     userInfo: F[Email],
     expenseListRepo: ExpenseListDomainMapper[F],
@@ -66,7 +55,7 @@ case class ExpenseListServiceImpl[F[_]: MonadThrow](
       circleId: CircleId,
       name: String
   ): F[CreateExpenseListOutput] =
-    withValidCircle(circleId, circlesRepo): circle =>
+    circlesRepo.withValidCircle(circleId): circle =>
       expenseListRepo.repo.main
         .createExpenseList(circleId, name)
         .map(CreateExpenseListOutput(_))
@@ -96,7 +85,7 @@ case class ExpenseListServiceImpl[F[_]: MonadThrow](
   def getSettledExpenseLists(
       expenseListId: ExpenseListId
   ): F[GetSettledExpenseListsOutput] =
-    withValidExpenseList(expenseListId, expenseListRepo): expenseList =>
+    expenseListRepo.withValidExpenseList(expenseListId): expenseList =>
       val tabs = ???
       val settledTabsOut = SettledTabsOut(tabs)
       GetSettledExpenseListsOutput(settledTabsOut).pure[F]
@@ -107,25 +96,25 @@ case class ExpenseListServiceImpl[F[_]: MonadThrow](
       toMemberId: CircleMemberId,
       amount: Amount
   ): F[Unit] =
-    withValidExpenseList(expenseListId, expenseListRepo): expenseList =>
-      withValidCircleMember(fromMemberId, circleMembersRepo): fromMember =>
-        withValidCircleMember(toMemberId, circleMembersRepo): toMember =>
+    expenseListRepo.withValidExpenseList(expenseListId): expenseList =>
+      circleMembersRepo.withValidCircleMember(fromMemberId): fromMember =>
+        circleMembersRepo.withValidCircleMember(toMemberId): toMember =>
           settledTabRepository.main
             .create(expenseListId, fromMemberId, toMemberId, amount)
             .void
 
   def deleteExpenseList(id: ExpenseListId): F[Unit] =
-    withValidExpenseList(id, expenseListRepo): expenseList =>
+    expenseListRepo.withValidExpenseList(id): expenseList =>
       expenseListRepo.repo.main.delete(id)
 
   def getExpenseLists(circleId: CircleId): F[GetExpenseListsOutput] =
-    withValidCircle(circleId, circlesRepo): circle =>
+    circlesRepo.withValidCircle(circleId): circle =>
       for
         read <- expenseListRepo.repo.byCircle.listChildren(circleId)
         expenseLists = read.toExpenseListOuts
       yield GetExpenseListsOutput(ExpenseListsOut(expenseLists))
 
   def updateExpenseList(id: ExpenseListId, name: String): F[Unit] =
-    withValidExpenseList(id, expenseListRepo): expenseList =>
+    expenseListRepo.withValidExpenseList(id): expenseList =>
       val write = ExpenseListWriteMapper(id.value, name)
       expenseListRepo.repo.main.update(write)

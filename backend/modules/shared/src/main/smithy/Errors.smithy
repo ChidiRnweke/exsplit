@@ -32,4 +32,7 @@ structure AuthError {
 
 @error("client")
 @httpError(403)
-structure ForbiddenError {}
+structure ForbiddenError {
+    @required
+    message: String
+}

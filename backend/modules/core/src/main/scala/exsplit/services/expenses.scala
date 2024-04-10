@@ -11,8 +11,6 @@ import exsplit.datamapper.expenses._
 import exsplit.datamapper.circles._
 import exsplit.datamapper.expenseList._
 import exsplit.domainmapper._
-import exsplit.domainmapper.CircleMemberOps._
-import exsplit.domainmapper.OwedAmountsOps._
 import java.time.LocalDate
 import skunk.Session
 
@@ -69,7 +67,7 @@ case class ExpenseServiceImpl[F[_]: MonadThrow](
       date: Timestamp,
       owedToPayer: List[OwedAmount]
   ): F[CreateExpenseOutput] =
-    withValidExpenseList(expenseListId, expenseListRepo): expenseList =>
+    expenseListRepo.withValidExpenseList(expenseListId): expenseList =>
       val createExpenseInput = CreateExpenseInput(
         expenseListId,
         paidBy,
