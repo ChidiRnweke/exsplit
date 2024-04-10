@@ -24,37 +24,18 @@ object ExpensesEntryPoint:
       circleMembersRepo <- CircleMembersRepository.fromSession(session)
       owedAmountsRepo <- OwedAmountRepository.fromSession(session)
       expenseRepo <- ExpenseRepository.fromSession(session)
-      expenseDomainMapper = ExpenseDomainMapper(
-        circleMembersRepo,
-        owedAmountsRepo,
-        expenseRepo
-      )
-      expenseListDomainMapper = ExpenseListDomainMapper(
-        expenseListRepo,
-        expenseDomainMapper,
-        owedAmountsRepo
-      )
     yield ExpenseServiceImpl(
       userInfo,
-      expenseDomainMapper,
-      expenseListDomainMapper,
+      expenseRepo,
+      expenseListRepo,
       circleMembersRepo,
       owedAmountsRepo
     )
 
-def withValidExpense[F[_]: MonadThrow, A](
-    expenseId: ExpenseId,
-    expenseRepository: ExpenseDomainMapper[F]
-)(action: ExpenseOut => F[A]): F[A] =
-  for
-    expense <- expenseRepository.getExpenseOut(expenseId)
-    result <- action(expense)
-  yield result
-
 case class ExpenseServiceImpl[F[_]: MonadThrow](
     userInfo: F[Email],
-    expenseRepo: ExpenseDomainMapper[F],
-    expenseListRepo: ExpenseListDomainMapper[F],
+    expenseRepo: ExpenseRepository[F],
+    expenseListRepo: ExpenseListRepository[F],
     membersRepo: CircleMembersRepository[F],
     owedAmountRepo: OwedAmountRepository[F]
 ) extends ExpenseService[F]:
@@ -77,10 +58,10 @@ case class ExpenseServiceImpl[F[_]: MonadThrow](
         owedToPayer
       )
       for
-        expenseRead <- expenseRepo.repo.main.create(createExpenseInput)
+        expenseRead <- expenseRepo.create(createExpenseInput)
         member <- membersRepo.getCircleMemberOut(paidBy)
         expenseId = ExpenseId(expenseRead.id)
-        owedAmounts <- owedAmountRepo.detail.getOwedAmounts(expenseId)
+        owedAmounts <- owedAmountRepo.getOwedAmounts(expenseId)
         out = ExpenseOut(
           expenseRead.id,
           member,
@@ -92,11 +73,11 @@ case class ExpenseServiceImpl[F[_]: MonadThrow](
       yield CreateExpenseOutput(out)
 
   def getExpense(id: ExpenseId): F[GetExpenseOutput] =
-    withValidExpense(id, expenseRepo): expense =>
+    expenseRepo.withValidExpense(id, owedAmountRepo): expense =>
       GetExpenseOutput(expense).pure[F]
 
   def deleteExpense(id: ExpenseId): F[Unit] =
-    expenseRepo.repo.main.delete(id)
+    expenseRepo.delete(id)
 
   def updateExpense(
       id: ExpenseId,
@@ -114,4 +95,4 @@ case class ExpenseServiceImpl[F[_]: MonadThrow](
       date
     )
 
-    expenseRepo.repo.main.update(expenseWriter)
+    expenseRepo.update(expenseWriter)

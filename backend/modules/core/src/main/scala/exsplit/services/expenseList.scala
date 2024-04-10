@@ -25,29 +25,23 @@ object ExpenseListEntryPoint:
       settledTabRepository <- SettledTabRepository.fromSession(session)
       owedAmountsRepo <- OwedAmountRepository.fromSession(session)
       expenseRepo <- ExpenseRepository.fromSession(session)
-      expenseDomainMapper = ExpenseDomainMapper(
-        circleMembersRepo,
-        owedAmountsRepo,
-        expenseRepo
-      )
-      expenseListDomainMapper = ExpenseListDomainMapper(
-        expenseListRepo,
-        expenseDomainMapper,
-        owedAmountsRepo
-      )
     yield ExpenseListServiceImpl(
       userInfo,
-      expenseListDomainMapper,
+      expenseListRepo,
       circleMembersRepo,
+      expenseRepo,
       circlesRepo,
+      owedAmountsRepo,
       settledTabRepository
     )
 
 case class ExpenseListServiceImpl[F[_]: MonadThrow](
     userInfo: F[Email],
-    expenseListRepo: ExpenseListDomainMapper[F],
+    expenseListRepo: ExpenseListRepository[F],
     circleMembersRepo: CircleMembersRepository[F],
+    expenseRepository: ExpenseRepository[F],
     circlesRepo: CirclesRepository[F],
+    owedAmountsRepo: OwedAmountRepository[F],
     settledTabRepository: SettledTabRepository[F]
 ) extends ExpenseListService[F]:
 
@@ -56,7 +50,7 @@ case class ExpenseListServiceImpl[F[_]: MonadThrow](
       name: String
   ): F[CreateExpenseListOutput] =
     circlesRepo.withValidCircle(circleId): circle =>
-      expenseListRepo.repo.main
+      expenseListRepo
         .createExpenseList(circleId, name)
         .map(CreateExpenseListOutput(_))
 
@@ -65,7 +59,12 @@ case class ExpenseListServiceImpl[F[_]: MonadThrow](
       onlyOutstanding: Option[Boolean]
   ): F[GetExpenseListOutput] =
     for
-      expenseList <- expenseListRepo.getExpenseListDetail(expenseListId)
+      expenseList <- expenseListRepo.getExpenseListDetail(
+        expenseListId,
+        expenseRepository,
+        owedAmountsRepo,
+        circleMembersRepo
+      )
       filtered = handleOutStandingFilter(expenseList, onlyOutstanding)
     yield GetExpenseListOutput(filtered)
 
@@ -105,16 +104,16 @@ case class ExpenseListServiceImpl[F[_]: MonadThrow](
 
   def deleteExpenseList(id: ExpenseListId): F[Unit] =
     expenseListRepo.withValidExpenseList(id): expenseList =>
-      expenseListRepo.repo.main.delete(id)
+      expenseListRepo.delete(id)
 
   def getExpenseLists(circleId: CircleId): F[GetExpenseListsOutput] =
     circlesRepo.withValidCircle(circleId): circle =>
       for
-        read <- expenseListRepo.repo.byCircle.listChildren(circleId)
+        read <- expenseListRepo.byCircleId(circleId)
         expenseLists = read.toExpenseListOuts
       yield GetExpenseListsOutput(ExpenseListsOut(expenseLists))
 
   def updateExpenseList(id: ExpenseListId, name: String): F[Unit] =
     expenseListRepo.withValidExpenseList(id): expenseList =>
       val write = ExpenseListWriteMapper(id.value, name)
-      expenseListRepo.repo.main.update(write)
+      expenseListRepo.update(write)

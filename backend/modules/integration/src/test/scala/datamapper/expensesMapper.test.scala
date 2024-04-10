@@ -38,7 +38,7 @@ class ExpenseMapperSuite extends DatabaseSuite:
       member2 <- circleMembersRepo.create(memberInput2)
       expListInput = CreateExpenseListInput(CircleId(circle.id), "Test")
 
-      expenseList <- expenseListRepo.main.create(expListInput)
+      expenseList <- expenseListRepo.create(expListInput)
     yield (
       ExpenseListId(expenseList.id),
       CircleMemberId(member.id),
@@ -79,9 +79,9 @@ class ExpenseMapperSuite extends DatabaseSuite:
         owedAmounts
       )
 
-      _ <- expenseRepo.main.create(expenseInput)
-      _ <- expenseRepo.main.create(expenseInput)
-      result <- expenseRepo.main.create(expenseInput)
+      _ <- expenseRepo.create(expenseInput)
+      _ <- expenseRepo.create(expenseInput)
+      result <- expenseRepo.create(expenseInput)
     yield result
 
   test("You should be able to create an expense in the database"):
@@ -96,7 +96,7 @@ class ExpenseMapperSuite extends DatabaseSuite:
       for
         expenseRepo <- ExpenseRepository.fromSession(session)
         expected <- createExpenses(session)
-        obtained <- expenseRepo.main.get(ExpenseId(expected.id)).rethrow
+        obtained <- expenseRepo.get(ExpenseId(expected.id)).rethrow
       yield assertEquals(obtained, expected)
 
   test("You should be able to update an expense"):
@@ -113,8 +113,8 @@ class ExpenseMapperSuite extends DatabaseSuite:
           None
         )
         expected = ("updated", 50f)
-        _ <- expenseRepo.main.update(write)
-        obtained <- expenseRepo.main.get(ExpenseId(result.id)).rethrow
+        _ <- expenseRepo.update(write)
+        obtained <- expenseRepo.get(ExpenseId(result.id)).rethrow
       yield assertEquals((obtained.description, obtained.price), expected)
 
   test("You should be able to delete an expense"):
@@ -123,8 +123,8 @@ class ExpenseMapperSuite extends DatabaseSuite:
       for
         expenseRepo <- ExpenseRepository.fromSession(session)
         expected <- createExpenses(session)
-        _ <- expenseRepo.main.delete(ExpenseId(expected.id))
-        obtained <- expenseRepo.main.get(ExpenseId(expected.id))
+        _ <- expenseRepo.delete(ExpenseId(expected.id))
+        obtained <- expenseRepo.get(ExpenseId(expected.id))
       yield assert(obtained.isLeft)
 
   test("You should be able to read a detailed expense"):
@@ -133,7 +133,7 @@ class ExpenseMapperSuite extends DatabaseSuite:
       for
         expenseRepo <- ExpenseRepository.fromSession(session)
         expected <- createExpenses(session)
-        detail <- expenseRepo.detail.get(ExpenseId(expected.id)).rethrow
+        detail <- expenseRepo.getDetail(ExpenseId(expected.id)).rethrow
       yield assertEquals(detail.paidByName, "User")
 
   test("You should be able to read the expenses from a circle member"):
@@ -142,7 +142,7 @@ class ExpenseMapperSuite extends DatabaseSuite:
       for
         expenseRepo <- ExpenseRepository.fromSession(session)
         last <- createExpenses(session)
-        expenses <- expenseRepo.byCircleMember.listChildren(
+        expenses <- expenseRepo.fromCircleMember(
           CircleMemberId(last.paidBy)
         )
       yield assertEquals(expenses.length, 3)
@@ -153,7 +153,7 @@ class ExpenseMapperSuite extends DatabaseSuite:
       for
         expenseRepo <- ExpenseRepository.fromSession(session)
         last <- createExpenses(session)
-        expenses <- expenseRepo.byExpenseList.listChildren(
+        expenses <- expenseRepo.fromExpenseList(
           ExpenseListId(last.expenseListId)
         )
       yield assertEquals(expenses.length, 3)
@@ -168,7 +168,7 @@ class ExpenseMapperSuite extends DatabaseSuite:
         expenseId = ExpenseId(last.id)
         from = CircleMemberId(last.paidBy)
         owed = CreateOwedAmountInput(expenseId, from, from, Amount(10))
-        obtained <- owedAmountsRepo.main.create(owed).attempt
+        obtained <- owedAmountsRepo.create(owed).attempt
       yield assert(obtained.isRight)
 
   test("You should be able to create and then read an owed amount"):
@@ -181,9 +181,9 @@ class ExpenseMapperSuite extends DatabaseSuite:
         expenseId = ExpenseId(last.id)
         from = CircleMemberId(last.paidBy)
         owed = CreateOwedAmountInput(expenseId, from, from, Amount(10))
-        expected <- owedAmountsRepo.main.create(owed)
+        expected <- owedAmountsRepo.create(owed)
         key = OwedAmountKey(expenseId, from, from)
-        obtained <- owedAmountsRepo.main.get(key).rethrow
+        obtained <- owedAmountsRepo.get(key).rethrow
       yield assertEquals(expected, obtained)
 
   test("You should be able to delete an owned amount"):
@@ -197,9 +197,9 @@ class ExpenseMapperSuite extends DatabaseSuite:
         from = CircleMemberId(last.paidBy)
         owed = CreateOwedAmountInput(expenseId, from, from, Amount(10))
         key = OwedAmountKey(expenseId, from, from)
-        expected <- owedAmountsRepo.main.create(owed)
-        _ <- owedAmountsRepo.main.delete(key)
-        obtained <- owedAmountsRepo.main.get(key)
+        expected <- owedAmountsRepo.create(owed)
+        _ <- owedAmountsRepo.delete(key)
+        obtained <- owedAmountsRepo.get(key)
       yield assert(obtained.isLeft)
 
   test("You should be able to update an owed amount"):
@@ -213,10 +213,10 @@ class ExpenseMapperSuite extends DatabaseSuite:
         from = CircleMemberId(last.paidBy)
         owed = CreateOwedAmountInput(expenseId, from, from, Amount(10))
         key = OwedAmountKey(expenseId, from, from)
-        result <- owedAmountsRepo.main.create(owed)
+        result <- owedAmountsRepo.create(owed)
         write = OwedAmountWriteMapper(result.id, None, None, Some(20))
-        _ <- owedAmountsRepo.main.update(write)
-        obtained <- owedAmountsRepo.main.get(key).rethrow
+        _ <- owedAmountsRepo.update(write)
+        obtained <- owedAmountsRepo.get(key).rethrow
       yield assertEquals(obtained.amount, 20f)
 
   test("You should be able to get all owed amounts for an expense"):
@@ -230,9 +230,9 @@ class ExpenseMapperSuite extends DatabaseSuite:
         from = CircleMemberId(last.paidBy)
         owed = CreateOwedAmountInput(expenseId, from, from, Amount(10))
         owed2 = CreateOwedAmountInput(expenseId, from, from, Amount(20))
-        _ <- owedAmountsRepo.main.create(owed)
-        _ <- owedAmountsRepo.main.create(owed2)
-        obtained <- owedAmountsRepo.byExpense.listChildren(expenseId)
+        _ <- owedAmountsRepo.create(owed)
+        _ <- owedAmountsRepo.create(owed2)
+        obtained <- owedAmountsRepo.fromExpense(expenseId)
       yield assertEquals(obtained.length, 2)
 
   test("You should be able to get all owed amounts by a circle member"):
@@ -246,9 +246,9 @@ class ExpenseMapperSuite extends DatabaseSuite:
         from = CircleMemberId(last.paidBy)
         owed = CreateOwedAmountInput(expenseId, from, from, Amount(10))
         owed2 = CreateOwedAmountInput(expenseId, from, from, Amount(20))
-        _ <- owedAmountsRepo.main.create(owed)
-        _ <- owedAmountsRepo.main.create(owed2)
-        obtained <- owedAmountsRepo.byCircleMember.listChildren(from)
+        _ <- owedAmountsRepo.create(owed)
+        _ <- owedAmountsRepo.create(owed2)
+        obtained <- owedAmountsRepo.fromCircleMemberFrom(from)
       yield assertEquals(obtained.length, 2)
 
   test("You should be able to get all owed amount details for an expense"):
@@ -262,7 +262,7 @@ class ExpenseMapperSuite extends DatabaseSuite:
         from = CircleMemberId(last.paidBy)
         owed = CreateOwedAmountInput(expenseId, from, from, Amount(10))
         owed2 = CreateOwedAmountInput(expenseId, from, from, Amount(20))
-        _ <- owedAmountsRepo.main.create(owed)
-        _ <- owedAmountsRepo.main.create(owed2)
-        obtained <- owedAmountsRepo.detail.listChildren(expenseId)
+        _ <- owedAmountsRepo.create(owed)
+        _ <- owedAmountsRepo.create(owed2)
+        obtained <- owedAmountsRepo.detailFromExpense(expenseId)
       yield assertEquals(obtained.length, 2)

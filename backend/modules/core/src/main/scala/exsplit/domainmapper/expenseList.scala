@@ -7,8 +7,9 @@ import cats.syntax.all._
 import cats._
 import exsplit.datamapper.expenses._
 import exsplit.domainmapper._
+import exsplit.datamapper.circles._
 
-extension [F[_]: MonadThrow](expenseMapper: ExpenseListMapper[F])
+extension [F[_]: MonadThrow](expenseMapper: ExpenseListRepository[F])
   def getExpenseListOut(id: ExpenseListId): F[ExpenseListOut] =
     for expenseList <- expenseMapper.get(id).rethrow
     yield expenseList.toExpenseListOut
@@ -26,18 +27,23 @@ extension (expenseLists: List[ExpenseListReadMapper])
   def toExpenseListOuts: List[ExpenseListOut] =
     expenseLists.map(_.toExpenseListOut)
 
-case class ExpenseListDomainMapper[F[_]: MonadThrow](
-    repo: ExpenseListRepository[F],
-    expenseRepo: ExpenseDomainMapper[F],
-    owedAmountRepo: OwedAmountRepository[F]
-):
+extension [F[_]: MonadThrow](repo: ExpenseListRepository[F])
 
-  def getExpenseListDetail(id: ExpenseListId): F[ExpenseListDetailOut] =
+  def getExpenseListDetail(
+      id: ExpenseListId,
+      expenseRepo: ExpenseRepository[F],
+      owedAmountRepo: OwedAmountRepository[F],
+      circleMembersRepo: CircleMembersRepository[F]
+  ): F[ExpenseListDetailOut] =
     for
-      expenseList <- repo.main.getExpenseListOut(id)
-      expenses <- expenseRepo.listExpenseOut(id)
+      expenseList <- repo.getExpenseListOut(id)
+      expenses <- expenseRepo.listExpenseOut(
+        id,
+        circleMembersRepo,
+        owedAmountRepo
+      )
       owedAmounts <- expenses.flatTraverse(e =>
-        owedAmountRepo.detail.getOwedAmounts(ExpenseId(e.id))
+        owedAmountRepo.getOwedAmounts(ExpenseId(e.id))
       )
       owedTotal = owedAmounts.toTotalOwed
       totalExpense = expenses.map(_.price).sum
@@ -50,8 +56,8 @@ case class ExpenseListDomainMapper[F[_]: MonadThrow](
 
   def withValidExpenseList[A](
       expenseListId: ExpenseListId
-  )(action: ExpenseListDetailOut => F[A]): F[A] =
+  )(action: ExpenseListOut => F[A]): F[A] =
     for
-      expenseList <- getExpenseListDetail(expenseListId)
+      expenseList <- repo.getExpenseListOut(expenseListId)
       result <- action(expenseList)
     yield result

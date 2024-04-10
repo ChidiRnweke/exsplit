@@ -14,6 +14,7 @@ import exsplit.auth._
 import java.util.UUID
 import exsplit.datamapper._
 import java.time.LocalDate
+import scala.annotation.targetName
 
 /*
  * Represents a repository for managing expenses. The main mapper contains the
@@ -22,11 +23,13 @@ import java.time.LocalDate
  * member. The expense lists mapper contains operations for finding expenses that
  * are children of a specified parent expense list.
  */
-trait ExpenseRepository[F[_]]:
-  val main: ExpenseMapper[F]
-  val detail: ExpenseDetailMapper[F]
-  val byCircleMember: CircleMemberToExpenseMapper[F]
-  val byExpenseList: ExpenseListToExpenseMapper[F]
+trait ExpenseRepository[F[_]] extends ExpenseMapper[F]:
+
+  def getDetail(id: ExpenseId): F[Either[NotFoundError, ExpenseDetailRead]]
+
+  def fromCircleMember(paidBy: CircleMemberId): F[List[ExpenseReadMapper]]
+
+  def fromExpenseList(parent: ExpenseListId): F[List[ExpenseReadMapper]]
 
 /* Represents a repository for managing owed amounts. The main mapper contains the
  * basic CRUD operations for the owed amount. The circle members mapper contains
@@ -34,11 +37,17 @@ trait ExpenseRepository[F[_]]:
  * circle member. The expenses mapper contains operations for finding owed amounts
  * that are children of a specified parent expense.
  */
-trait OwedAmountRepository[F[_]]:
-  val main: OwedAmountMapper[F]
-  val detail: OwedAmountDetailMapper[F]
-  val byCircleMember: CircleMemberToOwedAmountMapper[F]
-  val byExpense: ExpensesToOwedAmountMapper[F]
+trait OwedAmountRepository[F[_]] extends OwedAmountMapper[F]:
+
+  def fromCircleMemberTo(member: CircleMemberId): F[List[OwedAmountReadMapper]]
+
+  def fromCircleMemberFrom(
+      member: CircleMemberId
+  ): F[List[OwedAmountReadMapper]]
+
+  def fromExpense(parent: ExpenseId): F[List[OwedAmountReadMapper]]
+
+  def detailFromExpense(parent: ExpenseId): F[List[OwedAmountDetailRead]]
 
 /* Companion object for the `ExpenseRepository` trait. Provides a method for
  * creating a new instance of the repository.
@@ -64,10 +73,27 @@ object ExpenseRepository:
       circleMembers <- CircleMemberToExpenseMapper.fromSession(session)
       expenseLists <- ExpenseListToExpenseMapper.fromSession(session)
     yield new ExpenseRepository[F]:
-      val main = mainMapper
-      val detail = expenseDetail
-      val byCircleMember = circleMembers
-      val byExpenseList = expenseLists
+      def create(input: CreateExpenseInput): F[ExpenseReadMapper] =
+        mainMapper.create(input)
+      def delete(id: ExpenseId): F[Unit] =
+        mainMapper.delete(id)
+      def get(id: ExpenseId): F[Either[NotFoundError, ExpenseReadMapper]] =
+        mainMapper.get(id)
+      def update(b: ExpenseWriteMapper): F[Unit] =
+        mainMapper.update(b)
+
+      def fromCircleMember(paidBy: CircleMemberId): F[List[ExpenseReadMapper]] =
+        circleMembers.listChildren(paidBy)
+
+      def fromExpenseList(
+          parent: ExpenseListId
+      ): F[List[ExpenseReadMapper]] =
+        expenseLists.listChildren(parent)
+
+      def getDetail(
+          id: ExpenseId
+      ): F[Either[NotFoundError, ExpenseDetailRead]] =
+        expenseDetail.get(id)
 
 /* Companion object for the `OwedAmountRepository` trait. Provides a method for
  * creating a new instance of the repository.
@@ -93,10 +119,34 @@ object OwedAmountRepository:
       expenses <- ExpensesToOwedAmountMapper.fromSession(session)
       detailMapper <- OwedAmountDetailMapper.fromSession(session)
     yield new OwedAmountRepository[F]:
-      val main = mainMapper
-      val byCircleMember = circleMembers
-      val byExpense = expenses
-      val detail = detailMapper
+
+      def create(input: CreateOwedAmountInput): F[OwedAmountReadMapper] =
+        mainMapper.create(input)
+
+      def delete(id: OwedAmountKey): F[Unit] = mainMapper.delete(id)
+
+      def get(
+          id: OwedAmountKey
+      ): F[Either[NotFoundError, OwedAmountReadMapper]] =
+        mainMapper.get(id)
+
+      def update(b: OwedAmountWriteMapper): F[Unit] = mainMapper.update(b)
+
+      def detailFromExpense(parent: ExpenseId): F[List[OwedAmountDetailRead]] =
+        detailMapper.listChildren(parent)
+
+      def fromCircleMemberTo(
+          fromMember: CircleMemberId
+      ): F[List[OwedAmountReadMapper]] =
+        circleMembers.toMember(fromMember)
+
+      def fromExpense(parent: ExpenseId): F[List[OwedAmountReadMapper]] =
+        expenses.listChildren(parent)
+
+      def fromCircleMemberFrom(
+          fromMember: CircleMemberId
+      ): F[List[OwedAmountReadMapper]] =
+        circleMembers.listChildren(fromMember)
 
 /** Represents an expense read mapper. This class is a one to one mapping of the
   * expense table in the database without the creation and update timestamps.

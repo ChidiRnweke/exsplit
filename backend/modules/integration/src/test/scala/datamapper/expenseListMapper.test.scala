@@ -28,7 +28,7 @@ class ExpenseListMapperSuite extends DatabaseSuite:
         CircleId(circle.id),
         "Test Expense List"
       )
-      expenseList <- expenseListRepo.main.create(createInput)
+      expenseList <- expenseListRepo.create(createInput)
     yield expenseList
 
   test("You should be able to create an expense list in the database"):
@@ -47,7 +47,7 @@ class ExpenseListMapperSuite extends DatabaseSuite:
       for
         expenseListRepo <- ExpenseListRepository.fromSession(session)
         expected <- createExpenseList(expenseListRepo, session)
-        obtained <- expenseListRepo.main.get(ExpenseListId(expected.id)).rethrow
+        obtained <- expenseListRepo.get(ExpenseListId(expected.id)).rethrow
       yield assertEquals(obtained, expected)
 
   test(
@@ -61,7 +61,7 @@ class ExpenseListMapperSuite extends DatabaseSuite:
           CircleId("doesn't exist"),
           "Test Expense List"
         )
-        obtained <- expenseListRepo.main.create(createInput).attempt
+        obtained <- expenseListRepo.create(createInput).attempt
       yield assert(obtained.isLeft)
 
   test("You should be able to create an expense list and then delete it"):
@@ -70,7 +70,7 @@ class ExpenseListMapperSuite extends DatabaseSuite:
       for
         expenseListRepo <- ExpenseListRepository.fromSession(session)
         expected <- createExpenseList(expenseListRepo, session)
-        success <- expenseListRepo.main
+        success <- expenseListRepo
           .delete(ExpenseListId(expected.id))
           .attempt
       yield assert(success.isRight)
@@ -83,8 +83,8 @@ class ExpenseListMapperSuite extends DatabaseSuite:
         expenseListRepo <- ExpenseListRepository.fromSession(session)
         created <- createExpenseList(expenseListRepo, session)
         updateInput = ExpenseListWriteMapper(created.id, expected)
-        _ <- expenseListRepo.main.update(updateInput)
-        obtained <- expenseListRepo.main.get(ExpenseListId(created.id)).rethrow
+        _ <- expenseListRepo.update(updateInput)
+        obtained <- expenseListRepo.get(ExpenseListId(created.id)).rethrow
       yield assertEquals(obtained.name, expected)
 
   test("You should be able to get all expense lists belonging to a circle"):
@@ -95,10 +95,8 @@ class ExpenseListMapperSuite extends DatabaseSuite:
         expenseListRepo <- ExpenseListRepository.fromSession(session)
         testCircle <- createTestCircle(session)
         createInput = CreateExpenseListInput(CircleId(testCircle.id), "Test")
-        _ <- expenseListRepo.main.create(createInput)
-        _ <- expenseListRepo.main.create(createInput)
-        _ <- expenseListRepo.main.create(createInput)
-        expenseLists <- expenseListRepo.byCircle.listChildren(
-          CircleId(testCircle.id)
-        )
+        _ <- expenseListRepo.create(createInput)
+        _ <- expenseListRepo.create(createInput)
+        _ <- expenseListRepo.create(createInput)
+        expenseLists <- expenseListRepo.byCircleId(CircleId(testCircle.id))
       yield assertEquals(expenseLists.length, expected)

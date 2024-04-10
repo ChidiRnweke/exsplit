@@ -8,17 +8,16 @@ import cats._
 import exsplit.datamapper.expenses._
 import exsplit.datamapper.circles._
 
-case class ExpenseDomainMapper[F[_]: MonadThrow](
-    circleMemberRepo: CircleMembersRepository[F],
-    owedAmountsRepo: OwedAmountRepository[F],
-    repo: ExpenseRepository[F]
-):
-  def getExpenseOut(id: ExpenseId): F[ExpenseOut] =
+extension [F[_]: MonadThrow](repo: ExpenseRepository[F])
+  def getExpenseOut(
+      id: ExpenseId,
+      owedAmountsRepo: OwedAmountRepository[F]
+  ): F[ExpenseOut] =
     for
-      expense <- repo.detail.get(id).rethrow
+      expense <- repo.getDetail(id).rethrow
       memberId = CircleMemberId(expense.paidBy)
-      paidBy <- circleMemberRepo.getCircleMemberOut(memberId)
-      owedAmounts <- owedAmountsRepo.detail.getOwedAmounts(id)
+      paidBy = CircleMemberOut(expense.paidBy, expense.paidByName)
+      owedAmounts <- owedAmountsRepo.getOwedAmounts(id)
     yield ExpenseOut(
       expense.id,
       paidBy,
@@ -28,12 +27,28 @@ case class ExpenseDomainMapper[F[_]: MonadThrow](
       owedAmounts
     )
 
-  def listExpenseOut(id: ExpenseListId): F[List[ExpenseOut]] =
+  def listExpenseOut(
+      id: ExpenseListId,
+      circleMemberRepo: CircleMembersRepository[F],
+      owedAmountsRepo: OwedAmountRepository[F]
+  ): F[List[ExpenseOut]] =
     for
-      expenses <- repo.byExpenseList.listChildren(id)
+      expenses <- repo.fromExpenseList(id)
       expenseOuts <- expenses.traverse: expense =>
-        getExpenseOut(ExpenseId(expense.id))
+        getExpenseOut(
+          ExpenseId(expense.id),
+          owedAmountsRepo: OwedAmountRepository[F]
+        )
     yield expenseOuts
+
+  def withValidExpense[A](
+      expenseId: ExpenseId,
+      owedAmountsRepo: OwedAmountRepository[F]
+  )(action: ExpenseOut => F[A]): F[A] =
+    for
+      expense <- repo.getExpenseOut(expenseId, owedAmountsRepo)
+      result <- action(expense)
+    yield result
 
 extension (owedAmount: OwedAmountDetailRead)
   def toOwedAmountOut: OwedAmountOut =
@@ -42,12 +57,6 @@ extension (owedAmount: OwedAmountDetailRead)
     val to =
       CircleMemberOut(owedAmount.toMember, owedAmount.toMemberName)
     OwedAmountOut(fromMember = from, toMember = to, owedAmount.amount)
-
-extension [F[_]: MonadThrow](owedAmountMapper: OwedAmountDetailMapper[F])
-  def getOwedAmounts(id: ExpenseId): F[List[OwedAmountOut]] =
-    for owedAmounts <- owedAmountMapper.listChildren(id)
-    yield owedAmounts.toOwedAmountsOuts
-
 extension (owedAmounts: List[OwedAmountDetailRead])
   def toOwedAmountsOuts: List[OwedAmountOut] =
     owedAmounts.map(_.toOwedAmountOut)
@@ -58,3 +67,8 @@ extension (owedAmounts: List[OwedAmountOut])
       .groupMapReduce(o => (o.fromMember, o.toMember))(_.amount)(_ + _)
       .map((fromTo, amount) => OwedAmountOut(fromTo._1, fromTo._2, amount))
       .toList
+
+extension [F[_]: MonadThrow](owedAmountMapper: OwedAmountRepository[F])
+  def getOwedAmounts(id: ExpenseId): F[List[OwedAmountOut]] =
+    for owedAmounts <- owedAmountMapper.detailFromExpense(id)
+    yield owedAmounts.toOwedAmountsOuts

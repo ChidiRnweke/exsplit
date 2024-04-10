@@ -13,19 +13,16 @@ import exsplit.auth._
 import java.util.UUID
 import exsplit.datamapper._
 
-/** Represents a repository for managing expense lists. The main mapper contains
-  * the basic CRUD operations for the expense list. The circles mapper contains
-  * operations for finding expense lists that are children of a specified parent
+/** Represents the repository for expense lists. This repository is a
+  * composition of the main expense list mapper and the expense list mapper by
   * circle.
   *
-  * @param mainMapper
-  *   The main expense list mapper.
-  * @param circlesMapper
-  *   The circles expense list mapper.
+  * @tparam F
+  *   The effect type, representing the context in which the operations are
+  *   executed.
   */
-trait ExpenseListRepository[F[_]]:
-  val main: ExpenseListMapper[F]
-  val byCircle: CirclesExpenseListMapper[F]
+trait ExpenseListRepository[F[_]] extends ExpenseListMapper[F]:
+  def byCircleId(circleId: CircleId): F[List[ExpenseListReadMapper]]
 
 /* Companion object for the `ExpenseListRepository` trait. Provides a method for
  * creating a new instance of the repository.
@@ -50,8 +47,22 @@ object ExpenseListRepository:
       mainMapper <- ExpenseListMapper.fromSession(session)
       circlesMapper <- CirclesExpenseListMapper.fromSession(session)
     yield new ExpenseListRepository[F]:
-      val main = mainMapper
-      val byCircle = circlesMapper
+      def create(a: CreateExpenseListInput): F[ExpenseListReadMapper] =
+        mainMapper.create(a)
+
+      def update(b: ExpenseListWriteMapper): F[Unit] =
+        mainMapper.update(b)
+
+      def delete(id: ExpenseListId): F[Unit] =
+        mainMapper.delete(id)
+
+      def get(
+          id: ExpenseListId
+      ): F[Either[NotFoundError, ExpenseListReadMapper]] =
+        mainMapper.get(id)
+
+      def byCircleId(circleId: CircleId): F[List[ExpenseListReadMapper]] =
+        circlesMapper.listChildren(circleId)
 
 /** Represents the read model of an expense list. This class is a one to one
   * mapping of the expense list table in the database without the creation and

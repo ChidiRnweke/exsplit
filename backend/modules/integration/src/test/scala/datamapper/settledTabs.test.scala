@@ -39,7 +39,7 @@ class SettledTabsSuite extends DatabaseSuite:
       member2 <- circleMembersRepo.create(memberInput2)
       expListInput = CreateExpenseListInput(CircleId(circle.id), "Test")
 
-      expenseList <- expenseListRepo.main.create(expListInput)
+      expenseList <- expenseListRepo.create(expListInput)
     yield (
       ExpenseListId(expenseList.id),
       CircleMemberId(member.id),
