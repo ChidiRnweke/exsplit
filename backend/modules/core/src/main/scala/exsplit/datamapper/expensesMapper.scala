@@ -16,37 +16,95 @@ import exsplit.datamapper._
 import java.time.LocalDate
 import scala.annotation.targetName
 
-/*
- * Represents a repository for managing expenses. The main mapper contains the
- * basic CRUD operations for the expense. The circle members mapper contains
- * operations for finding expenses that are children of a specified parent circle
- * member. The expense lists mapper contains operations for finding expenses that
- * are children of a specified parent expense list.
- */
+/** Represents a repository for managing expenses.
+  *
+  * Contains the basic CRUD operations for expenses. The repository also
+  * contains methods for retrieving expenses paid by a specific circle member
+  * and expenses that belong to a specific expense list.
+  */
 trait ExpenseRepository[F[_]] extends ExpenseMapper[F]:
 
+  /** Retrieves the detailed information of an expense by its ID.
+    *
+    * @param id
+    *   The ID of the expense.
+    * @return
+    *   An `Either` containing the expense detail if found, or a `NotFoundError`
+    *   if not found.
+    */
   def getDetail(id: ExpenseId): F[Either[NotFoundError, ExpenseDetailRead]]
 
+  /** Retrieves a list of expenses paid by a specific circle member. The list
+    * can be empty if no expenses are found.
+    *
+    * @param paidBy
+    *   The ID of the circle member.
+    * @return
+    *   A list of `ExpenseReadMapper` representing the expenses paid by the
+    *   specified circle member.
+    */
   def fromCircleMember(paidBy: CircleMemberId): F[List[ExpenseReadMapper]]
 
+  /** Retrieves a list of expenses that belong to a specific expense list. The
+    * list can be empty if no expenses are found.
+    *
+    * @param parent
+    *   The ID of the parent expense list.
+    * @return
+    *   A list of `ExpenseReadMapper` representing the expenses that belong to
+    *   the specified expense list.
+    */
   def fromExpenseList(parent: ExpenseListId): F[List[ExpenseReadMapper]]
 
-/* Represents a repository for managing owed amounts. The main mapper contains the
- * basic CRUD operations for the owed amount. The circle members mapper contains
- * operations for finding owed amounts that are children of a specified parent
- * circle member. The expenses mapper contains operations for finding owed amounts
- * that are children of a specified parent expense.
- */
+/** Repository trait for managing owed amounts. Extends the `OwedAmountMapper`
+  * trait.
+  *
+  * @tparam F
+  *   the effect type
+  */
 trait OwedAmountRepository[F[_]] extends OwedAmountMapper[F]:
 
+  /** Retrieves a list of owed amounts from a circle member to another circle
+    * member. This includes all the amounts that the member owes to others, in
+    * all expenseLists.
+    *
+    * @param member
+    *   the ID of the circle member
+    * @return
+    *   a list of `OwedAmountReadMapper`
+    */
   def fromCircleMemberTo(member: CircleMemberId): F[List[OwedAmountReadMapper]]
 
+  /** Retrieves a list of owed amounts from a circle member to another circle
+    * member. This includes all the amounts that the member is owed by others,
+    * in all expenseLists.
+    *
+    * @param member
+    *   the ID of the circle member
+    * @return
+    *   a list of `OwedAmountReadMapper`
+    */
   def fromCircleMemberFrom(
       member: CircleMemberId
   ): F[List[OwedAmountReadMapper]]
 
+  /** Retrieves a list of owed amounts from an expense. This includes all the
+    * amounts that are owed from one member to another member in the expense.
+    *
+    * @param parent
+    *   the ID of the parent expense
+    * @return
+    *   a list of `OwedAmountReadMapper`
+    */
   def fromExpense(parent: ExpenseId): F[List[OwedAmountReadMapper]]
 
+  /** Retrieves a list of detailed owed amounts from an expense.
+    *
+    * @param parent
+    *   the ID of the parent expense
+    * @return
+    *   a list of `OwedAmountDetailRead`
+    */
   def detailFromExpense(parent: ExpenseId): F[List[OwedAmountDetailRead]]
 
 /* Companion object for the `ExpenseRepository` trait. Provides a method for
@@ -627,6 +685,9 @@ object ExpenseListOwedAmountMapper:
       )
       .to[OwedAmountDetailRead]
 
+/** Companion object for the ExpenseMapper trait. Contains the factory method
+  * for creating an instance of the ExpenseMapper.
+  */
 object ExpenseDetailMapper:
   /** Creates a new instance of ExpenseDetailMapper using the provided session.
     * This is an effectful operation because the query needs to be prepared

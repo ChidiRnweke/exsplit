@@ -70,29 +70,65 @@ case class SettledTabWriteMapper(
     amount: Option[Float]
 )
 
-/** Repository trait for managing settled tabs. It contains the main mapper for
-  * settled tabs and repositories for retrieving settled tabs by expenses, from
-  * members, and to members.
+/** Repository trait for managing settled tabs. Extends the SettledTabMapper
+  * trait. Adds methods for retrieving settled tabs based on expense list ID,
+  * from member ID, and to member ID.
   *
   * @tparam F
-  *   The effect type, representing the context in which the repository
-  *   operates.
+  *   the effect type
   */
 trait SettledTabRepository[F[_]] extends SettledTabMapper[F]:
 
+  /** Retrieves a list of settled tabs based on the given expense list ID.
+    *
+    * @param expenseListId
+    *   the ID of the expense list
+    * @return
+    *   a list of settled tabs
+    */
   def fromExpenseList(
       expenseListId: ExpenseListId
   ): F[List[SettledTabReadMapper]]
 
+  /** Retrieves a list of settled tabs based on the given from member ID. This
+    * includes all settled tabs where the from member is the specified member,
+    * across all expense lists.
+    *
+    * @param fromMemberId
+    *   the ID of the from member
+    * @return
+    *   a list of settled tabs
+    */
   def byFromMembers(
       fromMemberId: CircleMemberId
   ): F[List[SettledTabReadMapper]]
 
+  /** Retrieves a list of settled tabs based on the given to member ID. This
+    * includes all settled tabs where the to member is the specified member,
+    * across all expense lists.
+    *
+    * @param toMemberId
+    *   the ID of the to member
+    * @return
+    *   a list of settled tabs
+    */
   def byToMembers(
       toMemberId: CircleMemberId
   ): F[List[SettledTabReadMapper]]
 
+/** Companion object for the SettledTabRepository trait. It provides a method
+  * for creating a new instance of SettledTabRepository from a session.
+  */
 object SettledTabRepository:
+  /** Creates a new instance of SettledTabRepository from a session. This is
+    * effectful because it requires preparing the queries. This is why the
+    * result is wrapped in an effect type `F`.
+    *
+    * @param session
+    *   the session to use for database operations.
+    * @return
+    *   a new instance of SettledTabRepository wrapped in an effect type `F`.
+    */
   def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[SettledTabRepository[F]] =

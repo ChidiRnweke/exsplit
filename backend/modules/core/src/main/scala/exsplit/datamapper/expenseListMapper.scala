@@ -22,6 +22,14 @@ import exsplit.datamapper._
   *   executed.
   */
 trait ExpenseListRepository[F[_]] extends ExpenseListMapper[F]:
+  /** Creates a new expense list.
+    *
+    * @param circleId
+    *   The unique identifier of the circle associated with the expense list.
+    * @return
+    *   A list of expense lists that are children of the specified parent
+    *   circle. The list is wrapped in the effect type F.
+    */
   def byCircleId(circleId: CircleId): F[List[ExpenseListReadMapper]]
 
 /* Companion object for the `ExpenseListRepository` trait. Provides a method for
