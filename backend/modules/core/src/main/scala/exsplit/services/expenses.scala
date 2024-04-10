@@ -78,7 +78,7 @@ case class ExpenseServiceImpl[F[_]: MonadThrow](
       )
       for
         expenseRead <- expenseRepo.repo.main.create(createExpenseInput)
-        member <- membersRepo.main.getCircleMemberOut(paidBy)
+        member <- membersRepo.getCircleMemberOut(paidBy)
         expenseId = ExpenseId(expenseRead.id)
         owedAmounts <- owedAmountRepo.detail.getOwedAmounts(expenseId)
         out = ExpenseOut(

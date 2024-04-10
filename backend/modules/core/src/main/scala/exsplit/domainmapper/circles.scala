@@ -6,7 +6,7 @@ import cats.effect._
 import cats.syntax.all._
 import cats._
 
-extension [F[_]: MonadThrow](circlesMapper: CirclesMapper[F])
+extension [F[_]: MonadThrow](circlesMapper: CirclesRepository[F])
   /** Extension method for `CirclesMapper` that retrieves a `CircleOut` object
     * by its ID.
     *
@@ -49,7 +49,7 @@ extension [F[_]: MonadThrow](circlesMapper: CirclesMapper[F])
 extension [F[_]: MonadThrow, A](repo: CirclesRepository[F])
   def withValidCircle(circleId: CircleId)(action: CircleOut => F[A]): F[A] =
     for
-      circleOut <- repo.main.getCircleOut(circleId)
+      circleOut <- repo.getCircleOut(circleId)
       result <- action(circleOut)
     yield result
 
@@ -91,14 +91,14 @@ extension (userCircles: List[CircleReadMapper])
   * representations.
   */
 
-extension [F[_]: MonadThrow](circleMemberMapper: CircleMemberMapper[F])
-  /** Extension method for `CircleMemberMapper` that retrieves a
+extension [F[_]: MonadThrow](circleMemberMapper: CircleMembersRepository[F])
+  /** Extension method for `CircleMembersRepository` that retrieves a
     * `CircleMemberOut` object by its ID. The former is the representation of a
     * circle member in the database, while the latter is the representation of a
     * circle member in the application.
     *
-    * @param circleMemberMapper
-    *   The `CircleMemberMapper` instance.
+    * @param CircleMembersRepository
+    *   The `CircleMembersRepository` instance.
     * @param id
     *   The ID of the circle member to retrieve.
     * @return
@@ -122,7 +122,7 @@ extension [F[_]: MonadThrow, A](repo: CircleMembersRepository[F])
       memberId: CircleMemberId
   )(action: CircleMemberOut => F[A]): F[A] =
     for
-      member <- repo.main.getCircleMemberOut(memberId)
+      member <- repo.getCircleMemberOut(memberId)
       result <- action(member)
     yield result
 

@@ -15,19 +15,16 @@ import exsplit.datamapper._
   * creating, updating, and deleting circles. The latter has methods for listing
   * primary circles for a given user.
   */
-trait CirclesRepository[F[_]]:
-  val main: CirclesMapper[F]
-  val byUser: UserCirclesMapper[F]
+trait CirclesRepository[F[_]] extends CirclesMapper[F] with UserCirclesMapper[F]
 
 /** Represents a repository for managing circle members. This trait contains the
   * main mapper for circle members and the circle to members mapper. The former
   * has methods for creating, updating, and deleting circle members. The latter
   * has methods for listing the children of a given parent circle.
   */
-trait CircleMembersRepository[F[_]]:
-  val main: CircleMemberMapper[F]
-  val byCircle: CircleToMembersMapper[F]
-
+trait CircleMembersRepository[F[_]]
+    extends CircleMemberMapper[F]
+    with CircleToMembersMapper[F]
 /*
 Contains a factory method for creating a CirclesRepository from a session.
  */
@@ -48,8 +45,14 @@ object CirclesRepository:
       mainMapper <- CirclesMapper.fromSession(session)
       userCircles <- UserCirclesMapper.fromSession(session)
     yield new CirclesRepository[F]:
-      val main = mainMapper
-      val byUser = userCircles
+      def create(input: CreateCircleInput): F[CircleReadMapper] =
+        mainMapper.create(input)
+      def get(circleId: CircleId): F[Either[NotFoundError, CircleReadMapper]] =
+        mainMapper.get(circleId)
+      def delete(circleId: CircleId): F[Unit] = mainMapper.delete(circleId)
+      def update(circle: CircleWriteMapper): F[Unit] = mainMapper.update(circle)
+      def listPrimaries(userId: UserId): F[List[CircleReadMapper]] =
+        userCircles.listPrimaries(userId)
 
 /*
 Contains a factory method for creating a CircleMembersRepository from a session.
@@ -71,8 +74,18 @@ object CircleMembersRepository:
       mainMapper <- CircleMemberMapper.fromSession(session)
       circleToMembers <- CircleToMembersMapper.fromSession(session)
     yield new CircleMembersRepository[F]:
-      val main = mainMapper
-      val byCircle = circleToMembers
+      def create(input: AddUserToCircleInput): F[CircleMemberReadMapper] =
+        mainMapper.create(input)
+      def get(
+          id: CircleMemberId
+      ): F[Either[NotFoundError, CircleMemberReadMapper]] =
+        mainMapper.get(id)
+      def update(circleMember: CircleMemberWriteMapper): F[Unit] =
+        mainMapper.update(circleMember)
+      def delete(circleMemberId: CircleMemberId): F[Unit] =
+        mainMapper.delete(circleMemberId)
+      def listChildren(parent: CircleId): F[List[CircleMemberReadMapper]] =
+        circleToMembers.listChildren(parent)
 
 /** Describes a circle read mapper. This class is a one to one mapping of the
   * circle table in the database without the creation and update timestamps.

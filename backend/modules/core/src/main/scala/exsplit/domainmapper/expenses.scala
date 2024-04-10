@@ -17,7 +17,7 @@ case class ExpenseDomainMapper[F[_]: MonadThrow](
     for
       expense <- repo.detail.get(id).rethrow
       memberId = CircleMemberId(expense.paidBy)
-      paidBy <- circleMemberRepo.main.getCircleMemberOut(memberId)
+      paidBy <- circleMemberRepo.getCircleMemberOut(memberId)
       owedAmounts <- owedAmountsRepo.detail.getOwedAmounts(id)
     yield ExpenseOut(
       expense.id,
