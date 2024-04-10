@@ -16,7 +16,7 @@ class CirclesRepositorySuite extends DatabaseSuite:
     val result = session.use(session =>
       for
         circlesRepo <- CirclesRepository.fromSession(session)
-        result <- circlesRepo.main.create(input)
+        result <- circlesRepo.create(input)
       yield result match
         case CircleReadMapper(_, "Test Circle", "") => true
         case _                                      => false
@@ -29,8 +29,8 @@ class CirclesRepositorySuite extends DatabaseSuite:
     session.use(session =>
       for
         circlesRepo <- CirclesRepository.fromSession(session)
-        createdCircle <- circlesRepo.main.create(input)
-        circleRead <- circlesRepo.main.get(CircleId(createdCircle.id))
+        createdCircle <- circlesRepo.create(input)
+        circleRead <- circlesRepo.get(CircleId(createdCircle.id))
       yield assert(circleRead.isRight)
     )
 
@@ -40,8 +40,8 @@ class CirclesRepositorySuite extends DatabaseSuite:
     session.use(session =>
       for
         circlesRepo <- CirclesRepository.fromSession(session)
-        createdCircle <- circlesRepo.main.create(input)
-        circleRead <- circlesRepo.main.get(CircleId(createdCircle.id)).rethrow
+        createdCircle <- circlesRepo.create(input)
+        circleRead <- circlesRepo.get(CircleId(createdCircle.id)).rethrow
       yield assertEquals(createdCircle, circleRead)
     )
 
@@ -51,9 +51,9 @@ class CirclesRepositorySuite extends DatabaseSuite:
     session.use(session =>
       for
         circlesRepo <- CirclesRepository.fromSession(session)
-        createdCircle <- circlesRepo.main.create(input)
-        _ <- circlesRepo.main.delete(CircleId(createdCircle.id))
-        circleRead <- circlesRepo.main.get(CircleId(createdCircle.id))
+        createdCircle <- circlesRepo.create(input)
+        _ <- circlesRepo.delete(CircleId(createdCircle.id))
+        circleRead <- circlesRepo.get(CircleId(createdCircle.id))
       yield assert(circleRead.isLeft)
     )
 
@@ -63,14 +63,14 @@ class CirclesRepositorySuite extends DatabaseSuite:
     session.use(session =>
       for
         circlesRepo <- CirclesRepository.fromSession(session)
-        createdCircle <- circlesRepo.main.create(input)
+        createdCircle <- circlesRepo.create(input)
         circleWrite = CircleWriteMapper(
           createdCircle.id,
           Some("Updated Circle"),
           None
         )
-        _ <- circlesRepo.main.update(circleWrite)
-        circleRead <- circlesRepo.main.get(CircleId(createdCircle.id)).rethrow
+        _ <- circlesRepo.update(circleWrite)
+        circleRead <- circlesRepo.get(CircleId(createdCircle.id)).rethrow
       yield assertEquals(circleRead.name, "Updated Circle")
     )
 
@@ -80,14 +80,14 @@ class CirclesRepositorySuite extends DatabaseSuite:
     session.use(session =>
       for
         circlesRepo <- CirclesRepository.fromSession(session)
-        createdCircle <- circlesRepo.main.create(input)
+        createdCircle <- circlesRepo.create(input)
         circleWrite = CircleWriteMapper(
           createdCircle.id,
           None,
           Some("Updated Description")
         )
-        _ <- circlesRepo.main.update(circleWrite)
-        circleRead <- circlesRepo.main.get(CircleId(createdCircle.id)).rethrow
+        _ <- circlesRepo.update(circleWrite)
+        circleRead <- circlesRepo.get(CircleId(createdCircle.id)).rethrow
       yield assertEquals(circleRead.description, "Updated Description")
     )
 
@@ -99,14 +99,14 @@ class CirclesRepositorySuite extends DatabaseSuite:
     val result = session.use(session =>
       for
         circlesRepo <- CirclesRepository.fromSession(session)
-        createdCircle <- circlesRepo.main.create(input)
+        createdCircle <- circlesRepo.create(input)
         circleWrite = CircleWriteMapper(
           createdCircle.id,
           Some("Updated Circle"),
           Some("Updated Description")
         )
-        _ <- circlesRepo.main.update(circleWrite)
-        circleRead <- circlesRepo.main.get(CircleId(createdCircle.id)).rethrow
+        _ <- circlesRepo.update(circleWrite)
+        circleRead <- circlesRepo.get(CircleId(createdCircle.id)).rethrow
       yield circleRead
     )
     assertIO(result.map(_.name), "Updated Circle") >> assertIO(
@@ -121,9 +121,9 @@ class CirclesRepositorySuite extends DatabaseSuite:
     val result = session.use(session =>
       for
         circlesRepo <- CirclesRepository.fromSession(session)
-        _ <- circlesRepo.main.create(input1)
-        _ <- circlesRepo.main.create(input2)
-        circles <- circlesRepo.byUser.listPrimaries(UserId("4"))
+        _ <- circlesRepo.create(input1)
+        _ <- circlesRepo.create(input2)
+        circles <- circlesRepo.listPrimaries(UserId("4"))
       yield assertEquals(circles.length, 2)
     )
 
@@ -136,7 +136,7 @@ class CircleMembersRepositorySuite extends DatabaseSuite:
       for
         circlesRepo <- CirclesRepository.fromSession(session)
         circleMembersRepo <- CircleMembersRepository.fromSession(session)
-        createdCircle <- circlesRepo.main.create(testCircle)
+        createdCircle <- circlesRepo.create(testCircle)
         userRepo <- UserMapper.fromSession(session)
         uuid <- UUIDGen[IO].randomUUID
         _ <- userRepo.createUser(uuid, Email("foo@bar.com"), "password")
@@ -145,7 +145,7 @@ class CircleMembersRepositorySuite extends DatabaseSuite:
           "User",
           CircleId(createdCircle.id)
         )
-        createdMember <- circleMembersRepo.main.create(createUser).attempt
+        createdMember <- circleMembersRepo.create(createUser).attempt
       yield assertEquals(createdMember.isRight, true)
     )
 
@@ -157,7 +157,7 @@ class CircleMembersRepositorySuite extends DatabaseSuite:
       for
         circlesRepo <- CirclesRepository.fromSession(session)
         circleMembersRepo <- CircleMembersRepository.fromSession(session)
-        createdCircle <- circlesRepo.main.create(testCircle)
+        createdCircle <- circlesRepo.create(testCircle)
         userRepo <- UserMapper.fromSession(session)
         uuid <- UUIDGen[IO].randomUUID
         _ <- userRepo.createUser(uuid, Email("foo@bar.com"), "password")
@@ -166,8 +166,8 @@ class CircleMembersRepositorySuite extends DatabaseSuite:
           "User",
           CircleId(createdCircle.id)
         )
-        member <- circleMembersRepo.main.create(createUser)
-        readMember <- circleMembersRepo.main
+        member <- circleMembersRepo.create(createUser)
+        readMember <- circleMembersRepo
           .get(CircleMemberId(member.id))
           .rethrow
       yield assertEquals(readMember, member)
@@ -180,7 +180,7 @@ class CircleMembersRepositorySuite extends DatabaseSuite:
       for
         circlesRepo <- CirclesRepository.fromSession(session)
         circleMembersRepo <- CircleMembersRepository.fromSession(session)
-        createdCircle <- circlesRepo.main.create(testCircle)
+        createdCircle <- circlesRepo.create(testCircle)
         userRepo <- UserMapper.fromSession(session)
         uuid <- UUIDGen[IO].randomUUID
         _ <- userRepo.createUser(uuid, Email("foo@bar.com"), "password")
@@ -189,9 +189,9 @@ class CircleMembersRepositorySuite extends DatabaseSuite:
           "User",
           CircleId(createdCircle.id)
         )
-        member <- circleMembersRepo.main.create(createUser)
-        _ <- circleMembersRepo.main.delete(CircleMemberId(member.id))
-        readMember <- circleMembersRepo.main
+        member <- circleMembersRepo.create(createUser)
+        _ <- circleMembersRepo.delete(CircleMemberId(member.id))
+        readMember <- circleMembersRepo
           .get(CircleMemberId(member.id))
       yield assert(readMember.isLeft)
     )
@@ -203,7 +203,7 @@ class CircleMembersRepositorySuite extends DatabaseSuite:
       for
         circlesRepo <- CirclesRepository.fromSession(session)
         circleMembersRepo <- CircleMembersRepository.fromSession(session)
-        createdCircle <- circlesRepo.main.create(testCircle)
+        createdCircle <- circlesRepo.create(testCircle)
         userRepo <- UserMapper.fromSession(session)
         uuid <- UUIDGen[IO].randomUUID
         _ <- userRepo.createUser(uuid, Email("foo@bar.com"), "password")
@@ -212,13 +212,13 @@ class CircleMembersRepositorySuite extends DatabaseSuite:
           "User",
           CircleId(createdCircle.id)
         )
-        member <- circleMembersRepo.main.create(createUser)
+        member <- circleMembersRepo.create(createUser)
         updatedMember = CircleMemberWriteMapper(
           member.id,
           "Updated User"
         )
-        _ <- circleMembersRepo.main.update(updatedMember)
-        readMember <- circleMembersRepo.main
+        _ <- circleMembersRepo.update(updatedMember)
+        readMember <- circleMembersRepo
           .get(CircleMemberId(member.id))
           .rethrow
       yield assertEquals(readMember.displayName, "Updated User")
@@ -232,7 +232,7 @@ class CircleMembersRepositorySuite extends DatabaseSuite:
       for
         circlesRepo <- CirclesRepository.fromSession(session)
         circleMembersRepo <- CircleMembersRepository.fromSession(session)
-        createdCircle <- circlesRepo.main.create(testCircle)
+        createdCircle <- circlesRepo.create(testCircle)
         userRepo <- UserMapper.fromSession(session)
         uuid <- UUIDGen[IO].randomUUID
         _ <- userRepo.createUser(uuid, Email("foo@bar.com"), "password")
@@ -241,8 +241,8 @@ class CircleMembersRepositorySuite extends DatabaseSuite:
           "User",
           CircleId(createdCircle.id)
         )
-        _ <- circleMembersRepo.main.create(createUser)
-        members <- circleMembersRepo.byCircle.listChildren(
+        _ <- circleMembersRepo.create(createUser)
+        members <- circleMembersRepo.listChildren(
           CircleId(createdCircle.id)
         )
       yield assertEquals(members.length, 1)

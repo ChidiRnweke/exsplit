@@ -15,7 +15,7 @@ class ExpenseListMapperSuite extends DatabaseSuite:
     val input = CreateCircleInput(UserId("1"), "User", "Test Circle")
     for
       circlesRepo <- CirclesRepository.fromSession(session)
-      result <- circlesRepo.main.create(input)
+      result <- circlesRepo.create(input)
     yield result
 
   def createExpenseList(

@@ -54,6 +54,9 @@ object CirclesRepository:
       def listPrimaries(userId: UserId): F[List[CircleReadMapper]] =
         userCircles.listPrimaries(userId)
 
+      def byUserId(userId: UserId): F[List[CircleReadMapper]] =
+        userCircles.listPrimaries(userId)
+
 /*
 Contains a factory method for creating a CircleMembersRepository from a session.
  */
@@ -86,6 +89,9 @@ object CircleMembersRepository:
         mainMapper.delete(circleMemberId)
       def listChildren(parent: CircleId): F[List[CircleMemberReadMapper]] =
         circleToMembers.listChildren(parent)
+
+      def byCircleId(circleId: CircleId): F[List[CircleMemberReadMapper]] =
+        circleToMembers.listChildren(circleId)
 
 /** Describes a circle read mapper. This class is a one to one mapping of the
   * circle table in the database without the creation and update timestamps.
