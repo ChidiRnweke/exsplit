@@ -23,7 +23,7 @@ object CirclesWithAuthEntryPoint:
       membersRepo <- CircleMembersRepository.fromSession(session)
       circlesAuth = CirclesAuth(circlesRepo, userMapper)
       userAuth = UserAuth(userMapper)
-      circleMemberAuth = CircleMemberAuth(userMapper, membersRepo)
+      circleMemberAuth = CircleMemberAuth(userMapper, circlesRepo, membersRepo)
     yield CirclesServiceWithAuth(
       userInfo,
       circlesAuth,
@@ -34,9 +34,9 @@ object CirclesWithAuthEntryPoint:
 
 case class CirclesServiceWithAuth[F[_]: MonadThrow](
     userInfo: F[Email],
-    circlesAuth: CirclesAuth[F],
-    circleMemberAuth: CircleMemberAuth[F],
-    userAuth: UserAuth[F],
+    circlesAuth: CirclesAuthChecker[F],
+    circleMemberAuth: CircleMemberAuthChecker[F],
+    userAuth: UserAuthChecker[F],
     serviceImpl: CirclesService[F]
 ) extends CirclesService[F]:
 
@@ -50,7 +50,7 @@ case class CirclesServiceWithAuth[F[_]: MonadThrow](
       circleId: CircleId,
       memberId: CircleMemberId
   ): F[Unit] =
-    for _ <- circleMemberAuth.authCheck(userInfo, memberId)
+    for _ <- circleMemberAuth.sameCircleMemberId(userInfo, memberId)
     yield serviceImpl.removeMemberFromCircle(circleId, memberId)
 
   def getCircle(circleId: CircleId): F[GetCircleOutput] =
@@ -74,7 +74,7 @@ case class CirclesServiceWithAuth[F[_]: MonadThrow](
       memberId: CircleMemberId,
       displayName: String
   ): F[Unit] =
-    for _ <- circleMemberAuth.authCheck(userInfo, memberId)
+    for _ <- circleMemberAuth.sameCircleMemberId(userInfo, memberId)
     yield serviceImpl.changeDisplayName(circleId, memberId, displayName)
 
   def createCircle(
