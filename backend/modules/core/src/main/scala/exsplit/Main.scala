@@ -14,7 +14,6 @@ import pureconfig._
 import pureconfig.generic.derivation.default._
 import skunk.Session
 import exsplit.auth.AuthEntryPoint
-import exsplit.expenseList.ExpenseListEntryPoint
 import exsplit.circles.CirclesEntryPoint
 import natchez.Trace.Implicits.noop
 import cats.effect.IO.asyncForIO
@@ -33,7 +32,10 @@ object Routes:
       email = IO.fromEither(emailEither)
       userService <- AuthEntryPoint.fromSession[IO](session, config)
       expenseService <- ExpenseServiceWithAuth.fromSession(email, session)
-      expenseListService <- ExpenseListEntryPoint.fromSession(email, session)
+      expenseListService <- ExpenseListServiceWithAuth.fromSession(
+        email,
+        session
+      )
       circlesService <- CirclesWithAuthEntryPoint.fromSession(email, session)
       routes = servicesToRoutes(
         userService,
