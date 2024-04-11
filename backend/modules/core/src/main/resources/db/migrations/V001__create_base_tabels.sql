@@ -23,7 +23,7 @@ create table circle_members (
     circle_id text,
     foreign key (user_id) references "users"(id) on delete cascade,
     foreign key (circle_id) references circles(id) on delete cascade,
-    unique (user_id)
+    unique (user_id, circle_id)
 );
 
 create table expense_lists (
