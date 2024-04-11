@@ -34,9 +34,9 @@ object CirclesWithAuthEntryPoint:
 
 case class CirclesServiceWithAuth[F[_]: MonadThrow](
     userInfo: F[Email],
-    circlesAuth: CirclesAuthChecker[F],
-    circleMemberAuth: CircleMemberAuthChecker[F],
-    userAuth: UserAuthChecker[F],
+    circlesAuth: CirclesAuth[F],
+    circleMemberAuth: CircleMemberAuth[F],
+    userAuth: UserAuth[F],
     serviceImpl: CirclesService[F]
 ) extends CirclesService[F]:
 

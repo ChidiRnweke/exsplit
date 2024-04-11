@@ -14,20 +14,6 @@ import exsplit.authorization._
 
 type NotFoundCircleId = [F[_]] =>> F[Either[NotFoundError, String]]
 
-trait AuthChecker[F[_], A]:
-  def authCheck(userInfo: F[Email], a: A): F[Unit]
-
-trait CirclesAuthChecker[F[_]] extends AuthChecker[F, CircleId]
-trait ExpenseListAuthChecker[F[_]] extends AuthChecker[F, ExpenseListId]
-trait UserAuthChecker[F[_]] extends AuthChecker[F, UserId]
-trait ExpenseAuthChecker[F[_]] extends AuthChecker[F, ExpenseId]
-
-trait CircleMemberAuthChecker[F[_]] extends AuthChecker[F, CircleMemberId]:
-  def sameCircleMemberId(
-      userInfo: F[Email],
-      circleMemberId: CircleMemberId
-  ): F[Unit]
-
 extension [F[_]: Applicative](circlesRepo: CirclesRepository[F])
   def extractCircle(circleId: CircleId): NotFoundCircleId[F] =
     Right(circleId.value).pure[F]
@@ -72,7 +58,7 @@ extension [F[_]: MonadThrow](userRepo: UserMapper[F])
 case class CirclesAuth[F[_]: MonadThrow](
     circlesRepo: CirclesRepository[F],
     userRepo: UserMapper[F]
-) extends CirclesAuthChecker[F]:
+):
   private val circleFromUser =
     userCircleExtractor.apply(circlesRepo)(userRepo)
 
@@ -91,7 +77,7 @@ case class CircleMemberAuth[F[_]: MonadThrow](
     userRepo: UserMapper[F],
     circlesRepo: CirclesRepository[F],
     circleMembersRepo: CircleMembersRepository[F]
-) extends CircleMemberAuthChecker[F]:
+):
 
   def authCheck(userInfo: F[Email], circleMemberId: CircleMemberId): F[Unit] =
     AuthCheck.checkAuthorization(
@@ -129,8 +115,7 @@ case class CircleMemberAuth[F[_]: MonadThrow](
   private val extractCircle: CircleMemberId => NotFoundCircleId[F] =
     circleMemberId => circleMembersRepo.extractCircle(circleMemberId)
 
-case class UserAuth[F[_]: MonadThrow](userRepo: UserMapper[F])
-    extends UserAuthChecker[F]:
+case class UserAuth[F[_]: MonadThrow](userRepo: UserMapper[F]):
 
   def authCheck(userInfo: F[Email], userId: UserId): F[Unit] =
     for
