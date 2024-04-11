@@ -20,8 +20,9 @@ import exsplit.circles.CirclesEntryPoint
 import natchez.Trace.Implicits.noop
 import cats.effect.IO.asyncForIO
 import exsplit.migration.migrateDb
-import exsplit.middleware.Middleware
+import exsplit.authorization.Middleware
 import io.chrisdavenport.fiberlocal.FiberLocal
+import exsplit.authorization.CirclesWithAuthEntryPoint
 object Routes:
   def fromSession(
       config: AuthConfig,
@@ -34,7 +35,7 @@ object Routes:
       userService <- AuthEntryPoint.fromSession[IO](session, config)
       expenseService <- ExpensesEntryPoint.fromSession(email, session)
       expenseListService <- ExpenseListEntryPoint.fromSession(email, session)
-      circlesService <- CirclesEntryPoint.fromSession(email, session)
+      circlesService <- CirclesWithAuthEntryPoint.fromSession(email, session)
       routes = servicesToRoutes(
         userService,
         expenseService,
