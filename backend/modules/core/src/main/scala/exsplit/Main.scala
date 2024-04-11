@@ -28,27 +28,16 @@ object Routes:
       config: AuthConfig,
       local: FiberLocal[F, Either[InvalidTokenError, Email]],
       session: Session[F]
-  ) =
-    val email = for
-      emailEither <- local.get
-      email <- emailEither.liftTo[F]
-    yield email
-    for
-      userService <- AuthEntryPoint.fromSession(session, config)
-      expenseService <- ExpenseServiceWithAuth.fromSession(email, session)
-      expenseListService <- ExpenseListServiceWithAuth.fromSession(
-        email,
-        session
-      )
-      circlesService <- CirclesWithAuthEntryPoint.fromSession(email, session)
-      routes = servicesToRoutes(
-        userService,
-        expenseService,
-        expenseListService,
-        circlesService
-      )
-      routesWithLocal = routes.map(Middleware.withRequestInfo(_, config, local))
-    yield routesWithLocal
+  ): F[Resource[F, HttpRoutes[F]]] =
+    val getEmail = local.get.flatMap(_.liftTo[F])
+    (
+      AuthEntryPoint.fromSession(session, config),
+      ExpenseServiceWithAuth.fromSession(getEmail, session),
+      ExpenseListServiceWithAuth.fromSession(getEmail, session),
+      CirclesWithAuthEntryPoint.fromSession(getEmail, session)
+    ).mapN:
+      servicesToRoutes(_, _, _, _)
+        .map(Middleware.withRequestInfo(_, config, local))
 
   private def servicesToRoutes[F[_]: Async](
       userService: UserService[F],
@@ -56,12 +45,12 @@ object Routes:
       expenseListService: ExpenseListService[F],
       circlesService: CirclesService[F]
   ): Resource[F, HttpRoutes[F]] =
-    for
-      userRoute <- SimpleRestJsonBuilder.routes(userService).resource
-      expenseRoute <- SimpleRestJsonBuilder.routes(expenseService).resource
-      expListRoute <- SimpleRestJsonBuilder.routes(expenseListService).resource
-      circlesRoute <- SimpleRestJsonBuilder.routes(circlesService).resource
-    yield userRoute <+> expenseRoute <+> expListRoute <+> circlesRoute <+> docs
+    (
+      SimpleRestJsonBuilder.routes(userService).resource,
+      SimpleRestJsonBuilder.routes(expenseService).resource,
+      SimpleRestJsonBuilder.routes(expenseListService).resource,
+      SimpleRestJsonBuilder.routes(circlesService).resource
+    ).mapN(_ <+> _ <+> _ <+> _ <+> docs)
 
   private def docs[F[_]: Sync]: HttpRoutes[F] =
     smithy4s.http4s.swagger
