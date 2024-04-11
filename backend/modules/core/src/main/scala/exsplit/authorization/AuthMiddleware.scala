@@ -1,4 +1,4 @@
-package exsplit.middleware
+package exsplit.authorization
 
 import exsplit.spec._
 import cats.effect._
