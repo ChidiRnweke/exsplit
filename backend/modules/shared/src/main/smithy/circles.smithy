@@ -21,6 +21,7 @@ service CirclesService {
     errors: [
         AuthError
         ForbiddenError
+        InvalidTokenError
     ]
 }
 

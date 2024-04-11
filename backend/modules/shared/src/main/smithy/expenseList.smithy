@@ -20,6 +20,7 @@ service ExpenseListService {
         AuthError
         NotFoundError
         ForbiddenError
+        InvalidTokenError
     ]
 }
 

@@ -18,6 +18,7 @@ service ExpenseService {
     errors: [
         AuthError
         ForbiddenError
+        InvalidTokenError
     ]
 }
 
