@@ -12,59 +12,10 @@ import exsplit.datamapper.expenseList.ExpenseListRepository
 import exsplit.domainmapper._
 import exsplit.authorization._
 
-type NotFoundCircleId = [F[_]] =>> F[Either[NotFoundError, String]]
-
-extension [F[_]: Applicative](circlesRepo: CirclesRepository[F])
-  def extractCircle(circleId: CircleId): NotFoundCircleId[F] =
-    Right(circleId.value).pure[F]
-
-extension [F[_]: Applicative](membersRepo: CircleMembersRepository[F])
-  def extractCircle(circleMemberId: CircleMemberId): NotFoundCircleId[F] =
-    membersRepo.get(circleMemberId).map(_.map(_.circleId))
-
-extension [F[_]: MonadThrow](expenseRepo: ExpenseRepository[F])
-  def extractCircle(
-      expenseId: ExpenseId,
-      expenseListRepo: ExpenseListRepository[F]
-  ): NotFoundCircleId[F] =
-    for
-      expenseMaybe <- expenseRepo.get(expenseId)
-      expenseListId <- expenseMaybe
-        .leftMap(_ => forbiddenError)
-        .liftTo[F]
-        .map(expense => ExpenseListId(expense.expenseListId))
-      expenseList <- expenseListRepo.get(expenseListId)
-    yield expenseList.map(_.circleId)
-
-extension [F[_]: MonadThrow](repo: ExpenseListRepository[F])
-  def extractCircle(expenseListId: ExpenseListId): NotFoundCircleId[F] =
-    for expenseList <- repo.get(expenseListId)
-    yield expenseList.map(_.circleId)
-
-extension [F[_]: MonadThrow](userRepo: UserMapper[F])
-  def extractCircle(
-      email: F[Email],
-      repo: CirclesRepository[F]
-  ): F[List[String]] =
-    for
-      email_ <- email
-      userEither <- userRepo.findUserByEmail(email_)
-      user <- userEither
-        .leftMap(_ => forbiddenError)
-        .liftTo[F]
-      circles <- repo.listPrimaries(UserId(user.id))
-    yield circles.map(_.id)
-
 case class CirclesAuth[F[_]: MonadThrow](
     circlesRepo: CirclesRepository[F],
     userRepo: UserMapper[F]
 ):
-  private val circleFromUser =
-    userCircleExtractor.apply(circlesRepo)(userRepo)
-
-  private def extractCircle: CircleId => NotFoundCircleId[F] =
-    circleId => circlesRepo.extractCircle(circleId)
-
   def authCheck(userInfo: F[Email], circle: CircleId): F[Unit] =
     AuthCheck.checkAuthorization(
       userInfo,
@@ -72,6 +23,10 @@ case class CirclesAuth[F[_]: MonadThrow](
       circleFromUser,
       extractCircle
     )
+  private val circleFromUser = UserCircleExtractor(circlesRepo, userRepo)
+
+  private def extractCircle(circleId: CircleId): NotFoundCircleId[F] =
+    Right(circleId.value).pure[F]
 
 case class CircleMemberAuth[F[_]: MonadThrow](
     userRepo: UserMapper[F],
@@ -109,11 +64,12 @@ case class CircleMemberAuth[F[_]: MonadThrow](
       circleMemberList <- circleMembersRepo.byUserId(UserId(user.id))
     yield circleMemberList.map(_.id)
 
-  private val circleFromUser =
-    userCircleExtractor.apply(circlesRepo)(userRepo)
+  private val circleFromUser = UserCircleExtractor(circlesRepo, userRepo)
 
-  private val extractCircle: CircleMemberId => NotFoundCircleId[F] =
-    circleMemberId => circleMembersRepo.extractCircle(circleMemberId)
+  private def extractCircle(
+      circleMemberId: CircleMemberId
+  ): NotFoundCircleId[F] =
+    circleMembersRepo.get(circleMemberId).map(_.map(_.circleId))
 
 case class UserAuth[F[_]: MonadThrow](userRepo: UserMapper[F]):
 
@@ -131,7 +87,46 @@ case class UserAuth[F[_]: MonadThrow](userRepo: UserMapper[F]):
   private def emailToId(email: Email): F[Either[NotFoundError, String]] =
     userRepo.findUserByEmail(email).map(_.map(_.id))
 
-def userCircleExtractor[F[_]: MonadThrow] =
-  (circlesRepo: CirclesRepository[F]) =>
-    (userRepo: UserMapper[F]) =>
-      (email: F[Email]) => userRepo.extractCircle(email, circlesRepo)
+case class ExpenseAuth[F[_]: MonadThrow](
+    userRepo: UserMapper[F],
+    circlesRepo: CirclesRepository[F],
+    expenseListRepo: ExpenseListRepository[F],
+    expenseRepo: ExpenseRepository[F]
+):
+
+  def authCheck(userInfo: F[Email], expenseId: ExpenseId): F[Unit] =
+    AuthCheck.checkAuthorization(
+      userInfo,
+      expenseId,
+      circleFromUser,
+      extractCircle
+    )
+  private val circleFromUser = UserCircleExtractor(circlesRepo, userRepo)
+
+  private def extractCircle(expenseId: ExpenseId): NotFoundCircleId[F] =
+    for
+      expenseMaybe <- expenseRepo.get(expenseId)
+      expenseListId <- expenseMaybe
+        .leftMap(_ => forbiddenError)
+        .liftTo[F]
+        .map(expense => ExpenseListId(expense.expenseListId))
+      expenseList <- expenseListRepo.get(expenseListId)
+    yield expenseList.map(_.circleId)
+
+case class ExpenseListAuth[F[_]: MonadThrow](
+    userRepo: UserMapper[F],
+    circlesRepo: CirclesRepository[F],
+    expenseListRepo: ExpenseListRepository[F]
+):
+  def authCheck(userInfo: F[Email], expenseListId: ExpenseListId): F[Unit] =
+    AuthCheck.checkAuthorization(
+      userInfo,
+      expenseListId,
+      circleFromUser,
+      extractCircle
+    )
+  private val circleFromUser = UserCircleExtractor(circlesRepo, userRepo)
+
+  private def extractCircle(expenseListId: ExpenseListId): NotFoundCircleId[F] =
+    for expenseList <- expenseListRepo.get(expenseListId)
+    yield expenseList.map(_.circleId)
