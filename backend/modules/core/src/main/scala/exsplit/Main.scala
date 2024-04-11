@@ -14,7 +14,6 @@ import pureconfig._
 import pureconfig.generic.derivation.default._
 import skunk.Session
 import exsplit.auth.AuthEntryPoint
-import exsplit.expenses.ExpensesEntryPoint
 import exsplit.expenseList.ExpenseListEntryPoint
 import exsplit.circles.CirclesEntryPoint
 import natchez.Trace.Implicits.noop
@@ -22,7 +21,7 @@ import cats.effect.IO.asyncForIO
 import exsplit.migration.migrateDb
 import exsplit.authorization.Middleware
 import io.chrisdavenport.fiberlocal.FiberLocal
-import exsplit.authorization.CirclesWithAuthEntryPoint
+import exsplit.authorization._
 object Routes:
   def fromSession(
       config: AuthConfig,
@@ -33,7 +32,7 @@ object Routes:
       emailEither <- local.get
       email = IO.fromEither(emailEither)
       userService <- AuthEntryPoint.fromSession[IO](session, config)
-      expenseService <- ExpensesEntryPoint.fromSession(email, session)
+      expenseService <- ExpenseServiceWithAuth.fromSession(email, session)
       expenseListService <- ExpenseListEntryPoint.fromSession(email, session)
       circlesService <- CirclesWithAuthEntryPoint.fromSession(email, session)
       routes = servicesToRoutes(

@@ -16,7 +16,6 @@ import skunk.Session
 
 object ExpensesEntryPoint:
   def fromSession[F[_]: Concurrent](
-      userInfo: F[Email],
       session: Session[F]
   ): F[ExpenseServiceImpl[F]] =
     for
@@ -25,7 +24,6 @@ object ExpensesEntryPoint:
       owedAmountsRepo <- OwedAmountRepository.fromSession(session)
       expenseRepo <- ExpenseRepository.fromSession(session)
     yield ExpenseServiceImpl(
-      userInfo,
       expenseRepo,
       expenseListRepo,
       circleMembersRepo,
@@ -33,7 +31,6 @@ object ExpensesEntryPoint:
     )
 
 case class ExpenseServiceImpl[F[_]: MonadThrow](
-    userInfo: F[Email],
     expenseRepo: ExpenseRepository[F],
     expenseListRepo: ExpenseListRepository[F],
     membersRepo: CircleMembersRepository[F],
