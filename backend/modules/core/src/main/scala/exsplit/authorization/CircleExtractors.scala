@@ -14,6 +14,20 @@ import exsplit.authorization._
 
 type NotFoundCircleId = [F[_]] =>> F[Either[NotFoundError, String]]
 
+trait AuthChecker[F[_], A]:
+  def authCheck(userInfo: F[Email], a: A): F[Unit]
+
+trait CirclesAuthChecker[F[_]] extends AuthChecker[F, CircleId]
+trait ExpenseListAuthChecker[F[_]] extends AuthChecker[F, ExpenseListId]
+trait UserAuthChecker[F[_]] extends AuthChecker[F, UserId]
+trait ExpenseAuthChecker[F[_]] extends AuthChecker[F, ExpenseId]
+
+trait CircleMemberAuthChecker[F[_]] extends AuthChecker[F, CircleMemberId]:
+  def sameCircleMemberId(
+      userInfo: F[Email],
+      circleMemberId: CircleMemberId
+  ): F[Unit]
+
 extension [F[_]: Applicative](circlesRepo: CirclesRepository[F])
   def extractCircle(circleId: CircleId): NotFoundCircleId[F] =
     Right(circleId.value).pure[F]
@@ -58,7 +72,7 @@ extension [F[_]: MonadThrow](userRepo: UserMapper[F])
 case class CirclesAuth[F[_]: MonadThrow](
     circlesRepo: CirclesRepository[F],
     userRepo: UserMapper[F]
-):
+) extends CirclesAuthChecker[F]:
   private val circleFromUser =
     userCircleExtractor.apply(circlesRepo)(userRepo)
 
@@ -75,8 +89,29 @@ case class CirclesAuth[F[_]: MonadThrow](
 
 case class CircleMemberAuth[F[_]: MonadThrow](
     userRepo: UserMapper[F],
+    circlesRepo: CirclesRepository[F],
     circleMembersRepo: CircleMembersRepository[F]
-):
+) extends CircleMemberAuthChecker[F]:
+
+  def authCheck(userInfo: F[Email], circleMemberId: CircleMemberId): F[Unit] =
+    AuthCheck.checkAuthorization(
+      userInfo,
+      circleMemberId,
+      circleFromUser,
+      extractCircle
+    )
+
+  def sameCircleMemberId(
+      userInfo: F[Email],
+      circleMemberId: CircleMemberId
+  ): F[Unit] =
+    for
+      email <- userInfo
+      memberIds <- emailToCircleMembersId(email)
+      isMember = memberIds.contains(circleMemberId.value)
+      _ <- if isMember then ().pure[F] else forbiddenError.raiseError[F, Unit]
+    yield ()
+
   private def emailToCircleMembersId(
       email: Email
   ): F[List[String]] =
@@ -88,20 +123,14 @@ case class CircleMemberAuth[F[_]: MonadThrow](
       circleMemberList <- circleMembersRepo.byUserId(UserId(user.id))
     yield circleMemberList.map(_.id)
 
-  def authCheck(
-      userInfo: F[Email],
-      circleMemberId: CircleMemberId
-  ): F[Unit] =
-    for
-      email <- userInfo
-      memberIds <- emailToCircleMembersId(email)
-      isMember = memberIds.contains(circleMemberId.value)
-      _ <- if isMember then ().pure[F] else forbiddenError.raiseError[F, Unit]
-    yield ()
+  private val circleFromUser =
+    userCircleExtractor.apply(circlesRepo)(userRepo)
 
-case class UserAuth[F[_]: MonadThrow](userRepo: UserMapper[F]):
-  private def emailToId(email: Email): F[Either[NotFoundError, String]] =
-    userRepo.findUserByEmail(email).map(_.map(_.id))
+  private val extractCircle: CircleMemberId => NotFoundCircleId[F] =
+    circleMemberId => circleMembersRepo.extractCircle(circleMemberId)
+
+case class UserAuth[F[_]: MonadThrow](userRepo: UserMapper[F])
+    extends UserAuthChecker[F]:
 
   def authCheck(userInfo: F[Email], userId: UserId): F[Unit] =
     for
@@ -113,6 +142,9 @@ case class UserAuth[F[_]: MonadThrow](userRepo: UserMapper[F]):
         .ensure(forbiddenError)(_ == userId.value)
         .void
     yield ()
+
+  private def emailToId(email: Email): F[Either[NotFoundError, String]] =
+    userRepo.findUserByEmail(email).map(_.map(_.id))
 
 def userCircleExtractor[F[_]: MonadThrow] =
   (circlesRepo: CirclesRepository[F]) =>
