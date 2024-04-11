@@ -24,7 +24,17 @@ trait CirclesRepository[F[_]] extends CirclesMapper[F] with UserCirclesMapper[F]
   */
 trait CircleMembersRepository[F[_]]
     extends CircleMemberMapper[F]
-    with CircleToMembersMapper[F]
+    with CircleToMembersMapper[F]:
+
+  /** Retrieves the circle members for a given user. This means that you'll
+    * typically get a list of all the circles that the user is a member of.
+    *
+    * @param userId
+    *   The ID of the user.
+    * @return
+    *   A list of CircleMemberReadMapper objects.
+    */
+  def byUserId(userId: UserId): F[List[CircleMemberReadMapper]]
 /*
 Contains a factory method for creating a CirclesRepository from a session.
  */
@@ -70,10 +80,12 @@ object CircleMembersRepository:
     for
       mainMapper <- CircleMemberMapper.fromSession(session)
       circleToMembers <- CircleToMembersMapper.fromSession(session)
+      userToCircleMembers <- UserToCircleMembersMapper.fromSession(session)
     yield new CircleMembersRepository[F]:
 
       export mainMapper._
       export circleToMembers.{listChildren, listChildren as byCircleId}
+      export userToCircleMembers.{listChildren as byUserId}
 
 /** Describes a circle read mapper. This class is a one to one mapping of the
   * circle table in the database without the creation and update timestamps.
@@ -129,6 +141,59 @@ case class CircleMemberReadMapper(
     userId: String,
     displayName: String
 )
+
+/** Represents a mapper that maps users to circle members.
+  *
+  * @tparam F
+  *   The effect type. It is typically effectful because it requires a database
+  *   to fetch the data.
+  */
+trait UserToCircleMembersMapper[F[_]]
+    extends HasMany[F, UserId, CircleMemberReadMapper]:
+
+  /** Retrieves a list of circle members that are children of the specified
+    * parent user.
+    *
+    * @param parent
+    *   The ID of the parent user.
+    * @return
+    *   A list of circle members that are children of the specified parent user.
+    */
+  def listChildren(parent: UserId): F[List[CircleMemberReadMapper]]
+
+/** Companion object for the `UserToCircleMembersMapper` trait. This object
+  * contains a factory method for creating a new instance of the mapper.
+  */
+object UserToCircleMembersMapper:
+
+  /** Creates a new instance of `UserToCircleMembersMapper` using the provided
+    * session. This method is effectful because it prepares the SQL query for
+    * the mapper.
+    *
+    * @param session
+    *   The database session.
+    * @tparam F
+    *   The effect type, representing the context in which the mapping operation
+    *   is performed.
+    * @return
+    *   A new instance of `UserToCircleMembersMapper`.
+    */
+  def fromSession[F[_]: Concurrent](
+      session: Session[F]
+  ): F[UserToCircleMembersMapper[F]] =
+    for listCircleMembersQuery <- session.prepare(listCircleMembersQuery)
+    yield new UserToCircleMembersMapper[F]:
+      def listChildren(parent: UserId): F[List[CircleMemberReadMapper]] =
+        listCircleMembersQuery.stream(parent.value, 1024).compile.toList
+
+  private val listCircleMembersQuery: Query[String, CircleMemberReadMapper] =
+    sql"""
+      SELECT cm.id, cm.circle_id, cm.user_id, cm.display_name
+      FROM circle_members cm
+      WHERE cm.user_id = $text
+    """
+      .query(text *: text *: text *: text)
+      .to[CircleMemberReadMapper]
 
 /** Represents a Circle Member Write Mapper. This class is used to map data for
   * writing circle members. The ID is required, but the display name is required

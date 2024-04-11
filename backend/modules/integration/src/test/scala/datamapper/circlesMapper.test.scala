@@ -247,3 +247,33 @@ class CircleMembersRepositorySuite extends DatabaseSuite:
         )
       yield assertEquals(members.length, 1)
     )
+
+  test("You should be able to list all circles a user is in"):
+    val session = sessionPool()
+    val testCircle = CreateCircleInput(UserId("10"), "User", "Test Circle")
+    val testUser = (UserId("10"), "User", "User")
+    session.use: session =>
+      for
+        circlesRepo <- CirclesRepository.fromSession(session)
+        circleMembersRepo <- CircleMembersRepository.fromSession(session)
+        circle1 <- circlesRepo.create(testCircle)
+        circle2 <- circlesRepo.create(testCircle)
+        userRepo <- UserMapper.fromSession(session)
+        uuid <- UUIDGen[IO].randomUUID
+        _ <- userRepo.createUser(uuid, Email("foo@bar.com"), "password")
+        member1 = AddUserToCircleInput(
+          UserId(uuid.toString()),
+          "User",
+          CircleId(circle1.id)
+        )
+        member2 = AddUserToCircleInput(
+          UserId(uuid.toString()),
+          "User",
+          CircleId(circle2.id)
+        )
+        member1 <- circleMembersRepo.create(member1)
+        member2 <- circleMembersRepo.create(member2)
+        circles <- circleMembersRepo.byUserId(UserId(uuid.toString()))
+        expected = List(member1.id, member2.id).sorted
+        obtained = circles.map(_.id).sorted
+      yield assertEquals(obtained, expected)
