@@ -3,6 +3,7 @@ package exsplit
 import exsplit.spec._
 import cats.effect._
 import cats.syntax.all._
+import cats.data._
 import org.http4s.implicits._
 import org.http4s.ember.server._
 import org.http4s._
@@ -21,16 +22,19 @@ import exsplit.migration.migrateDb
 import exsplit.authorization.Middleware
 import io.chrisdavenport.fiberlocal.FiberLocal
 import exsplit.authorization._
+import cats._
 object Routes:
-  def fromSession(
+  def fromSession[F[_]: Async: Parallel](
       config: AuthConfig,
-      local: FiberLocal[IO, Either[InvalidTokenError, Email]],
-      session: Session[IO]
+      local: FiberLocal[F, Either[InvalidTokenError, Email]],
+      session: Session[F]
   ) =
-    for
+    val email = for
       emailEither <- local.get
-      email = IO.fromEither(emailEither)
-      userService <- AuthEntryPoint.fromSession[IO](session, config)
+      email <- emailEither.liftTo[F]
+    yield email
+    for
+      userService <- AuthEntryPoint.fromSession(session, config)
       expenseService <- ExpenseServiceWithAuth.fromSession(email, session)
       expenseListService <- ExpenseListServiceWithAuth.fromSession(
         email,
@@ -46,12 +50,12 @@ object Routes:
       routesWithLocal = routes.map(Middleware.withRequestInfo(_, config, local))
     yield routesWithLocal
 
-  private def servicesToRoutes(
-      userService: UserService[IO],
-      expenseService: ExpenseService[IO],
-      expenseListService: ExpenseListService[IO],
-      circlesService: CirclesService[IO]
-  ): Resource[IO, HttpRoutes[IO]] =
+  private def servicesToRoutes[F[_]: Async](
+      userService: UserService[F],
+      expenseService: ExpenseService[F],
+      expenseListService: ExpenseListService[F],
+      circlesService: CirclesService[F]
+  ): Resource[F, HttpRoutes[F]] =
     for
       userRoute <- SimpleRestJsonBuilder.routes(userService).resource
       expenseRoute <- SimpleRestJsonBuilder.routes(expenseService).resource
@@ -59,13 +63,13 @@ object Routes:
       circlesRoute <- SimpleRestJsonBuilder.routes(circlesService).resource
     yield userRoute <+> expenseRoute <+> expListRoute <+> circlesRoute <+> docs
 
-  private val docs: HttpRoutes[IO] =
+  private def docs[F[_]: Sync]: HttpRoutes[F] =
     smithy4s.http4s.swagger
-      .docs[IO](UserService, ExpenseService, ExpenseListService, CirclesService)
+      .docs[F](UserService, ExpenseService, ExpenseListService, CirclesService)
 
-  def makeServer(routes: HttpRoutes[IO]) =
+  def makeServer[F[_]: Async](routes: HttpRoutes[F]) =
     EmberServerBuilder
-      .default[IO]
+      .default[F]
       .withPort(port"9000")
       .withHost(ipv4"0.0.0.0")
       .withHttpApp(routes.orNotFound)
@@ -82,7 +86,7 @@ object Main extends IOApp.Simple:
 
   val run =
     migrateDb(migrationConfig) >> SessionPool
-      .makePool(repoConfig)
+      .makePool[IO](repoConfig)
       .use: sessionPool =>
         sessionPool.use: session =>
           local.flatMap: local =>
