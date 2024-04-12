@@ -40,24 +40,7 @@ case class ExpenseServiceImpl[F[_]: MonadThrow: Parallel](
       date: Timestamp,
       owedToPayer: List[OwedAmount]
   ): F[CreateExpenseOutput] =
-    def createExpenseHelper(
-        expenseRead: ExpenseReadMapper,
-        member: CircleMemberOut
-    ): F[CreateExpenseOutput] =
-      val expenseId = ExpenseId(expenseRead.id)
-      for
-        owedAmounts <- owedAmountRepo.getOwedAmounts(expenseId)
-        out = ExpenseOut(
-          expenseRead.id,
-          member,
-          expenseRead.description,
-          expenseRead.price,
-          date,
-          owedAmounts
-        )
-      yield CreateExpenseOutput(out)
-
-    val create = CreateExpenseInput(
+    val input = CreateExpenseInput(
       expenseListId,
       paidBy,
       description,
@@ -65,9 +48,22 @@ case class ExpenseServiceImpl[F[_]: MonadThrow: Parallel](
       date,
       owedToPayer
     )
+    def createExpenseHelper(
+        exp: ExpenseReadMapper,
+        member: CircleMemberOut
+    ): F[CreateExpenseOutput] =
+      val expenseId = ExpenseId(exp.id)
+      val amounts = owedToPayer.map: o =>
+        CreateOwedAmountInput(expenseId, paidBy, o.circleMemberId, o.amount)
+
+      for
+        _ <- amounts.parTraverse(owedAmountRepo.create)
+        owed <- owedAmountRepo.getOwedAmounts(expenseId)
+        out = ExpenseOut(exp.id, member, exp.description, exp.price, date, owed)
+      yield CreateExpenseOutput(out)
 
     expenseListRepo.withValidExpenseList(expenseListId) *>
-      (expenseRepo.create(create), membersRepo.getCircleMemberOut(paidBy))
+      (expenseRepo.create(input), membersRepo.getCircleMemberOut(paidBy))
         .parFlatMapN(createExpenseHelper)
 
   def getExpense(id: ExpenseId): F[GetExpenseOutput] =
