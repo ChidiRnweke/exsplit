@@ -15,7 +15,7 @@ import exsplit.authorization.extractors._
 import exsplit.authorization._
 
 object CirclesEntryPoint:
-  def fromSession[F[_]: Concurrent](
+  def fromSession[F[_]: Concurrent: Parallel](
       session: Session[F]
   ): F[CirclesService[F]] =
     (
@@ -24,28 +24,26 @@ object CirclesEntryPoint:
       UserMapper.fromSession(session)
     ).mapN(CirclesServiceImpl(_, _, _))
 
-case class CirclesServiceImpl[F[_]: MonadThrow](
+case class CirclesServiceImpl[F[_]: MonadThrow: Parallel](
     circlesRepo: CirclesRepository[F],
     circleMembersRepo: CircleMembersRepository[F],
     userRepo: UserMapper[F]
 ) extends CirclesService[F]:
 
   def listCirclesForUser(userId: UserId): F[CirclesOut] =
-    withValidUser(userId, userRepo): user =>
-      circlesRepo.getCirclesOut(userId)
+    withValidUser(userId, userRepo) *> circlesRepo.getCirclesOut(userId)
 
   def removeMemberFromCircle(
       circleId: CircleId,
       member: CircleMemberId
   ): F[Unit] =
-    circlesRepo.withValidCircle(circleId): _ =>
-      circleMembersRepo.withValidCircleMember(member): _ =>
-        for
-          _ <- circleMembersRepo.delete(member)
-          // TODO: the user is not allowed to have outstanding debts in the circle
-          members <- circleMembersRepo.getCircleMembersOuts(circleId)
-          _ <- handleEmptyCircle(circleId, members)
-        yield ()
+    for
+      _ <- circlesRepo.withValidCircle(circleId)
+      _ <- circleMembersRepo.delete(member)
+      // TODO: the user is not allowed to have outstanding debts in the circle
+      members <- circleMembersRepo.getCircleMembersOuts(circleId)
+      _ <- deleteCircleIfEmpty(circleId, members)
+    yield ()
 
   def getCircle(circleId: CircleId): F[GetCircleOutput] =
     circlesRepo.getCircleOut(circleId).map(GetCircleOutput(_))
@@ -55,10 +53,12 @@ case class CirclesServiceImpl[F[_]: MonadThrow](
       memberId: CircleMemberId,
       displayName: String
   ): F[Unit] =
-    circleMembersRepo.withValidCircleMember(memberId): member =>
-      circlesRepo.withValidCircle(circleId): circle =>
-        val write = CircleMemberWriteMapper(memberId.value, displayName)
-        circleMembersRepo.update(write)
+    val write = CircleMemberWriteMapper(memberId.value, displayName)
+
+    (
+      circleMembersRepo.withValidCircleMember(memberId),
+      circlesRepo.withValidCircle(circleId)
+    ).parTupled *> circleMembersRepo.update(write)
 
   def createCircle(
       userId: UserId,
@@ -66,26 +66,31 @@ case class CirclesServiceImpl[F[_]: MonadThrow](
       circleName: String,
       description: Option[String]
   ): F[CreateCircleOutput] =
-    withValidUser(userId, userRepo): user =>
-      circlesRepo
+    for
+      _ <- withValidUser(userId, userRepo)
+      circle <- circlesRepo
         .createCircle(userId, displayName, circleName, description)
-        .map(CreateCircleOutput(_))
+      circleId = CircleId(circle.circleId)
+      _ <- circleMembersRepo.addCircleMember(userId, displayName, circleId)
+    yield CreateCircleOutput(circle)
 
   def addUserToCircle(
       user: UserId,
       displayName: String,
       circleId: CircleId
   ): F[Unit] =
-    withValidUser(user, userRepo): validUser =>
-      circlesRepo.withValidCircle(circleId): circle =>
-        circleMembersRepo.addCircleMember(user, displayName, circleId).void
+    (
+      withValidUser(user, userRepo),
+      circlesRepo.withValidCircle(circleId)
+    ).parTupled *>
+      circleMembersRepo.addCircleMember(user, displayName, circleId).void
 
   def deleteCircle(circleId: CircleId): F[Unit] =
     // TODO: the circle is not allowed to have outstanding debts
     circlesRepo.delete(circleId)
 
   def listCircleMembers(circleId: CircleId): F[MembersListOut] =
-    circlesRepo.withValidCircle(circleId): circle =>
+    circlesRepo.withValidCircle(circleId) *>
       circleMembersRepo.getCircleMembersOuts(circleId).map(MembersListOut(_))
 
   def updateCircle(
@@ -93,10 +98,10 @@ case class CirclesServiceImpl[F[_]: MonadThrow](
       name: Option[String],
       description: Option[String]
   ): F[Unit] =
-    circlesRepo.withValidCircle(circleId): circle =>
+    circlesRepo.withValidCircle(circleId) *>
       circlesRepo.update(CircleWriteMapper(circleId.value, name, description))
 
-  private def handleEmptyCircle(
+  private def deleteCircleIfEmpty(
       circleId: CircleId,
       members: List[CircleMemberOut]
   ): F[Unit] =

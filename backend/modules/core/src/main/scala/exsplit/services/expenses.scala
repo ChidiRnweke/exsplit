@@ -66,7 +66,7 @@ case class ExpenseServiceImpl[F[_]: MonadThrow: Parallel](
       owedToPayer
     )
 
-    expenseListRepo.withValidExpenseList(expenseListId): expenseList =>
+    expenseListRepo.withValidExpenseList(expenseListId) *>
       (expenseRepo.create(create), membersRepo.getCircleMemberOut(paidBy))
         .parFlatMapN(createExpenseHelper)
 

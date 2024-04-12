@@ -39,7 +39,7 @@ case class ExpenseListServiceImpl[F[_]: MonadThrow: Parallel](
       circleId: CircleId,
       name: String
   ): F[CreateExpenseListOutput] =
-    circlesRepo.withValidCircle(circleId): circle =>
+    circlesRepo.withValidCircle(circleId) *>
       expenseListRepo
         .createExpenseList(circleId, name)
         .map(CreateExpenseListOutput(_))
@@ -74,9 +74,9 @@ case class ExpenseListServiceImpl[F[_]: MonadThrow: Parallel](
   def getSettledExpenseLists(
       expenseListId: ExpenseListId
   ): F[GetSettledExpenseListsOutput] =
-    expenseListRepo.withValidExpenseList(expenseListId): expenseList =>
-      val tabs = ???
-      val settledTabsOut = SettledTabsOut(tabs)
+    val tabs = ???
+    val settledTabsOut = SettledTabsOut(tabs)
+    expenseListRepo.withValidExpenseList(expenseListId) *>
       GetSettledExpenseListsOutput(settledTabsOut).pure[F]
 
   def settleExpenseList(
@@ -85,25 +85,26 @@ case class ExpenseListServiceImpl[F[_]: MonadThrow: Parallel](
       toMemberId: CircleMemberId,
       amount: Amount
   ): F[Unit] =
-    expenseListRepo.withValidExpenseList(expenseListId): expenseList =>
-      circleMembersRepo.withValidCircleMember(fromMemberId): fromMember =>
-        circleMembersRepo.withValidCircleMember(toMemberId): toMember =>
-          settledTabRepository
-            .create(expenseListId, fromMemberId, toMemberId, amount)
-            .void
+    (
+      expenseListRepo.withValidExpenseList(expenseListId),
+      circleMembersRepo.withValidCircleMember(fromMemberId),
+      circleMembersRepo.withValidCircleMember(toMemberId)
+    ).parTupled *>
+      settledTabRepository
+        .create(expenseListId, fromMemberId, toMemberId, amount)
+        .void
 
   def deleteExpenseList(id: ExpenseListId): F[Unit] =
-    expenseListRepo.withValidExpenseList(id): expenseList =>
-      expenseListRepo.delete(id)
+    expenseListRepo.withValidExpenseList(id) *> expenseListRepo.delete(id)
 
   def getExpenseLists(circleId: CircleId): F[GetExpenseListsOutput] =
-    circlesRepo.withValidCircle(circleId): circle =>
-      (expenseListRepo
+    circlesRepo.withValidCircle(circleId) *>
+      expenseListRepo
         .byCircleId(circleId)
-        .map(_.toExpenseListOuts))
+        .map(_.toExpenseListOuts)
         .map(lists => GetExpenseListsOutput(ExpenseListsOut(lists)))
 
   def updateExpenseList(id: ExpenseListId, name: String): F[Unit] =
-    expenseListRepo.withValidExpenseList(id): expenseList =>
-      val write = ExpenseListWriteMapper(id.value, name)
+    val write = ExpenseListWriteMapper(id.value, name)
+    expenseListRepo.withValidExpenseList(id) *>
       expenseListRepo.update(write)

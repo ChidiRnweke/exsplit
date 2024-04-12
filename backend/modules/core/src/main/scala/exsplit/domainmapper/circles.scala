@@ -45,11 +45,8 @@ extension [F[_]: MonadThrow](circlesMapper: CirclesRepository[F])
     circlesMapper.create(input).map(_.toCircleOut)
 
 extension [F[_]: MonadThrow, A](repo: CirclesRepository[F])
-  def withValidCircle(circleId: CircleId)(action: CircleOut => F[A]): F[A] =
-    for
-      circleOut <- repo.getCircleOut(circleId)
-      result <- action(circleOut)
-    yield result
+  def withValidCircle(circleId: CircleId): F[CircleReadMapper] =
+    repo.get(circleId).rethrow
 
 extension (circleRead: CircleReadMapper)
   /** Extension method for `CircleReadMapper` that converts a `CircleReadMapper`
@@ -111,14 +108,11 @@ extension [F[_]: MonadThrow](circleMemberMapper: CircleMembersRepository[F])
     val input = AddUserToCircleInput(userId, displayName, circleId)
     circleMemberMapper.create(input).map(_.toCircleMemberOut)
 
-extension [F[_]: MonadThrow, A](repo: CircleMembersRepository[F])
+extension [F[_]: MonadThrow](repo: CircleMembersRepository[F])
   def withValidCircleMember(
       memberId: CircleMemberId
-  )(action: CircleMemberOut => F[A]): F[A] =
-    for
-      member <- repo.getCircleMemberOut(memberId)
-      result <- action(member)
-    yield result
+  ): F[CircleMemberReadMapper] =
+    repo.get(memberId).rethrow
 
 extension (circleMemberRead: CircleMemberReadMapper)
   /** Extension method for `CircleMemberReadMapper` that converts a

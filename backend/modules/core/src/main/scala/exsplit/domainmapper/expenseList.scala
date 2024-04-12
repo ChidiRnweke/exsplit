@@ -50,10 +50,5 @@ extension [F[_]: MonadThrow: Parallel](repo: ExpenseListRepository[F])
         owedTotal
       )
 
-  def withValidExpenseList[A](
-      expenseListId: ExpenseListId
-  )(action: ExpenseListOut => F[A]): F[A] =
-    for
-      expenseList <- repo.getExpenseListOut(expenseListId)
-      result <- action(expenseList)
-    yield result
+  def withValidExpenseList[A](expenseListId: ExpenseListId): F[ExpenseListOut] =
+    repo.getExpenseListOut(expenseListId)
