@@ -106,5 +106,4 @@ case class ExpenseListServiceImpl[F[_]: MonadThrow: Parallel](
 
   def updateExpenseList(id: ExpenseListId, name: String): F[Unit] =
     val write = ExpenseListWriteMapper(id.value, name)
-    expenseListRepo.withValidExpenseList(id) *>
-      expenseListRepo.update(write)
+    expenseListRepo.withValidExpenseList(id) *> expenseListRepo.update(write)

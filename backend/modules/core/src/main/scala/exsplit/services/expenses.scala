@@ -67,8 +67,9 @@ case class ExpenseServiceImpl[F[_]: MonadThrow: Parallel](
         .parFlatMapN(createExpenseHelper)
 
   def getExpense(id: ExpenseId): F[GetExpenseOutput] =
-    expenseRepo.withValidExpense(id, owedAmountRepo): expense =>
-      GetExpenseOutput(expense).pure[F]
+    expenseRepo
+      .getExpenseOut(id, owedAmountRepo)
+      .map(GetExpenseOutput(_))
 
   def deleteExpense(id: ExpenseId): F[Unit] =
     expenseRepo.delete(id)
