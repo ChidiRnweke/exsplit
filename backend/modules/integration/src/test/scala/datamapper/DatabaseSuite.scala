@@ -63,7 +63,7 @@ abstract class DatabaseSuite extends CatsEffectSuite with TestContainerForAll:
   )
 
   /** Wait strategy for checking if the database system is ready to accept
-    * connections. It waits for the log message ".*database system is ready to
+    * connections. It wait s for the log message ".*database system is ready to
     * accept connections.*" to appear twice.
     */
   private val waitStrategy = Wait.forLogMessage(
