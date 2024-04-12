@@ -97,12 +97,12 @@ object AuthEntryPoint:
       session: Session[F],
       authConfig: AuthConfig
   ): F[UserService[F]] =
-    for
-      userRepo <- UserMapper.fromSession[F](session)
-      uuid = UUIDGen[F]
-      validator = BCrypt.createValidator[F]
-      clock = Clock[F]
-    yield createService(authConfig, userRepo, clock, validator, uuid)
+    val clock = Clock[F]
+    val bcrypt = BCrypt.createValidator[F]
+    val uuid = UUIDGen[F]
+    UserMapper
+      .fromSession[F](session)
+      .map(createService(authConfig, _, clock, bcrypt, uuid))
 
 /** Executes the specified action with a valid user. The action is performed
   * with the user read from the database. If the user is not found, an error is
@@ -582,7 +582,6 @@ extension (email: Email)
       case false => Left(ValidationError("Invalid email format."))
 
 extension (user: UserReadMapper)
-
   /** Converts a UserReadMapper object to a User object. This method is used for
     * converting the UserReadMapper object to the User domain model. The User
     * domain model is used for the business logic of the application.
@@ -591,20 +590,3 @@ extension (user: UserReadMapper)
     *   The converted User object. More or less an isomorphic mapping.
     */
   def toUser: User = User(user.id, user.email, user.password)
-
-  /** Updates the user with the specified email and password. This method is
-    * used for updating the user data. The email and password are optional, so
-    * they can be updated independently or together.
-    *
-    * @param email
-    *   The new email for the user (optional).
-    * @param password
-    *   The new password for the user (optional).
-    * @return
-    *   The updated UserWriteMapper object.
-    */
-  def updateUser(
-      email: Option[String],
-      password: Option[String]
-  ): UserWriteMapper =
-    UserWriteMapper(user.id, email, password)

@@ -18,12 +18,11 @@ object CirclesEntryPoint:
   def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[CirclesService[F]] =
-    for
-      circlesRepo <- CirclesRepository.fromSession(session)
-      circleMembersRepo <- CircleMembersRepository.fromSession(session)
-      userRepo <- UserMapper.fromSession(session)
-      service = CirclesServiceImpl(circlesRepo, circleMembersRepo, userRepo)
-    yield service
+    (
+      CirclesRepository.fromSession(session),
+      CircleMembersRepository.fromSession(session),
+      UserMapper.fromSession(session)
+    ).mapN(CirclesServiceImpl(_, _, _))
 
 case class CirclesServiceImpl[F[_]: MonadThrow](
     circlesRepo: CirclesRepository[F],
@@ -33,8 +32,7 @@ case class CirclesServiceImpl[F[_]: MonadThrow](
 
   def listCirclesForUser(userId: UserId): F[CirclesOut] =
     withValidUser(userId, userRepo): user =>
-      for circles <- circlesRepo.getCirclesOut(userId)
-      yield circles
+      circlesRepo.getCirclesOut(userId)
 
   def removeMemberFromCircle(
       circleId: CircleId,
@@ -88,8 +86,7 @@ case class CirclesServiceImpl[F[_]: MonadThrow](
 
   def listCircleMembers(circleId: CircleId): F[MembersListOut] =
     circlesRepo.withValidCircle(circleId): circle =>
-      for members <- circleMembersRepo.getCircleMembersOuts(circleId)
-      yield MembersListOut(members)
+      circleMembersRepo.getCircleMembersOuts(circleId).map(MembersListOut(_))
 
   def updateCircle(
       circleId: CircleId,
@@ -97,8 +94,7 @@ case class CirclesServiceImpl[F[_]: MonadThrow](
       description: Option[String]
   ): F[Unit] =
     circlesRepo.withValidCircle(circleId): circle =>
-      val write = CircleWriteMapper(circleId.value, name, description)
-      circlesRepo.update(write)
+      circlesRepo.update(CircleWriteMapper(circleId.value, name, description))
 
   private def handleEmptyCircle(
       circleId: CircleId,

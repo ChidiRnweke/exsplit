@@ -132,17 +132,19 @@ object SettledTabRepository:
   def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[SettledTabRepository[F]] =
-    for
-      mainMapper <- SettledTabMapper.fromSession(session)
-      byExpenses_ <- ExpenseListToSettledTabs.fromSession(session)
-      byFromMembers_ <- FromMemberToSettledTabs.fromSession(session)
-      byToMembers_ <- ToMemberToSettledTabs.fromSession(session)
-    yield new SettledTabRepository[F]:
+    (
+      SettledTabMapper.fromSession(session),
+      ExpenseListToSettledTabs.fromSession(session),
+      FromMemberToSettledTabs.fromSession(session),
+      ToMemberToSettledTabs.fromSession(session)
+    )
+      .mapN: (mainMapper, byExpenses, byFromMembersRepo, byToMembersRepo) =>
+        new SettledTabRepository[F]:
 
-      export mainMapper._
-      export byExpenses_.{listChildren as fromExpenseList}
-      export byFromMembers_.{listChildren as byFromMembers}
-      export byToMembers_.{listChildren as byToMembers}
+          export mainMapper._
+          export byExpenses.{listChildren as fromExpenseList}
+          export byFromMembersRepo.{listChildren as byFromMembers}
+          export byToMembersRepo.{listChildren as byToMembers}
 
 /** A trait representing a data mapper for Settled Tabs. It provides methods for
   * creating, retrieving, updating, and deleting Settled Tabs.
@@ -263,10 +265,14 @@ object ExpenseListToSettledTabs:
   def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[ExpenseListToSettledTabs[F]] =
-    for getSettledTabsQuery <- session.prepare(getSettledTabsQuery)
-    yield new ExpenseListToSettledTabs[F]:
-      def listChildren(parent: ExpenseListId): F[List[SettledTabReadMapper]] =
-        getSettledTabsQuery.stream(parent.value, 1024).compile.toList
+    session
+      .prepare(getSettledTabsQuery)
+      .map: getSettledTabsQuery =>
+        new ExpenseListToSettledTabs[F]:
+          def listChildren(
+              parent: ExpenseListId
+          ): F[List[SettledTabReadMapper]] =
+            getSettledTabsQuery.stream(parent.value, 1024).compile.toList
 
   private val getSettledTabsQuery: Query[String, SettledTabReadMapper] =
     sql"""
@@ -290,10 +296,14 @@ object FromMemberToSettledTabs:
   def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[FromMemberToSettledTabs[F]] =
-    for getSettledTabsQuery <- session.prepare(getSettledTabsQuery)
-    yield new FromMemberToSettledTabs[F]:
-      def listChildren(parent: CircleMemberId): F[List[SettledTabReadMapper]] =
-        getSettledTabsQuery.stream(parent.value, 1024).compile.toList
+    session
+      .prepare(getSettledTabsQuery)
+      .map: getSettledTabsQuery =>
+        new FromMemberToSettledTabs[F]:
+          def listChildren(
+              parent: CircleMemberId
+          ): F[List[SettledTabReadMapper]] =
+            getSettledTabsQuery.stream(parent.value, 1024).compile.toList
 
   private val getSettledTabsQuery: Query[String, SettledTabReadMapper] =
     sql"""
@@ -317,10 +327,14 @@ object ToMemberToSettledTabs:
   def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[ToMemberToSettledTabs[F]] =
-    for getSettledTabsQuery <- session.prepare(getSettledTabsQuery)
-    yield new ToMemberToSettledTabs[F]:
-      def listChildren(parent: CircleMemberId): F[List[SettledTabReadMapper]] =
-        getSettledTabsQuery.stream(parent.value, 1024).compile.toList
+    session
+      .prepare(getSettledTabsQuery)
+      .map: getSettledTabsQuery =>
+        new ToMemberToSettledTabs[F]:
+          def listChildren(
+              parent: CircleMemberId
+          ): F[List[SettledTabReadMapper]] =
+            getSettledTabsQuery.stream(parent.value, 1024).compile.toList
 
   private val getSettledTabsQuery: Query[String, SettledTabReadMapper] =
     sql"""
@@ -348,45 +362,42 @@ object SettledTabMapper:
   def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[SettledTabMapper[F]] =
-    for
-      getSettledTabQuery <- session.prepare(getSettledTabQuery)
-      createSettledTabQuery <- session.prepare(createSettledTabQuery)
-      deleteSettledTabQuery <- session.prepare(deleteSettledTabQuery)
-      updateSettledTabFromMemberQuery <- session.prepare(
-        updateSettledTabFromMemberQuery
-      )
-      updateSettledTabToMemberQuery <- session.prepare(
-        updateSettledTabToMemberQuery
-      )
-      updateSettledTabAmountQuery <- session.prepare(
-        updateSettledTabAmountQuery
-      )
-    yield new SettledTabMapper[F]:
+    (
+      session.prepare(getSettledTabQuery),
+      session.prepare(createSettledTabQuery),
+      session.prepare(deleteSettledTabQuery),
+      session.prepare(updateSettledTabFromMemberQuery),
+      session.prepare(updateSettledTabToMemberQuery),
+      session.prepare(updateSettledTabAmountQuery)
+    ).mapN(fromQueries)
+
+  private def fromQueries[F[_]: Concurrent](
+      getSettledTabQuery: PreparedQuery[F, String, SettledTabReadMapper],
+      createSettledTabQuery: PreparedQuery[
+        F,
+        SettleExpenseListInput,
+        SettledTabReadMapper
+      ],
+      deleteSettledTabQuery: PreparedCommand[F, String],
+      updateSettledTabFromMemberQuery: PreparedCommand[F, (String, String)],
+      updateSettledTabToMemberQuery: PreparedCommand[F, (String, String)],
+      updateSettledTabAmountQuery: PreparedCommand[F, (Float, String)]
+  ): SettledTabMapper[F] =
+    new SettledTabMapper[F]:
       def create(input: SettleExpenseListInput): F[SettledTabReadMapper] =
         createSettledTabQuery.unique(input)
 
       def get(id: String): F[Either[NotFoundError, SettledTabReadMapper]] =
         getSettledTabQuery
           .option(id)
-          .map:
-            case Some(value) => Right(value)
-            case None =>
-              Left(NotFoundError(s"Settled tab with id $id not found"))
+          .map(_.toRight(NotFoundError(s"SettledTab $id not found")))
 
       def update(b: SettledTabWriteMapper): F[Unit] =
-        val actions = List(
-          b.fromMember.map(member =>
-            updateSettledTabFromMemberQuery.execute((member, b.id))
-          ),
-          b.toMember.map(member =>
-            updateSettledTabToMemberQuery.execute((member, b.id))
-          ),
-          b.amount.map(amount =>
-            updateSettledTabAmountQuery.execute((amount, b.id))
-          )
-        ).flatten
-
-        actions.sequence.void
+        List(
+          b.fromMember.map(updateSettledTabFromMemberQuery.execute(_, b.id)),
+          b.toMember.map(updateSettledTabToMemberQuery.execute(_, b.id)),
+          b.amount.map(updateSettledTabAmountQuery.execute(_, b.id))
+        ).flatten.sequence.void
 
       def delete(id: String): F[Unit] =
         deleteSettledTabQuery.execute(id).void

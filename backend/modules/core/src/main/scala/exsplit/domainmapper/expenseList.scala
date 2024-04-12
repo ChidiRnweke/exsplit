@@ -11,13 +11,11 @@ import exsplit.datamapper.circles._
 
 extension [F[_]: MonadThrow](expenseMapper: ExpenseListRepository[F])
   def getExpenseListOut(id: ExpenseListId): F[ExpenseListOut] =
-    for expenseList <- expenseMapper.get(id).rethrow
-    yield expenseList.toExpenseListOut
+    expenseMapper.get(id).rethrow.map(_.toExpenseListOut)
 
   def createExpenseList(circleId: CircleId, name: String): F[ExpenseListOut] =
     val input = CreateExpenseListInput(circleId, name)
-    for expenseList <- expenseMapper.create(input)
-    yield expenseList.toExpenseListOut
+    expenseMapper.create(input).map(_.toExpenseListOut)
 
 extension (expenseList: ExpenseListReadMapper)
   def toExpenseListOut: ExpenseListOut =
@@ -27,7 +25,7 @@ extension (expenseLists: List[ExpenseListReadMapper])
   def toExpenseListOuts: List[ExpenseListOut] =
     expenseLists.map(_.toExpenseListOut)
 
-extension [F[_]: MonadThrow](repo: ExpenseListRepository[F])
+extension [F[_]: MonadThrow: Parallel](repo: ExpenseListRepository[F])
 
   def getExpenseListDetail(
       id: ExpenseListId,
@@ -35,24 +33,22 @@ extension [F[_]: MonadThrow](repo: ExpenseListRepository[F])
       owedAmountRepo: OwedAmountRepository[F],
       circleMembersRepo: CircleMembersRepository[F]
   ): F[ExpenseListDetailOut] =
-    for
-      expenseList <- repo.getExpenseListOut(id)
-      expenses <- expenseRepo.listExpenseOut(
-        id,
-        circleMembersRepo,
-        owedAmountRepo
+    (
+      repo.getExpenseListOut(id),
+      expenseRepo.listExpenseOut(id, circleMembersRepo, owedAmountRepo)
+    ).parFlatMapN: (expenseList, expenses) =>
+      for
+        owedAmounts <- expenses.parFlatTraverse(e =>
+          owedAmountRepo.getOwedAmounts(ExpenseId(e.id))
+        )
+        owedTotal = owedAmounts.toTotalOwed
+        totalExpense = expenses.map(_.price).sum
+      yield ExpenseListDetailOut(
+        expenseList,
+        expenses,
+        totalExpense,
+        owedTotal
       )
-      owedAmounts <- expenses.flatTraverse(e =>
-        owedAmountRepo.getOwedAmounts(ExpenseId(e.id))
-      )
-      owedTotal = owedAmounts.toTotalOwed
-      totalExpense = expenses.map(_.price).sum
-    yield ExpenseListDetailOut(
-      expenseList,
-      expenses,
-      totalExpense,
-      owedTotal
-    )
 
   def withValidExpenseList[A](
       expenseListId: ExpenseListId

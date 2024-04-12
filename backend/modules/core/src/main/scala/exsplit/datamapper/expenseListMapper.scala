@@ -51,13 +51,13 @@ object ExpenseListRepository:
   def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[ExpenseListRepository[F]] =
-    for
-      mainMapper <- ExpenseListMapper.fromSession(session)
-      circlesMapper <- CirclesExpenseListMapper.fromSession(session)
-    yield new ExpenseListRepository[F]:
-
-      export mainMapper._
-      export circlesMapper.{listChildren as byCircleId}
+    (
+      ExpenseListMapper.fromSession(session),
+      CirclesExpenseListMapper.fromSession(session)
+    ).mapN: (mainMapper, circlesMapper) =>
+      new ExpenseListRepository[F]:
+        export mainMapper._
+        export circlesMapper.{listChildren as byCircleId}
 
 /** Represents the read model of an expense list. This class is a one to one
   * mapping of the expense list table in the database without the creation and
@@ -175,15 +175,15 @@ object CirclesExpenseListMapper:
   def fromSession[F[_]: Concurrent](
       session: Session[F]
   ): F[CirclesExpenseListMapper[F]] =
-    for getQuery <- session.prepare(getExpenseListQuery)
-    yield new CirclesExpenseListMapper[F]:
-      def listChildren(
-          parentId: CircleId
-      ): F[List[ExpenseListReadMapper]] =
-        getQuery
-          .stream(parentId.value, 1024)
-          .compile
-          .toList
+    session
+      .prepare(getExpenseListQuery)
+      .map: getQuery =>
+        new CirclesExpenseListMapper[F]:
+          def listChildren(parentId: CircleId): F[List[ExpenseListReadMapper]] =
+            getQuery
+              .stream(parentId.value, 1024)
+              .compile
+              .toList
 
   private val getExpenseListQuery: Query[String, ExpenseListReadMapper] = sql"""
     SELECT id, name, circle_id FROM expense_lists WHERE circle_id = $text
@@ -205,12 +205,20 @@ object ExpenseListMapper:
     *   A `F[ExpenseListMapper[F]]` representing the created mapper instance.
     */
   def fromSession[F[_]: Monad](session: Session[F]): F[ExpenseListMapper[F]] =
-    for
-      createQuery <- session.prepare(createExpenseListQuery)
-      getQuery <- session.prepare(getExpenseListQuery)
-      updateQuery <- session.prepare(updateExpenseListQuery)
-      deleteQuery <- session.prepare(deleteExpenseListQuery)
-    yield new ExpenseListMapper[F]:
+    (
+      session.prepare(createExpenseListQuery),
+      session.prepare(getExpenseListQuery),
+      session.prepare(updateExpenseListQuery),
+      session.prepare(deleteExpenseListQuery)
+    ).mapN(fromQueries)
+
+  private def fromQueries[F[_]: Functor](
+      createQuery: PreparedQuery[F, (String, String), ExpenseListReadMapper],
+      getQuery: PreparedQuery[F, String, ExpenseListReadMapper],
+      updateQuery: PreparedCommand[F, (String, String)],
+      deleteQuery: PreparedCommand[F, String]
+  ): ExpenseListMapper[F] =
+    new ExpenseListMapper[F]:
       def create(a: CreateExpenseListInput): F[ExpenseListReadMapper] =
         createQuery.unique(a.circleId.value, a.name)
 
@@ -225,10 +233,7 @@ object ExpenseListMapper:
       ): F[Either[NotFoundError, ExpenseListReadMapper]] =
         getQuery
           .option(id.value)
-          .map:
-            case Some(value) => Right(value)
-            case None =>
-              Left(NotFoundError(s"Expense list with id $id not found"))
+          .map(_.toRight(NotFoundError(s"Expense list $id not found")))
 
   private val getExpenseListQuery: Query[String, ExpenseListReadMapper] = sql"""
     SELECT id, name, circle_id FROM expense_lists WHERE id = $text

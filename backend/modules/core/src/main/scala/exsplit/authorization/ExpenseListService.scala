@@ -19,31 +19,35 @@ object ExpenseListServiceWithAuth:
       userInfo: F[Email],
       session: Session[F]
   ): F[ExpenseListService[F]] =
-    for
-      service <- ExpenseListEntryPoint.fromSession(session)
-      userMapper <- UserMapper.fromSession(session)
-      circlesRepo <- CirclesRepository.fromSession(session)
-      membersRepo <- CircleMembersRepository.fromSession(session)
-      expenseListRepo <- ExpenseListRepository.fromSession(session)
-      expenseRepo <- ExpenseRepository.fromSession(session)
-      circlesAuth = CirclesAuth(circlesRepo, userMapper)
-      circleMemberAuth = CircleMemberAuth(userMapper, circlesRepo, membersRepo)
-      expenseListAuth = ExpenseListAuth(
-        userMapper,
-        circlesRepo,
-        expenseListRepo
-      )
-      expenseAuth = ExpenseAuth(
-        userMapper,
-        circlesRepo,
-        expenseListRepo,
-        expenseRepo
-      )
-    yield ExpenseListServiceWithAuth(
+    (
+      ExpenseListEntryPoint.fromSession(session),
+      UserMapper.fromSession(session),
+      CirclesRepository.fromSession(session),
+      CircleMembersRepository.fromSession(session),
+      ExpenseListRepository.fromSession(session),
+      ExpenseRepository.fromSession(session)
+    ).mapN(makeAuthService(userInfo, _, _, _, _, _, _))
+
+  private def makeAuthService[F[_]: MonadThrow: Parallel](
+      userInfo: F[Email],
+      service: ExpenseListService[F],
+      userMapper: UserMapper[F],
+      circlesRepo: CirclesRepository[F],
+      membersRepo: CircleMembersRepository[F],
+      listRepo: ExpenseListRepository[F],
+      expenseRepo: ExpenseRepository[F]
+  ) =
+    val circlesAuth = CirclesAuth(circlesRepo, userMapper)
+    val membersAuth = CircleMemberAuth(userMapper, circlesRepo, membersRepo)
+    val listAuth = ExpenseListAuth(userMapper, circlesRepo, listRepo)
+    val expenseAuth =
+      ExpenseAuth(userMapper, circlesRepo, listRepo, expenseRepo)
+
+    ExpenseListServiceWithAuth(
       userInfo,
       circlesAuth,
-      circleMemberAuth,
-      expenseListAuth,
+      membersAuth,
+      listAuth,
       expenseAuth,
       service
     )
@@ -61,37 +65,29 @@ case class ExpenseListServiceWithAuth[F[_]: Monad: Parallel](
       circleId: CircleId,
       name: String
   ): F[CreateExpenseListOutput] =
-    for
-      _ <- circlesAuth.authCheck(userInfo, circleId)
-      res <- service.createExpenseList(circleId, name)
-    yield res
+    circlesAuth.authCheck(userInfo, circleId) *>
+      service.createExpenseList(circleId, name)
 
   def deleteExpenseList(id: ExpenseListId): F[Unit] =
-    for
-      expenseList <- expenseListAuth.authCheck(userInfo, id)
-      _ <- service.deleteExpenseList(id)
-    yield ()
+    expenseListAuth.authCheck(userInfo, id) *>
+      service.deleteExpenseList(id)
+
   def getExpenseList(
       expenseListId: ExpenseListId,
       onlyOutstanding: Option[Boolean]
   ): F[GetExpenseListOutput] =
-    for
-      _ <- expenseListAuth.authCheck(userInfo, expenseListId)
-      res <- service.getExpenseList(expenseListId, onlyOutstanding)
-    yield res
+    expenseListAuth.authCheck(userInfo, expenseListId) *>
+      service.getExpenseList(expenseListId, onlyOutstanding)
+
   def getExpenseLists(circleId: CircleId): F[GetExpenseListsOutput] =
-    for
-      _ <- circlesAuth.authCheck(userInfo, circleId)
-      res <- service.getExpenseLists(circleId)
-    yield res
+    circlesAuth.authCheck(userInfo, circleId) *>
+      service.getExpenseLists(circleId)
 
   def getSettledExpenseLists(
       expenseListId: ExpenseListId
   ): F[GetSettledExpenseListsOutput] =
-    for
-      _ <- expenseListAuth.authCheck(userInfo, expenseListId)
-      res <- service.getSettledExpenseLists(expenseListId)
-    yield res
+    expenseListAuth.authCheck(userInfo, expenseListId) *>
+      service.getSettledExpenseLists(expenseListId)
 
   def settleExpenseList(
       expenseListId: ExpenseListId,
@@ -99,21 +95,17 @@ case class ExpenseListServiceWithAuth[F[_]: Monad: Parallel](
       toMemberId: CircleMemberId,
       amount: Amount
   ): F[Unit] =
-    for
-      _ <- (
-        expenseListAuth.authCheck(userInfo, expenseListId),
-        circleMemberAuth.authCheck(userInfo, fromMemberId),
-        circleMemberAuth.authCheck(userInfo, toMemberId)
-      ).parTupled
-      _ <- service.settleExpenseList(
+    (
+      expenseListAuth.authCheck(userInfo, expenseListId),
+      circleMemberAuth.authCheck(userInfo, fromMemberId),
+      circleMemberAuth.authCheck(userInfo, toMemberId)
+    ).parTupled *>
+      service.settleExpenseList(
         expenseListId,
         fromMemberId,
         toMemberId,
         amount
       )
-    yield ()
   def updateExpenseList(id: ExpenseListId, name: String): F[Unit] =
-    for
-      _ <- expenseListAuth.authCheck(userInfo, id)
-      _ <- service.updateExpenseList(id, name)
-    yield ()
+    expenseListAuth.authCheck(userInfo, id) *>
+      service.updateExpenseList(id, name)

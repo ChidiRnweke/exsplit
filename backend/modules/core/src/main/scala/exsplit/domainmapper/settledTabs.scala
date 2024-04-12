@@ -15,5 +15,4 @@ extension [F[_]: Functor](mapper: SettledTabMapper[F])
   ): F[SettledTabReadMapper] =
     val input =
       SettleExpenseListInput(expenseListId, fromMember, toMember, amount)
-    for settledTab <- mapper.create(input)
-    yield settledTab
+    mapper.create(input)

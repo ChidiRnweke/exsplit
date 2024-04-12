@@ -12,70 +12,70 @@ import exsplit.datamapper.user.UserMapper
 import exsplit.datamapper.circles._
 
 object CirclesWithAuthEntryPoint:
-  def fromSession[F[_]: Concurrent](
+  def fromSession[F[_]: Concurrent: Parallel](
       userInfo: F[Email],
       session: Session[F]
   ): F[CirclesService[F]] =
-    for
-      service <- CirclesEntryPoint.fromSession(session)
-      userMapper <- UserMapper.fromSession(session)
-      circlesRepo <- CirclesRepository.fromSession(session)
-      membersRepo <- CircleMembersRepository.fromSession(session)
-      circlesAuth = CirclesAuth(circlesRepo, userMapper)
-      userAuth = UserAuth(userMapper)
-      circleMemberAuth = CircleMemberAuth(userMapper, circlesRepo, membersRepo)
-    yield CirclesServiceWithAuth(
-      userInfo,
-      circlesAuth,
-      circleMemberAuth,
-      userAuth,
-      service
-    )
+    (
+      CirclesEntryPoint.fromSession(session),
+      UserMapper.fromSession(session),
+      CirclesRepository.fromSession(session),
+      CircleMembersRepository.fromSession(session)
+    ).mapN(makeAuthService(userInfo, _, _, _, _))
 
-case class CirclesServiceWithAuth[F[_]: MonadThrow](
+  private def makeAuthService[F[_]: MonadThrow: Parallel](
+      userInfo: F[Email],
+      service: CirclesService[F],
+      userMapper: UserMapper[F],
+      circlesRepo: CirclesRepository[F],
+      membersRepo: CircleMembersRepository[F]
+  ) =
+    val circlesAuth = CirclesAuth(circlesRepo, userMapper)
+    val userAuth = UserAuth(userMapper)
+    val memberAuth = CircleMemberAuth(userMapper, circlesRepo, membersRepo)
+    CirclesServiceWithAuth(userInfo, circlesAuth, memberAuth, userAuth, service)
+
+case class CirclesServiceWithAuth[F[_]: MonadThrow: Parallel](
     userInfo: F[Email],
     circlesAuth: CirclesAuth[F],
     circleMemberAuth: CircleMemberAuth[F],
     userAuth: UserAuth[F],
-    serviceImpl: CirclesService[F]
+    service: CirclesService[F]
 ) extends CirclesService[F]:
 
   def listCircleMembers(circleId: CircleId): F[MembersListOut] =
-    for
-      _ <- circlesAuth.authCheck(userInfo, circleId)
-      res <- serviceImpl.listCircleMembers(circleId)
-    yield res
+    circlesAuth.authCheck(userInfo, circleId) *>
+      service.listCircleMembers(circleId)
 
   def removeMemberFromCircle(
       circleId: CircleId,
       memberId: CircleMemberId
   ): F[Unit] =
-    for _ <- circleMemberAuth.sameCircleMemberId(userInfo, memberId)
-    yield serviceImpl.removeMemberFromCircle(circleId, memberId)
+    circleMemberAuth.sameCircleMemberId(userInfo, memberId) *>
+      service.removeMemberFromCircle(circleId, memberId)
 
   def getCircle(circleId: CircleId): F[GetCircleOutput] =
-    for
-      _ <- circlesAuth.authCheck(userInfo, circleId)
-      res <- serviceImpl.getCircle(circleId)
-    yield res
+    circlesAuth.authCheck(userInfo, circleId) *>
+      service.getCircle(circleId)
 
   def addUserToCircle(
       userId: UserId,
       displayName: String,
       circleId: CircleId
   ): F[Unit] =
-    for
-      _ <- userAuth.authCheck(userInfo, userId)
-      _ <- circlesAuth.authCheck(userInfo, circleId)
-    yield serviceImpl.addUserToCircle(userId, displayName, circleId)
+    (
+      userAuth.authCheck(userInfo, userId),
+      circlesAuth.authCheck(userInfo, circleId)
+    ).parTupled *>
+      service.addUserToCircle(userId, displayName, circleId)
 
   def changeDisplayName(
       circleId: CircleId,
       memberId: CircleMemberId,
       displayName: String
   ): F[Unit] =
-    for _ <- circleMemberAuth.sameCircleMemberId(userInfo, memberId)
-    yield serviceImpl.changeDisplayName(circleId, memberId, displayName)
+    circleMemberAuth.sameCircleMemberId(userInfo, memberId) *>
+      service.changeDisplayName(circleId, memberId, displayName)
 
   def createCircle(
       userId: UserId,
@@ -83,30 +83,19 @@ case class CirclesServiceWithAuth[F[_]: MonadThrow](
       circleName: String,
       description: Option[String]
   ): F[CreateCircleOutput] =
-    for
-      _ <- userAuth.authCheck(userInfo, userId)
-      res <- serviceImpl.createCircle(
-        userId,
-        displayName,
-        circleName,
-        description
-      )
-    yield res
+    userAuth.authCheck(userInfo, userId) *>
+      service.createCircle(userId, displayName, circleName, description)
 
   def deleteCircle(circleId: CircleId): F[Unit] =
-    for _ <- circlesAuth.authCheck(userInfo, circleId)
-    yield serviceImpl.deleteCircle(circleId)
+    circlesAuth.authCheck(userInfo, circleId) *> service.deleteCircle(circleId)
 
   def listCirclesForUser(userId: UserId): F[CirclesOut] =
-    for
-      _ <- userAuth.authCheck(userInfo, userId)
-      res <- serviceImpl.listCirclesForUser(userId)
-    yield res
+    userAuth.authCheck(userInfo, userId) *> service.listCirclesForUser(userId)
 
   def updateCircle(
       circleId: CircleId,
       circleName: Option[String],
       description: Option[String]
   ): F[Unit] =
-    for _ <- circlesAuth.authCheck(userInfo, circleId)
-    yield serviceImpl.updateCircle(circleId, circleName, description)
+    circlesAuth.authCheck(userInfo, circleId) *>
+      service.updateCircle(circleId, circleName, description)

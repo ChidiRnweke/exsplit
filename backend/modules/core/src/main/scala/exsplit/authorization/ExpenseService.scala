@@ -16,38 +16,34 @@ import exsplit.datamapper.expenseList.ExpenseListRepository
 import exsplit.datamapper.expenses.ExpenseRepository
 
 object ExpenseServiceWithAuth:
-  def fromSession[F[_]: Concurrent](
+  def fromSession[F[_]: Concurrent: Parallel](
       userInfo: F[Email],
       session: Session[F]
   ): F[ExpenseService[F]] =
-    for
-      service <- ExpensesEntryPoint.fromSession(session)
-      userMapper <- UserMapper.fromSession(session)
-      expenseRepo <- ExpenseRepository.fromSession(session)
-      circlesRepo <- CirclesRepository.fromSession(session)
-      membersRepo <- CircleMembersRepository.fromSession(session)
-      expenseListRepo <- ExpenseListRepository.fromSession(session)
-      circleMemberAuth = CircleMemberAuth(userMapper, circlesRepo, membersRepo)
-      expenseListAuth = ExpenseListAuth(
-        userMapper,
-        circlesRepo,
-        expenseListRepo
-      )
-      expenseAuth = ExpenseAuth(
-        userMapper,
-        circlesRepo,
-        expenseListRepo,
-        expenseRepo
-      )
-    yield ExpenseServiceWithAuth(
-      userInfo,
-      circleMemberAuth,
-      expenseListAuth,
-      expenseAuth,
-      service
-    )
+    (
+      ExpensesEntryPoint.fromSession(session),
+      UserMapper.fromSession(session),
+      ExpenseRepository.fromSession(session),
+      CirclesRepository.fromSession(session),
+      CircleMembersRepository.fromSession(session),
+      ExpenseListRepository.fromSession(session)
+    ).mapN(makeAuthService(userInfo, _, _, _, _, _, _))
 
-case class ExpenseServiceWithAuth[F[_]: Monad](
+  private def makeAuthService[F[_]: MonadThrow: Parallel](
+      userInfo: F[Email],
+      service: ExpenseService[F],
+      userMapper: UserMapper[F],
+      expenseRepo: ExpenseRepository[F],
+      circlesRepo: CirclesRepository[F],
+      membersRepo: CircleMembersRepository[F],
+      expListRepo: ExpenseListRepository[F]
+  ): ExpenseServiceWithAuth[F] =
+    val memberAuth = CircleMemberAuth(userMapper, circlesRepo, membersRepo)
+    val listAuth = ExpenseListAuth(userMapper, circlesRepo, expListRepo)
+    val expAuth = ExpenseAuth(userMapper, circlesRepo, expListRepo, expenseRepo)
+    ExpenseServiceWithAuth(userInfo, memberAuth, listAuth, expAuth, service)
+
+case class ExpenseServiceWithAuth[F[_]: Monad: Parallel](
     userInfo: F[Email],
     circleMemberAuth: CircleMemberAuth[F],
     expenseListAuth: ExpenseListAuth[F],
@@ -63,27 +59,22 @@ case class ExpenseServiceWithAuth[F[_]: Monad](
       date: Timestamp,
       owedToPayer: List[OwedAmount]
   ): F[CreateExpenseOutput] =
-    for
-      _ <- expenseListAuth.authCheck(userInfo, expenseListId)
-      _ <- circleMemberAuth.authCheck(userInfo, paidBy)
-      res <- service.createExpense(
-        expenseListId,
-        paidBy,
-        description,
-        price,
-        date,
-        owedToPayer
-      )
-    yield res
+    (
+      expenseListAuth.authCheck(userInfo, expenseListId),
+      circleMemberAuth.authCheck(userInfo, paidBy)
+    ).parTupled *> service.createExpense(
+      expenseListId,
+      paidBy,
+      description,
+      price,
+      date,
+      owedToPayer
+    )
   def deleteExpense(id: ExpenseId): F[Unit] =
-    for _ <- expenseAuth.authCheck(userInfo, id)
-    yield service.deleteExpense(id)
+    expenseAuth.authCheck(userInfo, id) *> service.deleteExpense(id)
 
   def getExpense(id: ExpenseId): F[GetExpenseOutput] =
-    for
-      _ <- expenseAuth.authCheck(userInfo, id)
-      res <- service.getExpense(id)
-    yield res
+    expenseAuth.authCheck(userInfo, id) *> service.getExpense(id)
 
   def updateExpense(
       id: ExpenseId,
@@ -93,15 +84,14 @@ case class ExpenseServiceWithAuth[F[_]: Monad](
       date: Option[Timestamp],
       owedToPayer: Option[List[OwedAmount]]
   ): F[Unit] =
-    for
-      _ <- expenseAuth.authCheck(userInfo, id)
-      _ <- paidBy.traverse(circleMemberAuth.authCheck(userInfo, _))
-      _ <- service.updateExpense(
-        id,
-        paidBy,
-        description,
-        price,
-        date,
-        owedToPayer
-      )
-    yield ()
+    (
+      expenseAuth.authCheck(userInfo, id),
+      paidBy.traverse(circleMemberAuth.authCheck(userInfo, _))
+    ).parTupled *> service.updateExpense(
+      id,
+      paidBy,
+      description,
+      price,
+      date,
+      owedToPayer
+    )

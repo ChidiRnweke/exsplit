@@ -18,8 +18,7 @@ extension [F[_]: MonadThrow](circlesMapper: CirclesRepository[F])
     *   A `CircleOut` object wrapped in the effect type `F`.
     */
   def getCircleOut(id: CircleId): F[CircleOut] =
-    for circleRead <- circlesMapper.get(id).rethrow
-    yield circleRead.toCircleOut
+    circlesMapper.get(id).rethrow.map(_.toCircleOut)
 
   /** Creates a new circle within the domain type `CircleOut` instead of the
     * database representation `CircleReadMapper`.
@@ -43,8 +42,7 @@ extension [F[_]: MonadThrow](circlesMapper: CirclesRepository[F])
   ): F[CircleOut] =
     val input =
       CreateCircleInput(userId, displayName, circleName, description)
-    for circleRead <- circlesMapper.create(input)
-    yield circleRead.toCircleOut
+    circlesMapper.create(input).map(_.toCircleOut)
 
 extension [F[_]: MonadThrow, A](repo: CirclesRepository[F])
   def withValidCircle(circleId: CircleId)(action: CircleOut => F[A]): F[A] =
@@ -75,8 +73,7 @@ extension [F[_]: MonadThrow](userCircleRead: UserCirclesMapper[F])
     *   The `UserCirclesMapper` instance.
     */
   def getCirclesOut(userId: UserId): F[CirclesOut] =
-    for userCirclesRead <- userCircleRead.listPrimaries(userId)
-    yield userCirclesRead.toCirclesOut
+    userCircleRead.listPrimaries(userId).map(_.toCirclesOut)
 
 /** Extension method for `List[CircleReadMapper]` that converts a list of
   * `CircleReadMapper` instances to `CircleOut` instances.
@@ -84,8 +81,7 @@ extension [F[_]: MonadThrow](userCircleRead: UserCirclesMapper[F])
   *   The list of `CircleReadMapper` instances.
   */
 extension (userCircles: List[CircleReadMapper])
-  def toCirclesOut: CirclesOut =
-    CirclesOut(userCircles.map(_.toCircleOut))
+  def toCirclesOut: CirclesOut = CirclesOut(userCircles.map(_.toCircleOut))
 
 /** Extension methods for mapping circle members between different
   * representations.
@@ -105,8 +101,7 @@ extension [F[_]: MonadThrow](circleMemberMapper: CircleMembersRepository[F])
     *   A `CircleMemberOut` object wrapped in the effect type `F`.
     */
   def getCircleMemberOut(id: CircleMemberId): F[CircleMemberOut] =
-    for circleMemberRead <- circleMemberMapper.get(id).rethrow
-    yield circleMemberRead.toCircleMemberOut
+    circleMemberMapper.get(id).rethrow.map(_.toCircleMemberOut)
 
   def addCircleMember(
       userId: UserId,
@@ -114,8 +109,7 @@ extension [F[_]: MonadThrow](circleMemberMapper: CircleMembersRepository[F])
       circleId: CircleId
   ): F[CircleMemberOut] =
     val input = AddUserToCircleInput(userId, displayName, circleId)
-    for circleMemberRead <- circleMemberMapper.create(input)
-    yield circleMemberRead.toCircleMemberOut
+    circleMemberMapper.create(input).map(_.toCircleMemberOut)
 
 extension [F[_]: MonadThrow, A](repo: CircleMembersRepository[F])
   def withValidCircleMember(
@@ -149,8 +143,7 @@ extension [F[_]: MonadThrow](circleToMembersMapper: CircleToMembersMapper[F])
     *   A list of `CircleMemberOut` objects wrapped in the effect type `F`.
     */
   def getCircleMembersOuts(circleId: CircleId): F[List[CircleMemberOut]] =
-    for circleMembersRead <- circleToMembersMapper.listChildren(circleId)
-    yield circleMembersRead.toCircleMemberOuts
+    circleToMembersMapper.listChildren(circleId).map(_.toCircleMemberOuts)
 
 extension (circleMembers: List[CircleMemberReadMapper])
   /** Extension method for a list of `CircleMemberReadMapper` objects that

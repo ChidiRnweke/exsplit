@@ -14,26 +14,19 @@ import exsplit.datamapper.settledTabs._
 import skunk.Session
 
 object ExpenseListEntryPoint:
-  def fromSession[F[_]: Concurrent](
+  def fromSession[F[_]: Concurrent: Parallel](
       session: Session[F]
   ): F[ExpenseListService[F]] =
-    for
-      expenseListRepo <- ExpenseListRepository.fromSession(session)
-      circleMembersRepo <- CircleMembersRepository.fromSession(session)
-      circlesRepo <- CirclesRepository.fromSession(session)
-      settledTabRepository <- SettledTabRepository.fromSession(session)
-      owedAmountsRepo <- OwedAmountRepository.fromSession(session)
-      expenseRepo <- ExpenseRepository.fromSession(session)
-    yield ExpenseListServiceImpl(
-      expenseListRepo,
-      circleMembersRepo,
-      expenseRepo,
-      circlesRepo,
-      owedAmountsRepo,
-      settledTabRepository
-    )
+    (
+      ExpenseListRepository.fromSession(session),
+      CircleMembersRepository.fromSession(session),
+      ExpenseRepository.fromSession(session),
+      CirclesRepository.fromSession(session),
+      OwedAmountRepository.fromSession(session),
+      SettledTabRepository.fromSession(session)
+    ).mapN(ExpenseListServiceImpl(_, _, _, _, _, _))
 
-case class ExpenseListServiceImpl[F[_]: MonadThrow](
+case class ExpenseListServiceImpl[F[_]: MonadThrow: Parallel](
     expenseListRepo: ExpenseListRepository[F],
     circleMembersRepo: CircleMembersRepository[F],
     expenseRepository: ExpenseRepository[F],
@@ -105,10 +98,10 @@ case class ExpenseListServiceImpl[F[_]: MonadThrow](
 
   def getExpenseLists(circleId: CircleId): F[GetExpenseListsOutput] =
     circlesRepo.withValidCircle(circleId): circle =>
-      for
-        read <- expenseListRepo.byCircleId(circleId)
-        expenseLists = read.toExpenseListOuts
-      yield GetExpenseListsOutput(ExpenseListsOut(expenseLists))
+      (expenseListRepo
+        .byCircleId(circleId)
+        .map(_.toExpenseListOuts))
+        .map(lists => GetExpenseListsOutput(ExpenseListsOut(lists)))
 
   def updateExpenseList(id: ExpenseListId, name: String): F[Unit] =
     expenseListRepo.withValidExpenseList(id): expenseList =>

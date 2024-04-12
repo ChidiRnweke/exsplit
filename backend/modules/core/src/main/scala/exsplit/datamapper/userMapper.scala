@@ -133,22 +133,36 @@ object UserMapper:
    * @return
    *   An effect that yields a new `UserMapper` instance.
    */
-  def fromSession[F[_]: Concurrent](
+  def fromSession[F[_]: Applicative](
       session: Session[F]
   ): F[UserMapper[F]] =
-    for
-      findUserByIdQuery <- session.prepare(userFromId)
-      findUserByEmailQuery <- session.prepare(userFromEmail)
-      createUserCommand <- session.prepare(_createUser)
-      updateEmailCommand <- session.prepare(updateEmail)
-      updatePasswordCommand <- session.prepare(updatePassword)
-      deleteUserCommand <- session.prepare(deleteUser)
-    yield new UserMapper[F]:
+    (
+      session.prepare(userFromId),
+      session.prepare(userFromEmail),
+      session.prepare(_createUser),
+      session.prepare(updateEmail),
+      session.prepare(updatePassword),
+      session.prepare(deleteUser)
+    ).mapN(fromQueries[F])
+
+  def fromQueries[F[_]: Applicative](
+      findUserByIdQuery: PreparedQuery[F, String, UserReadMapper],
+      findUserByEmailQuery: PreparedQuery[F, String, UserReadMapper],
+      createUserCommand: PreparedQuery[
+        F,
+        (String, String, String),
+        UserReadMapper
+      ],
+      updateEmailCommand: PreparedCommand[F, (String, String)],
+      updatePasswordCommand: PreparedCommand[F, (String, String)],
+      deleteUserCommand: PreparedCommand[F, String]
+  ): UserMapper[F] =
+    new UserMapper[F]:
 
       def get(id: String): F[Either[NotFoundError, UserReadMapper]] =
         findUserByIdQuery
           .option(id)
-          .map(_.toRight(NotFoundError(s"User with id = $id not found.")))
+          .map(_.toRight(NotFoundError(s"User $id not found.")))
 
       def delete(id: String): F[Unit] =
         deleteUserCommand.execute(id).void
@@ -161,31 +175,23 @@ object UserMapper:
       ): F[Either[NotFoundError, UserReadMapper]] =
         findUserByIdQuery
           .option(userId.value)
-          .map(_.toRight(NotFoundError(s"User with id = $userId not found.")))
+          .map(_.toRight(NotFoundError(s"User $userId not found.")))
 
       def findUserByEmail(
           email: Email
       ): F[Either[NotFoundError, UserReadMapper]] =
         findUserByEmailQuery
           .option(email.value)
-          .map(
-            _.toRight(NotFoundError(s"User with email = $email not found."))
-          )
+          .map(_.toRight(NotFoundError(s"User with email $email not found.")))
 
       def createUser(id: UUID, email: Email, password: String): F[Unit] =
-        createUserCommand
-          .unique(id.toString(), email.value, password)
-          .void
+        createUserCommand.unique(id.toString(), email.value, password).void
 
       def update(user: UserWriteMapper): F[Unit] =
-        val actions = List(
-          user.email.map(email => updateEmailCommand.execute(email, user.id)),
-          user.password.map(password =>
-            updatePasswordCommand.execute(password, user.id)
-          )
-        ).flatten
-
-        actions.sequence.void
+        List(
+          user.email.map(updateEmailCommand.execute(_, user.id)),
+          user.password.map(updatePasswordCommand.execute(_, user.id))
+        ).flatten.sequence.void
 
       def updateUser(user: UserWriteMapper): F[Unit] =
         update(user).void

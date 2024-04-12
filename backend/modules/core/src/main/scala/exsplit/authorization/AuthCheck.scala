@@ -14,27 +14,23 @@ type NotFoundCircleId = [F[_]] =>> F[Either[NotFoundError, String]]
 
 object AuthCheck:
 
-  def checkAuthorization[F[_], A](
+  def checkAuthorization[F[_]: MonadThrow, A](
       email: F[Email],
       a: A,
       circleFromUser: UserCircles[F],
       extractorA: A => NotFoundCircleId[F]
-  )(using f: MonadThrow[F]): F[Unit] =
-    for
-      circleA <- extractorA(a)
-      userCircles <- circleFromUser(email)
-      res <- f.fromEither(authCheck(circleA, userCircles))
-      _ <- if res then f.unit else f.raiseError(forbiddenError)
-    yield ()
+  ): F[Unit] =
+    (extractorA(a), circleFromUser(email)).mapN:
+      authCheck(_, _).map: res =>
+        if res then () else forbiddenError.raiseError
 
   private def authCheck(
       circleA: Either[NotFoundError, String],
       userCircles: List[String]
   ): Either[ForbiddenError, Boolean] =
-    val res =
-      for a <- circleA
-      yield userCircles.contains(a)
-    res.leftMap(_ => forbiddenError)
+    circleA
+      .map(a => userCircles.contains(a))
+      .leftMap(_ => forbiddenError)
 
 object UserCircleExtractor:
   def apply[F[_]: MonadThrow](
@@ -44,13 +40,13 @@ object UserCircleExtractor:
     (email: F[Email]) => userToCircleIds(email, userRepo, circlesRepo)
 
   private def userToCircleIds[F[_]: MonadThrow](
-      email: F[Email],
+      getEmail: F[Email],
       userRepo: UserMapper[F],
       circlesRepo: CirclesRepository[F]
   ): F[List[String]] =
     for
-      email_ <- email
-      userEither <- userRepo.findUserByEmail(email_)
+      email <- getEmail
+      userEither <- userRepo.findUserByEmail(email)
       user <- userEither
         .leftMap(_ => forbiddenError)
         .liftTo[F]

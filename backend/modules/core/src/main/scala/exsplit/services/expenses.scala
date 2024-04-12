@@ -15,22 +15,17 @@ import java.time.LocalDate
 import skunk.Session
 
 object ExpensesEntryPoint:
-  def fromSession[F[_]: Concurrent](
+  def fromSession[F[_]: Concurrent: Parallel](
       session: Session[F]
-  ): F[ExpenseServiceImpl[F]] =
-    for
-      expenseListRepo <- ExpenseListRepository.fromSession(session)
-      circleMembersRepo <- CircleMembersRepository.fromSession(session)
-      owedAmountsRepo <- OwedAmountRepository.fromSession(session)
-      expenseRepo <- ExpenseRepository.fromSession(session)
-    yield ExpenseServiceImpl(
-      expenseRepo,
-      expenseListRepo,
-      circleMembersRepo,
-      owedAmountsRepo
-    )
+  ): F[ExpenseService[F]] =
+    (
+      ExpenseRepository.fromSession(session),
+      ExpenseListRepository.fromSession(session),
+      CircleMembersRepository.fromSession(session),
+      OwedAmountRepository.fromSession(session)
+    ).mapN(ExpenseServiceImpl(_, _, _, _))
 
-case class ExpenseServiceImpl[F[_]: MonadThrow](
+case class ExpenseServiceImpl[F[_]: MonadThrow: Parallel](
     expenseRepo: ExpenseRepository[F],
     expenseListRepo: ExpenseListRepository[F],
     membersRepo: CircleMembersRepository[F],
@@ -45,19 +40,12 @@ case class ExpenseServiceImpl[F[_]: MonadThrow](
       date: Timestamp,
       owedToPayer: List[OwedAmount]
   ): F[CreateExpenseOutput] =
-    expenseListRepo.withValidExpenseList(expenseListId): expenseList =>
-      val createExpenseInput = CreateExpenseInput(
-        expenseListId,
-        paidBy,
-        description,
-        price,
-        date,
-        owedToPayer
-      )
+    def createExpenseHelper(
+        expenseRead: ExpenseReadMapper,
+        member: CircleMemberOut
+    ): F[CreateExpenseOutput] =
+      val expenseId = ExpenseId(expenseRead.id)
       for
-        expenseRead <- expenseRepo.create(createExpenseInput)
-        member <- membersRepo.getCircleMemberOut(paidBy)
-        expenseId = ExpenseId(expenseRead.id)
         owedAmounts <- owedAmountRepo.getOwedAmounts(expenseId)
         out = ExpenseOut(
           expenseRead.id,
@@ -68,6 +56,19 @@ case class ExpenseServiceImpl[F[_]: MonadThrow](
           owedAmounts
         )
       yield CreateExpenseOutput(out)
+
+    val create = CreateExpenseInput(
+      expenseListId,
+      paidBy,
+      description,
+      price,
+      date,
+      owedToPayer
+    )
+
+    expenseListRepo.withValidExpenseList(expenseListId): expenseList =>
+      (expenseRepo.create(create), membersRepo.getCircleMemberOut(paidBy))
+        .parFlatMapN(createExpenseHelper)
 
   def getExpense(id: ExpenseId): F[GetExpenseOutput] =
     expenseRepo.withValidExpense(id, owedAmountRepo): expense =>
