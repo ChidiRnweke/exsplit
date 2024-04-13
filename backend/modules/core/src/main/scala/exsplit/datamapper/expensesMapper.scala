@@ -117,10 +117,10 @@ object ExpenseRepository:
    * database operations. It uses prepared statements. This means it needs to be run
    * inside a session.
    *
-   * @param session
-   *   The session to be used for database operations.
+   * @param pool
+   *  The session pool to be used for database operations.
    * @return
-   *   A `F[ExpenseRepository[F]]` representing the created repository instance.
+   *   A `ExpenseRepository[F]` representing the created repository instance.
    */
   def fromSession[F[_]: Concurrent: Parallel](
       pool: AppSessionPool[F]
@@ -142,15 +142,13 @@ object ExpenseRepository:
  */
 object OwedAmountRepository:
   /*
-   * Creates a new instance of `OwedAmountRepository` using the provided session. This
-   * method is effectful and returns a `F[OwedAmountRepository[F]]` because it requires
-   * database operations. It uses prepared statements. This means it needs to be run
-   * inside a session.
-   *
-   * @param session
-   *   The session to be used for database operations.
+   * Creates a new instance of `OwedAmountRepository` using the provided session.
+   * It runs each query inside its own session. The sessions are managed by the provided
+   * session pool.
+   * @param pool
+   *   The session pool to be used for database operations.
    * @return
-   *   A `F[OwedAmountRepository[F]]` representing the created repository instance.
+   *   A `OwedAmountRepository[F]` representing the created repository instance.
    */
   def fromSession[F[_]: Concurrent: Parallel](
       pool: AppSessionPool[F]
@@ -625,15 +623,13 @@ trait ExpenseListOwedAmountMapper[F[_]]
   * for creating an instance of the ExpenseMapper.
   */
 object ExpenseListOwedAmountMapper:
-  /** Creates an instance of ExpenseListOwedAmountMapper from a session. This is
-    * an effectful operation because the query needs to be prepared before the
-    * mapper can be created.
-    *
+  /** Creates an instance of ExpenseListOwedAmountMapper from a session. It runs
+    * each query inside a session. The sessions are managed by the provided
+    * session pool.
     * @param session
     *   The session to use for database operations.
     * @return
-    *   An effectful computation that yields an instance of
-    *   ExpenseListOwedAmountMapper.
+    *   The created ExpenseListOwedAmountMapper.
     */
   def fromSession[F[_]: Concurrent](
       pool: AppSessionPool[F]
@@ -662,8 +658,8 @@ object ExpenseListOwedAmountMapper:
   */
 object ExpenseDetailMapper:
   /** Creates a new instance of ExpenseDetailMapper using the provided session.
-    * This is an effectful operation because the query needs to be prepared
-    * before the mapper can be created.
+    * It runs each query inside a session. The sessions are managed by the
+    * provided session pool.
     *
     * @param session
     *   The database session.
@@ -710,8 +706,8 @@ object ExpenseDetailMapper:
           )
 object OwedAmountDetailMapper:
   /** Creates a new instance of OwedAmountDetailMapper using the provided
-    * session. This is an effectful operation because the query needs to be
-    * prepared before the mapper can be created.
+    * session. It runs each query inside a session. The sessions are managed by
+    * the provided session pool.
     * @param session
     *   The database session.
     * @tparam F
@@ -742,12 +738,11 @@ object OwedAmountDetailMapper:
   */
 object OwedAmountMapper:
 
-  /** Creates an instance of OwedAmountMapper from a session. This is an
-    * effectful operation because the queries need to be prepared before the
-    * mapper can be created.
+  /** Creates an instance of OwedAmountMapper from a session. It runs each query
+    * inside a session. The sessions are managed by the provided session pool
     *
-    * @param session
-    *   The session to create the mapper from.
+    * @param pool
+    *   The session pool to create the mapper from.
     * @return
     *   The created OwedAmountMapper.
     */
@@ -841,12 +836,11 @@ object OwedAmountMapper:
   */
 object ExpenseMapper:
 
-  /** Creates an instance of ExpenseMapper from a session. This is an effectful
-    * operation because the queries need to be prepared before the mapper can be
-    * created.
+  /** Creates an instance of ExpenseMapper from a session. It runs each query
+    * inside a session. The sessions are managed by the provided session pool.
     *
-    * @param session
-    *   The session to create the mapper from.
+    * @param pool
+    *   The session pool to create the mapper from.
     * @return
     *   The created ExpenseMapper.
     */
@@ -961,12 +955,12 @@ object ExpenseMapper:
   * CircleMemberToOwedAmountMapper.
   */
 object CircleMemberToOwedAmountMapper:
-  /** Creates a CircleMemberToOwedAmountMapper from a session. This is an
-    * effectful operation because the queries need to be prepared before the
-    * mapper can be created.
+  /** Creates a CircleMemberToOwedAmountMapper from a session. The session is
+    * used to run the queries. The session is managed by the provided session
+    * pool.
     *
-    * @param session
-    *   The session to create the mapper from.
+    * @param pool
+    *   The session pool to create the mapper from.
     * @return
     *   The created CircleMemberToOwedAmountMapper.
     */
@@ -1007,14 +1001,14 @@ object CircleMemberToOwedAmountMapper:
   * factory method for creating an instance of the CircleMemberToExpenseMapper.
   */
 object CircleMemberToExpenseMapper:
-  /** Creates a CircleMemberToExpenseMapper from a database session. This is an
-    * effectful operation because the query needs to be prepared before the
-    * mapper can be created.
+  /** Creates a CircleMemberToExpenseMapper from a database session. The session
+    * is used to run the queries. The session is managed by the provided session
+    * pool.
     *
-    * @param session
-    *   The database session.
+    * @param pool
+    *   The session pool to create the mapper from.
     * @return
-    *   A CircleMemberToExpenseMapper wrapped in an effect type F.
+    *   The created CircleMemberToExpenseMapper.
     */
   def fromSession[F[_]: Concurrent](
       pool: AppSessionPool[F]
@@ -1046,14 +1040,14 @@ object CircleMemberToExpenseMapper:
   * for creating an instance of the ExpenseMapper.
   */
 object ExpenseListToExpenseMapper:
-  /** Creates a new ExpenseListToExpenseMapper from a session. This is an
-    * effectful operation because the query needs to be prepared before the
-    * mapper can be created.
+  /** Creates a new ExpenseListToExpenseMapper from a session. The session is
+    * used to run the queries. The session is managed by the provided session
+    * pool.
     *
-    * @param session
-    *   the session to use for database operations
+    * @param pool
+    *   The session pool to create the mapper from.
     * @return
-    *   a new ExpenseListToExpenseMapper wrapped in an effect type F
+    *   the created ExpenseListToExpenseMapper
     */
   def fromSession[F[_]: Concurrent](
       pool: AppSessionPool[F]
@@ -1085,14 +1079,14 @@ object ExpenseListToExpenseMapper:
   * factory method for creating an instance of the `ExpensesToOwedAmountMapper`.
   */
 object ExpensesToOwedAmountMapper:
-  /** Creates an instance of `ExpensesToOwedAmountMapper` from a session. This
-    * is an effectful operation because the query needs to be prepared before
-    * the mapper can be created.
+  /** Creates an instance of `ExpensesToOwedAmountMapper` from a session. The
+    * session is used to run the queries. The session is managed by the provided
+    * session pool.
     *
-    * @param session
-    *   The session to use for database operations.
+    * @param pool
+    *   The session pool to create the mapper from.
     * @return
-    *   A `F` wrapped `ExpensesToOwedAmountMapper`.
+    *   The created `ExpensesToOwedAmountMapper`.
     */
   def fromSession[F[_]: Concurrent](
       pool: AppSessionPool[F]

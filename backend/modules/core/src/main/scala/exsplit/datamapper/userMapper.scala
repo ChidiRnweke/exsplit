@@ -126,13 +126,12 @@ trait UserMapper[F[_]]
 object UserMapper:
   /*
    * Creates a new `UserMapper` instance from the given `Session`.
-   * The `Session` is used for creating the prepared statements for the
-   * queries and commands. This is why this method is effectful.
+   * Each query is run inside an independent session.
    *
-   * @param session
-   *   The session to be used for creating the `UserMapper` instance.
+   * @param pool
+   *   The session pool to be used for database operations.
    * @return
-   *   An effect that yields a new `UserMapper` instance.
+   *   The created `UserMapper` instance.
    */
   def fromSession[F[_]: Cancel: Parallel](
       pool: AppSessionPool[F]

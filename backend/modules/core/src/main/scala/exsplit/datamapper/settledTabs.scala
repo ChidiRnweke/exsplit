@@ -121,14 +121,13 @@ trait SettledTabRepository[F[_]] extends SettledTabMapper[F]:
   * for creating a new instance of SettledTabRepository from a session.
   */
 object SettledTabRepository:
-  /** Creates a new instance of SettledTabRepository from a session. This is
-    * effectful because it requires preparing the queries. This is why the
-    * result is wrapped in an effect type `F`.
-    *
-    * @param session
-    *   the session to use for database operations.
+  /** Creates a new instance of SettledTabRepository from a session. Each query
+    * is run inside an individual session. The sessions are managed by the
+    * provided session pool.
+    * @param pool
+    *   the session pool to use for database operations.
     * @return
-    *   a new instance of SettledTabRepository wrapped in an effect type `F`.
+    *   a new instance of SettledTabRepository.
     */
   def fromSession[F[_]: Concurrent: Parallel](
       pool: AppSessionPool[F]
@@ -251,14 +250,14 @@ trait ToMemberToSettledTabs[F[_]]
   def listChildren(parent: CircleMemberId): F[List[SettledTabReadMapper]]
 
 object ExpenseListToSettledTabs:
-  /** Creates a new instance of ExpenseListToSettledTabs from a session. This is
-    * effectful because it requires preparing the queries. This is why the
-    * result is wrapped in an effect type `F`.
+  /** Creates a new instance of ExpenseListToSettledTabs from a session. Each
+    * query is run inside a session. The sessions are managed by the provided
+    * session pool.
     *
-    * @param session
-    *   the session to use for database operations
+    * @param pool
+    *   the session pool to use for database operations
     * @return
-    *   a new instance of ExpenseListToSettledTabs wrapped in an effect type `F`
+    *   a new instance of ExpenseListToSettledTabs.
     */
   def fromSession[F[_]: Concurrent](
       pool: AppSessionPool[F]
@@ -277,14 +276,14 @@ object ExpenseListToSettledTabs:
       .to[SettledTabReadMapper]
 
 object FromMemberToSettledTabs:
-  /** Creates a new instance of FromMemberToSettledTabs from a session. This is
-    * effectful because it requires preparing the queries. This is why the
-    * result is wrapped in an effect type `F`.
+  /** Creates a new instance of FromMemberToSettledTabs from a session. Each
+    * query is run inside a session. The sessions are managed by the provided
+    * session pool.
     *
-    * @param session
-    *   the session to use for database operations
+    * @param pool
+    *   the session pool to use for database operations.
     * @return
-    *   a new instance of FromMemberToSettledTabs wrapped in an effect type `F`
+    *   a new instance of FromMemberToSettledTabs.
     */
   def fromSession[F[_]: Concurrent](
       pool: AppSessionPool[F]
@@ -303,14 +302,14 @@ object FromMemberToSettledTabs:
       .to[SettledTabReadMapper]
 
 object ToMemberToSettledTabs:
-  /** Creates a new instance of ToMemberToSettledTabs from a session. This is
-    * effectful because it requires preparing the queries. This is why the
-    * result is wrapped in an effect type `F`.
+  /** Creates a new instance of ToMemberToSettledTabs from a session. Each query
+    * is run inside a session. The sessions are managed by the provided session
+    * pool.
     *
-    * @param session
-    *   the session to use for database operations
+    * @param pool
+    *   the session pool to use for database operations.
     * @return
-    *   a new instance of ToMemberToSettledTabs wrapped in an effect type `F`
+    *   a new instance of ToMemberToSettledTabs.
     */
   def fromSession[F[_]: Concurrent](
       pool: AppSessionPool[F]
@@ -335,14 +334,14 @@ object ToMemberToSettledTabs:
   */
 object SettledTabMapper:
 
-  /** Creates a new instance of SettledTabMapper from a session. This is
-    * effectful because it requires preparing the queries. This is why the
-    * result is wrapped in an effect type `F`.
+  /** Creates a new instance of SettledTabMapper from a session. Each query is
+    * run inside a session. The sessions are managed by the provided session
+    * pool.
     *
-    * @param session
-    *   the session to use for database operations
+    * @param pool
+    *   the session pool to use for database operations.
     * @return
-    *   a new instance of SettledTabMapper
+    *   a new instance of SettledTabMapper.
     */
   def fromSession[F[_]: Cancel: Parallel](
       pool: AppSessionPool[F]

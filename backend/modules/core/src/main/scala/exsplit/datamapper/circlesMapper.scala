@@ -40,12 +40,12 @@ trait CircleMembersRepository[F[_]]
 Contains a factory method for creating a CirclesRepository from a session.
  */
 object CirclesRepository:
-  /** Creates an instance of CirclesRepository from the given session. This
-    * method is effectful because it prepares the SQL queries and commands for
-    * the underlying mappers.
+  /** Creates an instance of CirclesRepository from the given session. Each
+    * query is run inside an individual session. The sessions are managed by the
+    * provided session pool.
     *
-    * @param session
-    *   The session to create the repository from.
+    * @param pool
+    *   The session pool to be used for database operations.
     * @return
     *   An instance of CirclesRepository.
     */
@@ -65,11 +65,11 @@ Contains a factory method for creating a CircleMembersRepository from a session.
  */
 object CircleMembersRepository:
   /** Creates an instance of CircleMembersRepository from the given session.
-    * This method is effectful because it prepares the SQL queries and commands
-    * for the underlying mappers.
+    * Each query is run inside an individual session. The sessions are managed
+    * by the provided session pool.
     *
-    * @param session
-    *   The session to create the repository from.
+    * @param pool
+    *   The session pool to be used for database operations.
     * @return
     *   An instance of CircleMembersRepository.
     */
@@ -166,10 +166,10 @@ trait UserToCircleMembersMapper[F[_]]
 object UserToCircleMembersMapper:
 
   /** Creates a new instance of `UserToCircleMembersMapper` using the provided
-    * session. This method is effectful because it prepares the SQL query for
-    * the mapper.
+    * session. Each query is run inside an individual session. The sessions are
+    * managed by the provided session pool.
     *
-    * @param session
+    * @param pool
     *   The database session.
     * @tparam F
     *   The effect type, representing the context in which the mapping operation
@@ -355,10 +355,9 @@ trait UserCirclesMapper[F[_]]
   */
 object UserCirclesMapper:
 
-  /** Creates a new instance of `UserCirclesMapper` from a session. This method
-    * is effectful because it prepares the SQL query for the mapper.
+  /** Creates a new instance of `UserCirclesMapper` from a session.
     *
-    * @param session
+    * @param pool
     *   The database session.
     * @tparam F
     *   The effect type, representing the context in which the operations are
@@ -367,7 +366,7 @@ object UserCirclesMapper:
     *   A new instance of `UserCirclesMapper`.
     */
   def fromSession[F[_]: Concurrent](
-      session: AppSessionPool[F]
+      pool: AppSessionPool[F]
   ): UserCirclesMapper[F] =
     new UserCirclesMapper[F]:
 
@@ -379,7 +378,7 @@ object UserCirclesMapper:
         *   A list of primary circles.
         */
       def listPrimaries(userId: UserId): F[List[CircleReadMapper]] =
-        session.stream(listCirclesForUserQuery, userId.value)
+        pool.stream(listCirclesForUserQuery, userId.value)
 
   private val listCirclesForUserQuery: Query[String, CircleReadMapper] =
     sql"""
@@ -392,14 +391,13 @@ object UserCirclesMapper:
       .to[CircleReadMapper]
 
 object CircleToMembersMapper:
-  /** Creates a CircleToMembersMapper instance from the provided session. This
-    * method is effectful because it prepares the SQL query for the mapper.
-    *
-    * @param session
-    *   the session to create the mapper from
+  /** Creates a CircleToMembersMapper instance from the provided session. Each
+    * query is run inside an individual session. The sessions are managed by the
+    * provided session pool.
+    * @param pool
+    *   The session pool to be used for database operations.
     * @return
-    *   a `F[CircleToMembersMapper[F]]` representing the asynchronous result of
-    *   creating the mapper
+    *   The created CircleToMembersMapper instance.
     */
   def fromSession[F[_]: Concurrent](
       session: AppSessionPool[F]
@@ -422,12 +420,10 @@ Contains a factory method for creating a CircleMemberMapper from a session.
  */
 object CircleMemberMapper:
 
-  /** Creates a `CircleMemberMapper` instance from a given `Session`. This
-    * factory method is effectful because it prepares the SQL queries and
-    * commands for the `CircleMemberMapper`.
+  /** Creates a `CircleMemberMapper` instance from a given `Session`.
     *
-    * @param session
-    *   The session to create the `CircleMemberMapper` from.
+    * @param pool
+    *   The session pool to be used for database operations.
     * @return
     *   A `CircleMemberMapper` instance wrapped in the effect `F`.
     */
@@ -498,11 +494,8 @@ object CirclesMapper:
     * the Circles module. The CirclesMapper class provides methods for
     * interacting with the database to perform CRUD operations on circles.
     *
-    * This method is effectful because it prepares the SQL queries and commands
-    * for the CirclesMapper.
-    *
-    * @param session
-    *   The database session used for executing queries.
+    * @param pool
+    *   The session pool to be used for database operations.
     * @tparam F
     *   The effect type, representing the context in which the operations are
     *   executed.

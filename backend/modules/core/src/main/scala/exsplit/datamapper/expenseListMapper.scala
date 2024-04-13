@@ -39,15 +39,13 @@ trait ExpenseListRepository[F[_]] extends ExpenseListMapper[F]:
 object ExpenseListRepository:
   /*
    * Creates a new instance of `ExpenseListRepository` using the provided
-   * session. This method is effectful and returns a `F[ExpenseListRepository[F]]`
-   * because it requires database operations. It uses prepared statements. This
-   * means it needs to be run inside a session.
+   * session. It runs each query inside a session. The sessions are managed by
+   * the provided session pool.
    *
-   * @param session
-   *   The session to be used for database operations.
+   * @param pool
+   *   The session pool to be used for database operations.
    * @return
-   *   A `F[ExpenseListRepository[F]]` representing the created repository
-   *   instance.
+   *   A `ExpenseListRepository[F]` representing the created repository instance.
    */
   def fromSession[F[_]: Concurrent](
       session: AppSessionPool[F]
@@ -161,15 +159,13 @@ trait CirclesExpenseListMapper[F[_]]
 object CirclesExpenseListMapper:
 
   /** Creates a new instance of `CirclesExpenseListMapper` using the provided
-    * session. This is method is effectful and returns a
-    * `F[CirclesExpenseListMapper[F]]` because it requires a database operation
-    * it uses prepared statements. This means it needs to be run inside a
-    * session.
+    * session. It runs each query inside a session. The sessions are managed by
+    * the provided session pool.
     *
     * @param session
     *   The session to be used for database operations.
     * @return
-    *   A `F[CirclesExpenseListMapper[F]]` representing the created mapper
+    *   A `CirclesExpenseListMapper[F]` representing the created mapper
     *   instance.
     */
   def fromSession[F[_]: Concurrent](
@@ -189,14 +185,13 @@ object CirclesExpenseListMapper:
 object ExpenseListMapper:
 
   /** Creates a new instance of `ExpenseListMapper` using the provided session.
-    * This method is effectful and returns a `F[ExpenseListMapper[F]]` because
-    * it requires database operations. It uses prepared statements. This means
-    * it needs to be run inside a session.
+    * It runs each query inside its own session. The sessions are managed by the
+    * provided session pool.
     *
-    * @param session
-    *   The session to be used for database operations.
+    * @param pool
+    *   The session pool to be used for database operations.
     * @return
-    *   A `F[ExpenseListMapper[F]]` representing the created mapper instance.
+    *   A `ExpenseListMapper[F]` representing the created mapper instance.
     */
   def fromSession[F[_]: Cancel](
       pool: AppSessionPool[F]
