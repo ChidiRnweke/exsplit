@@ -100,6 +100,20 @@ extension [F[_]: MonadThrow](circleMemberMapper: CircleMembersRepository[F])
   def getCircleMemberOut(id: CircleMemberId): F[CircleMemberOut] =
     circleMemberMapper.get(id).rethrow.map(_.toCircleMemberOut)
 
+  /** Adds a member to a circle. It returns a `CircleMemberOut` object, which is
+    * the representation of a circle member in the application. It also takes
+    * the inputs required to create a new circle member without the need to
+    * create a `AddUserToCircleInput` object.
+    *
+    * @param userId
+    *   The ID of the user to be added to the circle.
+    * @param displayName
+    *   The display name of the user to be added to the circle.
+    * @param circleId
+    *   The ID of the circle to which the user will be added.
+    * @return
+    *   A `CircleMemberOut` object representing the added circle member.
+    */
   def addCircleMember(
       userId: UserId,
       displayName: String,
@@ -108,7 +122,25 @@ extension [F[_]: MonadThrow](circleMemberMapper: CircleMembersRepository[F])
     val input = AddUserToCircleInput(userId, displayName, circleId)
     circleMemberMapper.create(input).map(_.toCircleMemberOut)
 
+/** Extension method for CircleMembersRepository that provides a way to retrieve
+  * a valid CircleMember.
+  *
+  * @param repo
+  *   The CircleMembersRepository instance.
+  * @tparam F
+  *   The effect type.
+  */
 extension [F[_]: MonadThrow](repo: CircleMembersRepository[F])
+  /** Retrieves a `CircleMemberReadMapper` for the given `memberId` if it is a
+    * valid circle member. If it's not a valid member the error is rethrown and
+    * caught by the error handling middleware in the API layer provided by
+    * Smithy4s
+    *
+    * @param memberId
+    *   The ID of the circle member.
+    * @return
+    *   A `CircleMemberReadMapper` for the given `memberId`.
+    */
   def withValidCircleMember(
       memberId: CircleMemberId
   ): F[CircleMemberReadMapper] =
@@ -116,7 +148,9 @@ extension [F[_]: MonadThrow](repo: CircleMembersRepository[F])
 
 extension (circleMemberRead: CircleMemberReadMapper)
   /** Extension method for `CircleMemberReadMapper` that converts a
-    * `CircleMemberReadMapper` object to a `CircleMemberOut` object.
+    * `CircleMemberReadMapper` object to a `CircleMemberOut` object. The former
+    * is the representation of a circle member in the database, while the latter
+    * is the representation of a circle member in the application.
     *
     * @param circleMemberRead
     *   The `CircleMemberReadMapper` object to convert.
@@ -127,7 +161,9 @@ extension (circleMemberRead: CircleMemberReadMapper)
     CircleMemberOut(circleMemberRead.id, circleMemberRead.displayName)
 
 extension [F[_]: MonadThrow](circleToMembersMapper: CircleToMembersMapper[F])
-  /** Retrieves a list of `CircleMemberOut` objects for a given circle ID.
+  /** Retrieves a list of `CircleMemberOut` objects for a given circle ID. The
+    * `CircleMemberOut` objects are the representation of circle members in the
+    * application.
     *
     * @param circleToMembersMapper
     *   The `CircleToMembersMapper` instance.

@@ -9,6 +9,20 @@ import exsplit.datamapper.expenses._
 import exsplit.datamapper.circles._
 
 extension [F[_]: MonadThrow: Parallel](repo: ExpenseRepository[F])
+
+  /** Retrieves the details of an expense and the corresponding owed amounts.
+    * This method needs two repositories, one for the owed amounts and one for
+    * the expenses. The owed amounts are retrieved in parallel with the expense
+    * details.
+    *
+    * @param id
+    *   The ID of the expense.
+    * @param owedAmountsRepo
+    *   The repository for retrieving owed amounts.
+    * @return
+    *   A computation that yields an `ExpenseOut` object containing the expense
+    *   details and owed amounts.
+    */
   def getExpenseOut(
       id: ExpenseId,
       owedAmountsRepo: OwedAmountRepository[F]
@@ -28,6 +42,19 @@ extension [F[_]: MonadThrow: Parallel](repo: ExpenseRepository[F])
         owedAmounts
       )
 
+  /** Retrieves a list of expense details for a given expense list ID. Multiple
+    * repositories are needed to retrieve the expense details and the owed
+    * amounts in parallel.
+    *
+    * @param id
+    *   The ID of the expense list.
+    * @param circleMemberRepo
+    *   The repository for retrieving circle members.
+    * @param owedAmountsRepo
+    *   The repository for retrieving owed amounts.
+    * @return
+    *   A list of expense details.
+    */
   def listExpenseOut(
       id: ExpenseListId,
       circleMemberRepo: CircleMembersRepository[F],
@@ -42,16 +69,14 @@ extension [F[_]: MonadThrow: Parallel](repo: ExpenseRepository[F])
         )
     yield expenseOuts
 
-  def withValidExpense[A](
-      expenseId: ExpenseId,
-      owedAmountsRepo: OwedAmountRepository[F]
-  )(action: ExpenseOut => F[A]): F[A] =
-    for
-      expense <- repo.getExpenseOut(expenseId, owedAmountsRepo)
-      result <- action(expense)
-    yield result
-
 extension (owedAmount: OwedAmountDetailRead)
+  /** Converts the `owedAmount` object to an `OwedAmountOut` object. The former
+    * is the representation of an owed amount in the database, while the latter
+    * is the representation of an owed amount in the application.
+    *
+    * @return
+    *   The converted `OwedAmountOut` object.
+    */
   def toOwedAmountOut: OwedAmountOut =
     val from =
       CircleMemberOut(owedAmount.fromMember, owedAmount.fromMemberName)
@@ -59,10 +84,26 @@ extension (owedAmount: OwedAmountDetailRead)
       CircleMemberOut(owedAmount.toMember, owedAmount.toMemberName)
     OwedAmountOut(fromMember = from, toMember = to, owedAmount.amount)
 extension (owedAmounts: List[OwedAmountDetailRead])
+  /** Converts a list of `OwedAmountDetailRead` objects to a list of
+    * `OwedAmountOut` objects. The former is the representation of owed amounts
+    * in the database, while the latter is the representation of owed amounts in
+    * the application.
+    *
+    * @return
+    *   The converted list of `OwedAmountOut` objects.
+    */
   def toOwedAmountsOuts: List[OwedAmountOut] =
     owedAmounts.map(_.toOwedAmountOut)
 
 extension (owedAmounts: List[OwedAmountOut])
+  /** Converts a list of `OwedAmountOut` objects to a list of `OwedAmountOut`
+    * objects where the amounts are summed up for each pair of members. This
+    * method is used to calculate the total amount owed between each pair of
+    * members.
+    *
+    * @return
+    *   The converted list of `OwedAmountOut` objects.
+    */
   def toTotalOwed: List[OwedAmountOut] =
     owedAmounts
       .groupMapReduce(o => (o.fromMember, o.toMember))(_.amount)(_ + _)
@@ -70,5 +111,14 @@ extension (owedAmounts: List[OwedAmountOut])
       .toList
 
 extension [F[_]: MonadThrow](owedAmountMapper: OwedAmountRepository[F])
+  /** Retrieves the owed amounts for a given expense ID. This method immediately
+    * returns a list of `OwedAmountOut` objects, the representation of owed
+    * amounts in the application.
+    *
+    * @param id
+    *   The ID of the expense.
+    * @return
+    *   A list of `OwedAmountOut` objects wrapped in the effect type `F`.
+    */
   def getOwedAmounts(id: ExpenseId): F[List[OwedAmountOut]] =
     owedAmountMapper.detailFromExpense(id).map(_.toOwedAmountsOuts)
