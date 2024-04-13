@@ -416,8 +416,6 @@ case class UserAuthenticator[F[_]](
     *   The user's password.
     * @return
     *   A string representing the newly created user's ID.
-    * @throws RegistrationError
-    *   if the user already exists.
     */
   def registerUser(email: Email, password: Password): F[String] =
     val userExists = repo.findUserByEmail(email).map(_.isRight)

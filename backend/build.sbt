@@ -1,3 +1,5 @@
+import java.nio.file.Paths
+
 ThisBuild / scalaVersion := "3.3.1"
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / organization := "be.chidinweke"
@@ -27,6 +29,9 @@ lazy val core = project
       "org.typelevel" %% "munit-cats-effect-3" % "1.0.6" % Test
     ),
     Compile / run / fork := true,
+    Compile / doc / target := file(
+      Paths.get("../dist/").toAbsolutePath.toString
+    ) / "doc",
     Compile / run / connectInput := true,
     Test / fork := true,
     assembly / mainClass := Some("exsplit.Main"),
