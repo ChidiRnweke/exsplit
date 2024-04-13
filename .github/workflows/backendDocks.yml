@@ -29,7 +29,8 @@ jobs:
           java-version: '17'
           cache: 'sbt'
       - name: Build scaladoc
-        run: sbt "core/doc"      
+        run: sbt "core/doc"     
+        working-directory: ./backend 
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
