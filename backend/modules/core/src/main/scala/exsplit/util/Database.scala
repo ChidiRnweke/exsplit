@@ -93,6 +93,9 @@ extension [F[_]: Concurrent](pool: AppSessionPool[F])
       .use: session =>
         session.prepare(query).flatMap(_.stream(data, 32).compile.toList)
 
+/** The companion object for the `SessionPool` class. This object contains a
+  * method that creates a connection pool to a PostgreSQL database.
+  */
 object SessionPool:
   /** Creates a connection pool to a PostgreSQL database.
     *

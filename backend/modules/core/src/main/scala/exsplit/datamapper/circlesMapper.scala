@@ -36,9 +36,9 @@ trait CircleMembersRepository[F[_]]
     *   A list of CircleMemberReadMapper objects.
     */
   def byUserId(userId: UserId): F[List[CircleMemberReadMapper]]
-/*
-Contains a factory method for creating a CirclesRepository from a session.
- */
+
+/** Contains a factory method for creating a CirclesRepository from a session.
+  */
 object CirclesRepository:
   /** Creates an instance of CirclesRepository from the given session. Each
     * query is run inside an individual session. The sessions are managed by the
@@ -60,9 +60,9 @@ object CirclesRepository:
       export userCircles.{listPrimaries as byUserId}
       export userCircles.{listPrimaries}
 
-/*
-Contains a factory method for creating a CircleMembersRepository from a session.
- */
+/** Contains a factory method for creating a CircleMembersRepository from a
+  * session.
+  */
 object CircleMembersRepository:
   /** Creates an instance of CircleMembersRepository from the given session.
     * Each query is run inside an individual session. The sessions are managed
@@ -415,9 +415,8 @@ object CircleToMembersMapper:
       .query(text *: text *: text *: text)
       .to[CircleMemberReadMapper]
 
-/*
-Contains a factory method for creating a CircleMemberMapper from a session.
- */
+/** Contains a factory method for creating a CircleMemberMapper from a session.
+  */
 object CircleMemberMapper:
 
   /** Creates a `CircleMemberMapper` instance from a given `Session`.

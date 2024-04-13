@@ -23,29 +23,27 @@ import exsplit.database._
   * service.
   */
 object Routes:
-  /*
-   * Creates a new instance of `HttpRoutes` using the provided configuration.
-   * This is the main entry point for the application. It creates the routes for
-   * the user service, expense service, expense list service, and circles service.
-   * The routes are wrapped in a resource, which is a type that manages the
-   * lifecycle of the routes. The resource is created using the provided
-   * configuration, local fiber, and session pool.
-   *
-   * @param config
-   *  The configuration for the application.
-   *
-   * @param local
-   * This is a fiber local that stores the email of the authenticated user. It is
-   * used to retrieve the email of the authenticated user by the middleware.
-   *
-   * @param pool
-   * The session pool to be used for database operations.
-   *
-   * @return
-   * A `Resource[F, HttpRoutes[F]]` representing the created routes instance.
-   *
-   *
-   */
+  /** Creates a new instance of `HttpRoutes` using the provided configuration.
+    * This is the main entry point for the application. It creates the routes
+    * for the user service, expense service, expense list service, and circles
+    * service. The routes are wrapped in a resource, which is a type that
+    * manages the lifecycle of the routes. The resource is created using the
+    * provided configuration, local fiber, and session pool.
+    *
+    * @param config
+    *   The configuration for the application.
+    *
+    * @param local
+    *   This is a fiber local that stores the email of the authenticated user.
+    *   It is used to retrieve the email of the authenticated user by the
+    *   middleware.
+    *
+    * @param pool
+    *   The session pool to be used for database operations.
+    *
+    * @return
+    *   A `Resource[F, HttpRoutes[F]]` representing the created routes instance.
+    */
   def fromSession[F[_]: Async: Parallel](
       config: AuthConfig,
       local: FiberLocal[F, Either[InvalidTokenError, Email]],

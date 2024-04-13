@@ -286,6 +286,14 @@ enum TokenLifespan(val duration: Long):
   case LongLived extends TokenLifespan(90.days.toSeconds)
   case ShortLived extends TokenLifespan(1.day.toSeconds)
 
+/** Represents a password validator that provides methods for hashing and
+  * checking passwords. The `hashPassword` method hashes a password, while the
+  * `checkPassword` method checks if a password matches a hash.
+  * @tparam F
+  *   The effect type for the password validation operations. Creating a hash
+  *   for a password is an effectful operation because it involves generating a
+  *   random salt for the hash.
+  */
 trait PasswordValidator[F[_]]:
 
   /** Hashes the given password.

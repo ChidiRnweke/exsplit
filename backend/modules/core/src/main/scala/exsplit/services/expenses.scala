@@ -94,6 +94,7 @@ case class ExpenseServiceImpl[F[_]: MonadThrow: Parallel](
       date,
       owedToPayer
     )
+
     def createExpenseHelper(
         exp: ExpenseReadMapper,
         member: CircleMemberOut

@@ -107,21 +107,20 @@ trait OwedAmountRepository[F[_]] extends OwedAmountMapper[F]:
     */
   def detailFromExpense(parent: ExpenseId): F[List[OwedAmountDetailRead]]
 
-/* Companion object for the `ExpenseRepository` trait. Provides a method for
- * creating a new instance of the repository.
- */
+/** Companion object for the `ExpenseRepository` trait. Provides a method for
+  * creating a new instance of the repository.
+  */
 object ExpenseRepository:
-  /*
-   * Creates a new instance of `ExpenseRepository` using the provided session. This
-   * method is effectful and returns a `F[ExpenseRepository[F]]` because it requires
-   * database operations. It uses prepared statements. This means it needs to be run
-   * inside a session.
-   *
-   * @param pool
-   *  The session pool to be used for database operations.
-   * @return
-   *   A `ExpenseRepository[F]` representing the created repository instance.
-   */
+  /** Creates a new instance of `ExpenseRepository` using the provided session.
+    * This method is effectful and returns a `F[ExpenseRepository[F]]` because
+    * it requires database operations. It uses prepared statements. This means
+    * it needs to be run inside a session.
+    *
+    * @param pool
+    *   The session pool to be used for database operations.
+    * @return
+    *   A `ExpenseRepository[F]` representing the created repository instance.
+    */
   def fromSession[F[_]: Concurrent: Parallel](
       pool: AppSessionPool[F]
   ): ExpenseRepository[F] =
@@ -137,19 +136,19 @@ object ExpenseRepository:
       export expenseLists.{listChildren as fromExpenseList}
       export expenseDetail.{get as getDetail}
 
-/* Companion object for the `OwedAmountRepository` trait. Provides a method for
- * creating a new instance of the repository.
- */
+/** Companion object for the `OwedAmountRepository` trait. Provides a method for
+  * creating a new instance of the repository.
+  */
 object OwedAmountRepository:
-  /*
-   * Creates a new instance of `OwedAmountRepository` using the provided session.
-   * It runs each query inside its own session. The sessions are managed by the provided
-   * session pool.
-   * @param pool
-   *   The session pool to be used for database operations.
-   * @return
-   *   A `OwedAmountRepository[F]` representing the created repository instance.
-   */
+  /** Creates a new instance of `OwedAmountRepository` using the provided
+    * session. It runs each query inside its own session. The sessions are
+    * managed by the provided session pool.
+    * @param pool
+    *   The session pool to be used for database operations.
+    * @return
+    *   A `OwedAmountRepository[F]` representing the created repository
+    *   instance.
+    */
   def fromSession[F[_]: Concurrent: Parallel](
       pool: AppSessionPool[F]
   ): OwedAmountRepository[F] =
@@ -704,6 +703,10 @@ object ExpenseDetailMapper:
             price,
             Timestamp(epochSeconds, 0)
           )
+
+/** Companion object for the OwedAmountDetailMapper trait. Contains the factory
+  * method for creating an instance of the OwedAmountDetailMapper.
+  */
 object OwedAmountDetailMapper:
   /** Creates a new instance of OwedAmountDetailMapper using the provided
     * session. It runs each query inside a session. The sessions are managed by

@@ -45,6 +45,15 @@ extension [F[_]: MonadThrow](circlesMapper: CirclesRepository[F])
     circlesMapper.create(input).map(_.toCircleOut)
 
 extension [F[_]: MonadThrow, A](repo: CirclesRepository[F])
+  /** Retrieves a `CircleReadMapper` for the given `circleId` if it is a valid
+    * circle. If it's not a valid circle the error is rethrown and caught by the
+    * error handling middleware in the API layer provided by Smithy4s.
+    *
+    * @param circleId
+    *   The ID of the circle.
+    * @return
+    *   A `CircleReadMapper` for the given `circleId`.
+    */
   def withValidCircle(circleId: CircleId): F[CircleReadMapper] =
     repo.get(circleId).rethrow
 
@@ -78,11 +87,14 @@ extension [F[_]: MonadThrow](userCircleRead: UserCirclesMapper[F])
   *   The list of `CircleReadMapper` instances.
   */
 extension (userCircles: List[CircleReadMapper])
+  /** Converts a list of `CircleReadMapper` instances to a `CirclesOut`
+    * instance. The former is the representation of a list of circles in the
+    * database, while the latter is the representation of a list of circles in
+    * the application.
+    * @return
+    *   A `CirclesOut` instance.
+    */
   def toCirclesOut: CirclesOut = CirclesOut(userCircles.map(_.toCircleOut))
-
-/** Extension methods for mapping circle members between different
-  * representations.
-  */
 
 extension [F[_]: MonadThrow](circleMemberMapper: CircleMembersRepository[F])
   /** Extension method for `CircleMembersRepository` that retrieves a

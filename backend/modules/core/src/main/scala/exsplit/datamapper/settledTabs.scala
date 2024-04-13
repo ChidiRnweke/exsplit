@@ -249,6 +249,10 @@ trait ToMemberToSettledTabs[F[_]]
     */
   def listChildren(parent: CircleMemberId): F[List[SettledTabReadMapper]]
 
+/** A companion object for the ExpenseListToSettledTabs trait. It provides a
+  * method for creating a new instance of ExpenseListToSettledTabs from a
+  * session.
+  */
 object ExpenseListToSettledTabs:
   /** Creates a new instance of ExpenseListToSettledTabs from a session. Each
     * query is run inside a session. The sessions are managed by the provided
@@ -275,6 +279,10 @@ object ExpenseListToSettledTabs:
       .query(text *: text *: text *: text *: float4 *: date)
       .to[SettledTabReadMapper]
 
+/** A companion object for the FromMemberToSettledTabs trait. It provides a
+  * method for creating a new instance of FromMemberToSettledTabs from a
+  * session.
+  */
 object FromMemberToSettledTabs:
   /** Creates a new instance of FromMemberToSettledTabs from a session. Each
     * query is run inside a session. The sessions are managed by the provided
@@ -301,6 +309,9 @@ object FromMemberToSettledTabs:
       .query(text *: text *: text *: text *: float4 *: date)
       .to[SettledTabReadMapper]
 
+/** A companion object for the ToMemberToSettledTabs trait. It provides a method
+  * for creating a new instance of ToMemberToSettledTabs from a session.
+  */
 object ToMemberToSettledTabs:
   /** Creates a new instance of ToMemberToSettledTabs from a session. Each query
     * is run inside a session. The sessions are managed by the provided session

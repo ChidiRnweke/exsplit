@@ -33,20 +33,20 @@ trait ExpenseListRepository[F[_]] extends ExpenseListMapper[F]:
     */
   def byCircleId(circleId: CircleId): F[List[ExpenseListReadMapper]]
 
-/* Companion object for the `ExpenseListRepository` trait. Provides a method for
- * creating a new instance of the repository.
- */
+/** Companion object for the `ExpenseListRepository` trait. Provides a method
+  * for creating a new instance of the repository.
+  */
 object ExpenseListRepository:
-  /*
-   * Creates a new instance of `ExpenseListRepository` using the provided
-   * session. It runs each query inside a session. The sessions are managed by
-   * the provided session pool.
-   *
-   * @param pool
-   *   The session pool to be used for database operations.
-   * @return
-   *   A `ExpenseListRepository[F]` representing the created repository instance.
-   */
+  /** Creates a new instance of `ExpenseListRepository` using the provided
+    * session. It runs each query inside a session. The sessions are managed by
+    * the provided session pool.
+    *
+    * @param pool
+    *   The session pool to be used for database operations.
+    * @return
+    *   A `ExpenseListRepository[F]` representing the created repository
+    *   instance.
+    */
   def fromSession[F[_]: Concurrent](
       session: AppSessionPool[F]
   ): ExpenseListRepository[F] =
