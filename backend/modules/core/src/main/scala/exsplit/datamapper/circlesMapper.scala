@@ -9,6 +9,7 @@ import cats.effect._
 import cats.syntax.all._
 import cats._
 import exsplit.datamapper._
+import exsplit.database._
 
 /** Represents a repository for managing circles. This trait contains the main
   * mapper for circles and the user circles mapper. The former has methods for
@@ -48,16 +49,16 @@ object CirclesRepository:
     * @return
     *   An instance of CirclesRepository.
     */
-  def fromSession[F[_]: Concurrent](
-      session: Session[F]
-  ): F[CirclesRepository[F]] =
-    (CirclesMapper.fromSession(session), UserCirclesMapper.fromSession(session))
-      .mapN: (mainMapper, userCircles) =>
-        new CirclesRepository[F]:
+  def fromSession[F[_]: Concurrent: Parallel](
+      session: AppSessionPool[F]
+  ): CirclesRepository[F] =
+    val mainMapper = CirclesMapper.fromSession(session)
+    val userCircles = UserCirclesMapper.fromSession(session)
+    new CirclesRepository[F]:
 
-          export mainMapper._
-          export userCircles.{listPrimaries as byUserId}
-          export userCircles.{listPrimaries}
+      export mainMapper._
+      export userCircles.{listPrimaries as byUserId}
+      export userCircles.{listPrimaries}
 
 /*
 Contains a factory method for creating a CircleMembersRepository from a session.
@@ -73,18 +74,17 @@ object CircleMembersRepository:
     *   An instance of CircleMembersRepository.
     */
   def fromSession[F[_]: Concurrent](
-      session: Session[F]
-  ): F[CircleMembersRepository[F]] =
-    (
-      CircleMemberMapper.fromSession(session),
-      CircleToMembersMapper.fromSession(session),
-      UserToCircleMembersMapper.fromSession(session)
-    ).mapN: (mainMapper, circleToMembers, userToCircleMembers) =>
-      new CircleMembersRepository[F]:
+      session: AppSessionPool[F]
+  ): CircleMembersRepository[F] =
 
-        export mainMapper._
-        export circleToMembers.{listChildren, listChildren as byCircleId}
-        export userToCircleMembers.{listChildren as byUserId}
+    val mainMapper = CircleMemberMapper.fromSession(session)
+    val circleToMembers = CircleToMembersMapper.fromSession(session)
+    val userToCircleMembers = UserToCircleMembersMapper.fromSession(session)
+    new CircleMembersRepository[F]:
+
+      export mainMapper._
+      export circleToMembers.{listChildren, listChildren as byCircleId}
+      export userToCircleMembers.{listChildren as byUserId}
 
 /** Describes a circle read mapper. This class is a one to one mapping of the
   * circle table in the database without the creation and update timestamps.
@@ -178,14 +178,11 @@ object UserToCircleMembersMapper:
     *   A new instance of `UserToCircleMembersMapper`.
     */
   def fromSession[F[_]: Concurrent](
-      session: Session[F]
-  ): F[UserToCircleMembersMapper[F]] =
-    session
-      .prepare(listCircleMembersQuery)
-      .map: query =>
-        new UserToCircleMembersMapper[F]:
-          def listChildren(parent: UserId): F[List[CircleMemberReadMapper]] =
-            query.stream(parent.value, 1024).compile.toList
+      session: AppSessionPool[F]
+  ): UserToCircleMembersMapper[F] =
+    new UserToCircleMembersMapper[F]:
+      def listChildren(parent: UserId): F[List[CircleMemberReadMapper]] =
+        session.stream(listCircleMembersQuery, parent.value)
 
   private val listCircleMembersQuery: Query[String, CircleMemberReadMapper] =
     sql"""
@@ -370,22 +367,19 @@ object UserCirclesMapper:
     *   A new instance of `UserCirclesMapper`.
     */
   def fromSession[F[_]: Concurrent](
-      session: Session[F]
-  ): F[UserCirclesMapper[F]] =
-    session
-      .prepare(listCirclesForUserQuery)
-      .map: query =>
-        new UserCirclesMapper[F]:
+      session: AppSessionPool[F]
+  ): UserCirclesMapper[F] =
+    new UserCirclesMapper[F]:
 
-          /** Retrieves a list of primary circles for a given user.
-            *
-            * @param userId
-            *   The ID of the user.
-            * @return
-            *   A list of primary circles.
-            */
-          def listPrimaries(userId: UserId): F[List[CircleReadMapper]] =
-            query.stream(userId.value, 1024).compile.toList
+      /** Retrieves a list of primary circles for a given user.
+        *
+        * @param userId
+        *   The ID of the user.
+        * @return
+        *   A list of primary circles.
+        */
+      def listPrimaries(userId: UserId): F[List[CircleReadMapper]] =
+        session.stream(listCirclesForUserQuery, userId.value)
 
   private val listCirclesForUserQuery: Query[String, CircleReadMapper] =
     sql"""
@@ -408,15 +402,11 @@ object CircleToMembersMapper:
     *   creating the mapper
     */
   def fromSession[F[_]: Concurrent](
-      session: Session[F]
-  ): F[CircleToMembersMapper[F]] =
-    session
-      .prepare(listCircleMembersQuery)
-      .map: query =>
-        new CircleToMembersMapper[F]:
-
-          def listChildren(id: CircleId): F[List[CircleMemberReadMapper]] =
-            query.stream(id.value, 1024).compile.toList
+      session: AppSessionPool[F]
+  ): CircleToMembersMapper[F] =
+    new CircleToMembersMapper[F]:
+      def listChildren(parent: CircleId): F[List[CircleMemberReadMapper]] =
+        session.stream(listCircleMembersQuery, parent.value)
 
   private val listCircleMembersQuery: Query[String, CircleMemberReadMapper] =
     sql"""
@@ -441,40 +431,26 @@ object CircleMemberMapper:
     * @return
     *   A `CircleMemberMapper` instance wrapped in the effect `F`.
     */
-  def fromSession[F[_]: Monad](session: Session[F]): F[CircleMemberMapper[F]] =
-    (
-      session.prepare(findCircleMemberByIdQuery),
-      session.prepare(addCircleMemberQuery),
-      session.prepare(updateCircleMemberCommand),
-      session.prepare(deleteCircleMemberCommand)
-    ).mapN(fromQueries)
-
-  private def fromQueries[F[_]: Functor](
-      findCircleMember: PreparedQuery[F, String, CircleMemberReadMapper],
-      addCircleMember: PreparedQuery[
-        F,
-        AddUserToCircleInput,
-        CircleMemberReadMapper
-      ],
-      updateCircleMember: PreparedCommand[F, CircleMemberWriteMapper],
-      deleteCircleMember: PreparedCommand[F, String]
+  def fromSession[F[_]: Cancel](
+      session: AppSessionPool[F]
   ): CircleMemberMapper[F] =
-    new CircleMemberMapper:
+    new CircleMemberMapper[F]:
+
       def get(
           id: CircleMemberId
       ): F[Either[NotFoundError, CircleMemberReadMapper]] =
-        findCircleMember
-          .option(id.value)
+        session
+          .option(findCircleMemberByIdQuery, id.value)
           .map(_.toRight(NotFoundError(s"Circle member $id not found.")))
 
       def create(input: AddUserToCircleInput): F[CircleMemberReadMapper] =
-        addCircleMember.unique(input)
+        session.unique(addCircleMemberQuery, input)
 
       def update(circleMember: CircleMemberWriteMapper): F[Unit] =
-        updateCircleMember.execute(circleMember).void
+        session.exec(updateCircleMemberCommand, circleMember)
 
       def delete(circleMemberId: CircleMemberId): F[Unit] =
-        deleteCircleMember.execute(circleMemberId.value).void
+        session.exec(deleteCircleMemberCommand, circleMemberId.value)
 
   private val findCircleMemberByIdQuery: Query[String, CircleMemberReadMapper] =
     sql"""
@@ -531,45 +507,32 @@ object CirclesMapper:
     *   The effect type, representing the context in which the operations are
     *   executed.
     */
-  def fromSession[F[_]: Applicative](
-      session: Session[F]
-  ): F[CirclesMapper[F]] =
-    (
-      session.prepare(findCircleByIdQuery),
-      session.prepare(updateCircleQuery),
-      session.prepare(updateCircleNameCommand),
-      session.prepare(updateCircleQueryDescription),
-      session.prepare(createCircleQuery),
-      session.prepare(deleteCircleQuery)
-    ).mapN(fromQueries)
-
-  private def fromQueries[F[_]: Applicative](
-      findCircleByIdQuery: PreparedQuery[F, String, CircleReadMapper],
-      updateCircleQuery: PreparedCommand[F, (String, String, String)],
-      updateCircleNameCommand: PreparedCommand[F, (String, String)],
-      updateCircleQueryDes: PreparedCommand[F, (String, String)],
-      createCircleQuery: PreparedQuery[F, (String, String), CircleReadMapper],
-      deleteCircleQuery: PreparedCommand[F, String]
+  def fromSession[F[_]: Cancel: Parallel](
+      sessionPool: AppSessionPool[F]
   ): CirclesMapper[F] =
     new CirclesMapper[F]:
 
       def get(circleId: CircleId): F[Either[NotFoundError, CircleReadMapper]] =
-        findCircleByIdQuery
-          .option(circleId.value)
+        sessionPool
+          .option(findCircleByIdQuery, circleId.value)
           .map(_.toRight(NotFoundError(s"Circle $circleId not found.")))
 
       def create(input: CreateCircleInput): F[CircleReadMapper] =
-        createCircleQuery
-          .unique(input.circleName, input.description.getOrElse(""))
+        sessionPool.unique(
+          createCircleQuery,
+          (input.circleName, input.description.getOrElse(""))
+        )
 
       def update(circle: CircleWriteMapper): F[Unit] =
         List(
-          circle.name.map(updateCircleNameCommand.execute(_, circle.id)),
-          circle.description.map(updateCircleQueryDes.execute(_, circle.id))
-        ).flatten.sequence.void
+          circle.name.map: name =>
+            sessionPool.exec(updateCircleNameCommand, (name, circle.id)),
+          circle.description.map: description =>
+            sessionPool.exec(updateDescription, (description, circle.id))
+        ).flatten.parSequence.void
 
       def delete(circleId: CircleId): F[Unit] =
-        deleteCircleQuery.execute(circleId.value).void
+        sessionPool.exec(deleteCircleQuery, (circleId.value))
 
   private val findCircleByIdQuery: Query[String, CircleReadMapper] =
     sql"""
@@ -587,7 +550,7 @@ object CirclesMapper:
       WHERE id = $text
     """.command
 
-  private val updateCircleQueryDescription: Command[(String, String)] =
+  private val updateDescription: Command[(String, String)] =
     sql"""
       UPDATE circles
       SET description = $text

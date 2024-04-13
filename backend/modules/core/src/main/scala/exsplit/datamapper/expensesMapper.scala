@@ -14,7 +14,7 @@ import exsplit.auth._
 import java.util.UUID
 import exsplit.datamapper._
 import java.time.LocalDate
-import scala.annotation.targetName
+import exsplit.database._
 
 /** Represents a repository for managing expenses.
   *
@@ -122,21 +122,20 @@ object ExpenseRepository:
    * @return
    *   A `F[ExpenseRepository[F]]` representing the created repository instance.
    */
-  def fromSession[F[_]: Concurrent](
-      session: Session[F]
-  ): F[ExpenseRepository[F]] =
-    (
-      ExpenseMapper.fromSession(session),
-      ExpenseDetailMapper.fromSession(session),
-      CircleMemberToExpenseMapper.fromSession(session),
-      ExpenseListToExpenseMapper.fromSession(session)
-    ).mapN: (mainMapper, expenseDetail, circleMembers, expenseLists) =>
-      new ExpenseRepository[F]:
-        export mainMapper._
+  def fromSession[F[_]: Concurrent: Parallel](
+      pool: AppSessionPool[F]
+  ): ExpenseRepository[F] =
 
-        export circleMembers.{listChildren as fromCircleMember}
-        export expenseLists.{listChildren as fromExpenseList}
-        export expenseDetail.{get as getDetail}
+    val mainMapper = ExpenseMapper.fromSession(pool)
+    val expenseDetail = ExpenseDetailMapper.fromSession(pool)
+    val circleMembers = CircleMemberToExpenseMapper.fromSession(pool)
+    val expenseLists = ExpenseListToExpenseMapper.fromSession(pool)
+    new ExpenseRepository[F]:
+      export mainMapper._
+
+      export circleMembers.{listChildren as fromCircleMember}
+      export expenseLists.{listChildren as fromExpenseList}
+      export expenseDetail.{get as getDetail}
 
 /* Companion object for the `OwedAmountRepository` trait. Provides a method for
  * creating a new instance of the repository.
@@ -153,24 +152,23 @@ object OwedAmountRepository:
    * @return
    *   A `F[OwedAmountRepository[F]]` representing the created repository instance.
    */
-  def fromSession[F[_]: Concurrent](
-      session: Session[F]
-  ): F[OwedAmountRepository[F]] =
-    (
-      OwedAmountMapper.fromSession(session),
-      CircleMemberToOwedAmountMapper.fromSession(session),
-      ExpensesToOwedAmountMapper.fromSession(session),
-      OwedAmountDetailMapper.fromSession(session)
-    ).mapN: (mainMapper, circleMembers, expenses, detailMapper) =>
-      new OwedAmountRepository[F]:
+  def fromSession[F[_]: Concurrent: Parallel](
+      pool: AppSessionPool[F]
+  ): OwedAmountRepository[F] =
 
-        export mainMapper._
-        export detailMapper.{listChildren as detailFromExpense}
-        export circleMembers.{
-          toMember as fromCircleMemberTo,
-          listChildren as fromCircleMemberFrom
-        }
-        export expenses.{listChildren as fromExpense}
+    val mainMapper = OwedAmountMapper.fromSession(pool)
+    val circleMembers = CircleMemberToOwedAmountMapper.fromSession(pool)
+    val expenses = ExpensesToOwedAmountMapper.fromSession(pool)
+    val detailMapper = OwedAmountDetailMapper.fromSession(pool)
+    new OwedAmountRepository[F]:
+
+      export mainMapper._
+      export detailMapper.{listChildren as detailFromExpense}
+      export circleMembers.{
+        toMember as fromCircleMemberTo,
+        listChildren as fromCircleMemberFrom
+      }
+      export expenses.{listChildren as fromExpense}
 
 /** Represents an expense read mapper. This class is a one to one mapping of the
   * expense table in the database without the creation and update timestamps.
@@ -638,16 +636,12 @@ object ExpenseListOwedAmountMapper:
     *   ExpenseListOwedAmountMapper.
     */
   def fromSession[F[_]: Concurrent](
-      session: Session[F]
-  ): F[ExpenseListOwedAmountMapper[F]] =
-    for getOwedAmountDetailQuery <- session.prepare(getOwedAmountDetailQuery)
-    yield new ExpenseListOwedAmountMapper[F]:
+      pool: AppSessionPool[F]
+  ): ExpenseListOwedAmountMapper[F] =
+    new ExpenseListOwedAmountMapper[F]:
 
       def listChildren(id: ExpenseListId): F[List[OwedAmountDetailRead]] =
-        getOwedAmountDetailQuery
-          .stream(id.value, 1024)
-          .compile
-          .toList
+        pool.stream(getOwedAmountDetailQuery, id.value)
 
   private val getOwedAmountDetailQuery: Query[String, OwedAmountDetailRead] =
     sql"""
@@ -678,17 +672,14 @@ object ExpenseDetailMapper:
     * @return
     *   The new ExpenseDetailMapper instance.
     */
-  def fromSession[F[_]: Functor](
-      session: Session[F]
-  ): F[ExpenseDetailMapper[F]] =
-    session
-      .prepare(getExpenseDetailQuery)
-      .map: getExpenseDetailQuery =>
-        new ExpenseDetailMapper[F]:
-          def get(id: ExpenseId): F[Either[NotFoundError, ExpenseDetailRead]] =
-            getExpenseDetailQuery
-              .option(id.value)
-              .map(_.toRight(NotFoundError(s"Expense $id not found.")))
+  def fromSession[F[_]: Cancel](
+      pool: AppSessionPool[F]
+  ): ExpenseDetailMapper[F] =
+    new ExpenseDetailMapper[F]:
+      def get(id: ExpenseId): F[Either[NotFoundError, ExpenseDetailRead]] =
+        pool
+          .option(getExpenseDetailQuery, id.value)
+          .map(_.toRight(NotFoundError(s"Expense $id not found.")))
 
   private val getExpenseDetailQuery: Query[String, ExpenseDetailRead] =
     sql"""
@@ -729,14 +720,11 @@ object OwedAmountDetailMapper:
     *   The new OwedAmountDetailMapper instance.
     */
   def fromSession[F[_]: Concurrent](
-      session: Session[F]
-  ): F[OwedAmountDetailMapper[F]] =
-    session
-      .prepare(getOwedAmountDetailQuery)
-      .map: getOwedAmountDetailQuery =>
-        new OwedAmountDetailMapper[F]:
-          def listChildren(id: ExpenseId): F[List[OwedAmountDetailRead]] =
-            getOwedAmountDetailQuery.stream(id.value, 1024).compile.toList
+      pool: AppSessionPool[F]
+  ): OwedAmountDetailMapper[F] =
+    new OwedAmountDetailMapper[F]:
+      def listChildren(id: ExpenseId): F[List[OwedAmountDetailRead]] =
+        pool.stream(getOwedAmountDetailQuery, id.value)
 
   private val getOwedAmountDetailQuery: Query[String, OwedAmountDetailRead] =
     sql"""
@@ -763,51 +751,33 @@ object OwedAmountMapper:
     * @return
     *   The created OwedAmountMapper.
     */
-  def fromSession[F[_]: Applicative](
-      session: Session[F]
-  ): F[OwedAmountMapper[F]] =
-    (
-      session.prepare(createOwedAmountQuery),
-      session.prepare(getOwedAmountQuery),
-      session.prepare(updateOwedAmountFromMember),
-      session.prepare(updateOwedAmountToMember),
-      session.prepare(updateOwedAmountAmountQuery),
-      session.prepare(deleteOwedAmountQuery)
-    ).mapN(fromQueries)
-
-  private def fromQueries[F[_]: Applicative](
-      createOwedAmountQuery: PreparedQuery[
-        F,
-        CreateOwedAmountInput,
-        OwedAmountReadMapper
-      ],
-      getOwedAmountQuery: PreparedQuery[F, OwedAmountKey, OwedAmountReadMapper],
-      updateOwedAmountFromMember: PreparedCommand[F, (String, String)],
-      updateOwedAmountToMember: PreparedCommand[F, (String, String)],
-      updateOwedAmountAmountQuery: PreparedCommand[F, (Float, String)],
-      deleteOwedAmountQuery: PreparedCommand[F, OwedAmountKey]
+  def fromSession[F[_]: Cancel: Parallel](
+      pool: AppSessionPool[F]
   ): OwedAmountMapper[F] =
     new OwedAmountMapper[F]:
 
       def create(input: CreateOwedAmountInput): F[OwedAmountReadMapper] =
-        createOwedAmountQuery.unique(input)
+        pool.unique(createOwedAmountQuery, input)
 
       def get(
           id: OwedAmountKey
       ): F[Either[NotFoundError, OwedAmountReadMapper]] =
-        getOwedAmountQuery
-          .option(id)
+        pool
+          .option(getOwedAmountQuery, id)
           .map(_.toRight(NotFoundError(s"Owed amount $id not found.")))
 
       def update(b: OwedAmountWriteMapper): F[Unit] =
         List(
-          b.fromMember.map(updateOwedAmountFromMember.execute(_, b.id)),
-          b.toMember.map(updateOwedAmountToMember.execute(_, b.id)),
-          b.amount.map(updateOwedAmountAmountQuery.execute(_, b.id))
-        ).flatten.sequence.void
+          b.fromMember.map: fromMember =>
+            pool.exec(updateOwedAmountFromMember, (fromMember, b.id)),
+          b.toMember.map: toMember =>
+            pool.exec(updateOwedAmountToMember, (toMember, b.id)),
+          b.amount.map: amount =>
+            pool.exec(updateOwedAmountAmountQuery, (amount, b.id))
+        ).flatten.parSequence.void
 
       def delete(id: OwedAmountKey): F[Unit] =
-        deleteOwedAmountQuery.execute(id).void
+        pool.exec(deleteOwedAmountQuery, id)
 
   private val getOwedAmountQuery: Query[OwedAmountKey, OwedAmountReadMapper] =
     sql"""
@@ -880,51 +850,32 @@ object ExpenseMapper:
     * @return
     *   The created ExpenseMapper.
     */
-  def fromSession[F[_]: Concurrent](
-      session: Session[F]
-  ): F[ExpenseMapper[F]] =
-    (
-      session.prepare(createExpenseQuery),
-      session.prepare(getExpenseQuery),
-      session.prepare(updateExpenseDescriptionQuery),
-      session.prepare(updateExpensePriceQuery),
-      session.prepare(updateExpenseDateQuery),
-      session.prepare(updateExpensePaidByQuery),
-      session.prepare(deleteExpenseQuery)
-    ).mapN(fromQueries)
-
-  private def fromQueries[F[_]: Applicative](
-      createExpenseQuery: PreparedQuery[
-        F,
-        CreateExpenseInput,
-        ExpenseReadMapper
-      ],
-      getExpenseQuery: PreparedQuery[F, String, ExpenseReadMapper],
-      updateExpenseDescriptionQuery: PreparedCommand[F, (String, String)],
-      updateExpensePriceQuery: PreparedCommand[F, (Float, String)],
-      updateExpenseDateQuery: PreparedCommand[F, (Timestamp, String)],
-      updateExpensePaidByQuery: PreparedCommand[F, (String, String)],
-      deleteExpenseQuery: PreparedCommand[F, String]
+  def fromSession[F[_]: Cancel: Parallel](
+      pool: AppSessionPool[F]
   ): ExpenseMapper[F] =
     new ExpenseMapper[F]:
       def create(input: CreateExpenseInput): F[ExpenseReadMapper] =
-        createExpenseQuery.unique(input)
+        pool.unique(createExpenseQuery, input)
 
       def get(id: ExpenseId): F[Either[NotFoundError, ExpenseReadMapper]] =
-        getExpenseQuery
-          .option(id.value)
+        pool
+          .option(getExpenseQuery, id.value)
           .map(_.toRight(NotFoundError(s"Expense $id not found.")))
 
       def update(b: ExpenseWriteMapper): F[Unit] =
         List(
-          b.paidBy.map(updateExpensePaidByQuery.execute(_, b.id)),
-          b.description.map(updateExpenseDescriptionQuery.execute(_, b.id)),
-          b.price.map(updateExpensePriceQuery.execute(_, b.id)),
-          b.date.map(updateExpenseDateQuery.execute(_, b.id))
-        ).flatten.sequence.void
+          b.paidBy.map: paidBy =>
+            pool.exec(updateExpensePaidByQuery, (paidBy, b.id)),
+          b.description.map: description =>
+            pool.exec(updateExpenseDescriptionQuery, (description, b.id)),
+          b.price.map: price =>
+            pool.exec(updateExpensePriceQuery, (price, b.id)),
+          b.date.map: date =>
+            pool.exec(updateExpenseDateQuery, (date, b.id))
+        ).flatten.parSequence.void
 
       def delete(id: ExpenseId): F[Unit] =
-        deleteExpenseQuery.execute(id.value).void
+        pool.exec(deleteExpenseQuery, id.value)
 
   private val getExpenseQuery: Query[String, ExpenseReadMapper] =
     sql"""
@@ -1020,21 +971,19 @@ object CircleMemberToOwedAmountMapper:
     *   The created CircleMemberToOwedAmountMapper.
     */
   def fromSession[F[_]: Concurrent](
-      session: Session[F]
-  ): F[CircleMemberToOwedAmountMapper[F]] =
-    (session.prepare(listChildrenQuery), session.prepare(toMemberQuery)).mapN:
-      (listChildrenQuery, toMemberQuery) =>
-        new CircleMemberToOwedAmountMapper[F]:
+      pool: AppSessionPool[F]
+  ): CircleMemberToOwedAmountMapper[F] =
+    new CircleMemberToOwedAmountMapper[F]:
 
-          def listChildren(
-              fromMember: CircleMemberId
-          ): F[List[OwedAmountReadMapper]] =
-            listChildrenQuery.stream(fromMember.value, 1024).compile.toList
+      def listChildren(
+          fromMember: CircleMemberId
+      ): F[List[OwedAmountReadMapper]] =
+        pool.stream(listChildrenQuery, fromMember.value)
 
-          def toMember(
-              toMember: CircleMemberId
-          ): F[List[OwedAmountReadMapper]] =
-            toMemberQuery.stream(toMember.value, 1024).compile.toList
+      def toMember(
+          toMember: CircleMemberId
+      ): F[List[OwedAmountReadMapper]] =
+        pool.stream(toMemberQuery, toMember.value)
 
   private val listChildrenQuery: Query[String, OwedAmountReadMapper] =
     sql"""
@@ -1068,15 +1017,12 @@ object CircleMemberToExpenseMapper:
     *   A CircleMemberToExpenseMapper wrapped in an effect type F.
     */
   def fromSession[F[_]: Concurrent](
-      session: Session[F]
-  ): F[CircleMemberToExpenseMapper[F]] =
-    session
-      .prepare(listChildrenQuery)
-      .map: listChildrenQuery =>
-        new CircleMemberToExpenseMapper[F]:
+      pool: AppSessionPool[F]
+  ): CircleMemberToExpenseMapper[F] =
+    new CircleMemberToExpenseMapper[F]:
 
-          def listChildren(paidBy: CircleMemberId): F[List[ExpenseReadMapper]] =
-            listChildrenQuery.stream(paidBy.value, 1024).compile.toList
+      def listChildren(paidBy: CircleMemberId): F[List[ExpenseReadMapper]] =
+        pool.stream(listChildrenQuery, paidBy.value)
 
   private val listChildrenQuery: Query[String, ExpenseReadMapper] =
     sql"""
@@ -1110,15 +1056,12 @@ object ExpenseListToExpenseMapper:
     *   a new ExpenseListToExpenseMapper wrapped in an effect type F
     */
   def fromSession[F[_]: Concurrent](
-      session: Session[F]
-  ): F[ExpenseListToExpenseMapper[F]] =
-    session
-      .prepare(listChildrenQuery)
-      .map: listChildrenQuery =>
-        new ExpenseListToExpenseMapper[F]:
+      pool: AppSessionPool[F]
+  ): ExpenseListToExpenseMapper[F] =
+    new ExpenseListToExpenseMapper[F]:
 
-          def listChildren(parent: ExpenseListId): F[List[ExpenseReadMapper]] =
-            listChildrenQuery.stream(parent.value, 1024).compile.toList
+      def listChildren(parent: ExpenseListId): F[List[ExpenseReadMapper]] =
+        pool.stream(listChildrenQuery, parent.value)
 
   private val listChildrenQuery: Query[String, ExpenseReadMapper] =
     sql"""
@@ -1152,15 +1095,12 @@ object ExpensesToOwedAmountMapper:
     *   A `F` wrapped `ExpensesToOwedAmountMapper`.
     */
   def fromSession[F[_]: Concurrent](
-      session: Session[F]
-  ): F[ExpensesToOwedAmountMapper[F]] =
-    session
-      .prepare(listChildrenQuery)
-      .map: listChildrenQuery =>
-        new ExpensesToOwedAmountMapper[F]:
+      pool: AppSessionPool[F]
+  ): ExpensesToOwedAmountMapper[F] =
+    new ExpensesToOwedAmountMapper[F]:
 
-          def listChildren(parent: ExpenseId): F[List[OwedAmountReadMapper]] =
-            listChildrenQuery.stream(parent.value, 1024).compile.toList
+      def listChildren(parent: ExpenseId): F[List[OwedAmountReadMapper]] =
+        pool.stream(listChildrenQuery, parent.value)
 
   private val listChildrenQuery: Query[String, OwedAmountReadMapper] =
     sql"""

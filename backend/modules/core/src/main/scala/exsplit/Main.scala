@@ -15,6 +15,7 @@ import cats.effect.IO.asyncForIO
 import exsplit.migration.migrateDb
 import io.chrisdavenport.fiberlocal.FiberLocal
 import exsplit.routes._
+import exsplit.database._
 
 object Main extends IOApp.Simple:
   val appConfig = readConfig[AppConfig]("application.conf")
@@ -29,13 +30,10 @@ object Main extends IOApp.Simple:
     migrateDb(migrationConfig) >> SessionPool
       .makePool[IO](repoConfig)
       .use: sessionPool =>
-        sessionPool.use: session =>
-          local.flatMap: local =>
-            val fiberLocal = FiberLocal.fromIOLocal(local)
-            Routes
-              .fromSession(authConfig, fiberLocal, session)
-              .flatMap: routes =>
-                routes
-                  .flatMap(Routes.makeServer)
-                  .use(_ => IO.never)
-                  .as(ExitCode.Success)
+        local.flatMap: local =>
+          val fiberLocal = FiberLocal.fromIOLocal(local)
+          Routes
+            .fromSession(authConfig, fiberLocal, sessionPool)
+            .flatMap(Routes.makeServer)
+            .use(_ => IO.never)
+            .as(ExitCode.Success)

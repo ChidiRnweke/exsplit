@@ -14,21 +14,28 @@ import smithy4s.Timestamp
 import exsplit.expenses.ExpensesEntryPoint
 import exsplit.datamapper.expenseList.ExpenseListRepository
 import exsplit.datamapper.expenses.ExpenseRepository
+import exsplit.database._
 
 object ExpenseServiceWithAuth:
   def fromSession[F[_]: Concurrent: Parallel](
       userInfo: F[Email],
-      session: Session[F]
-  ): F[ExpenseService[F]] =
-    (
-      ExpensesEntryPoint.fromSession(session),
-      UserMapper.fromSession(session),
-      ExpenseRepository.fromSession(session),
-      CirclesRepository.fromSession(session),
-      CircleMembersRepository.fromSession(session),
-      ExpenseListRepository.fromSession(session)
-    ).mapN(makeAuthService(userInfo, _, _, _, _, _, _))
-
+      pool: AppSessionPool[F]
+  ): ExpenseService[F] =
+    val service = ExpensesEntryPoint.fromSession(pool)
+    val userMapper = UserMapper.fromSession(pool)
+    val circlesRepo = CirclesRepository.fromSession(pool)
+    val membersRepo = CircleMembersRepository.fromSession(pool)
+    val expListRepo = ExpenseListRepository.fromSession(pool)
+    val expenseRepo = ExpenseRepository.fromSession(pool)
+    makeAuthService(
+      userInfo,
+      service,
+      userMapper,
+      expenseRepo,
+      circlesRepo,
+      membersRepo,
+      expListRepo
+    )
   private def makeAuthService[F[_]: MonadThrow: Parallel](
       userInfo: F[Email],
       service: ExpenseService[F],

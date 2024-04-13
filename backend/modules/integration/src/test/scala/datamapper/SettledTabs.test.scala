@@ -15,6 +15,7 @@ import exsplit.datamapper.expenses._
 import exsplit.datamapper.settledTabs._
 import java.util.Date
 import smithy4s.Timestamp
+import exsplit.database.AppSessionPool
 
 class SettledTabsSuite extends DatabaseSuite:
   /** Helper function to setup the database with a user, circle, and expense
@@ -23,15 +24,16 @@ class SettledTabsSuite extends DatabaseSuite:
     *   The session to use for the database connection.
     */
   def setup(
-      session: Session[IO]
+      session: AppSessionPool[IO]
   ): IO[(ExpenseListId, CircleMemberId, CircleMemberId)] =
+    val circlesRepo = CirclesRepository.fromSession(session)
+    val circleMembersRepo = CircleMembersRepository.fromSession(session)
+    val expenseListRepo = ExpenseListRepository.fromSession(session)
     for
       userId <- createUser(session)
       userId2 <- createUser(session)
       input = CreateCircleInput(userId, "User", "Test Circle")
-      circlesRepo <- CirclesRepository.fromSession(session)
-      circleMembersRepo <- CircleMembersRepository.fromSession(session)
-      expenseListRepo <- ExpenseListRepository.fromSession(session)
+
       circle <- circlesRepo.create(input)
       memberInput = AddUserToCircleInput(userId, "User", CircleId(circle.id))
       memberInput2 = AddUserToCircleInput(userId2, "User2", CircleId(circle.id))
@@ -50,11 +52,12 @@ class SettledTabsSuite extends DatabaseSuite:
     * @param session
     *   The session to use for the database connection.
     */
-  def createUser(session: Session[IO]): IO[UserId] =
+  def createUser(session: AppSessionPool[IO]): IO[UserId] =
     val uuid = UUIDGen[IO].randomUUID
+    val userRepo = UserMapper.fromSession(session)
     for
       nextId <- uuid
-      userRepo <- UserMapper.fromSession(session)
+
       _ <- userRepo.createUser(nextId, Email("test@test.com"), "password")
     yield UserId(nextId.toString())
 
@@ -64,13 +67,13 @@ class SettledTabsSuite extends DatabaseSuite:
     * @param session
     *   The session to use for the database connection.
     */
-  def createTabs(session: Session[IO]): IO[SettledTabReadMapper] =
+  def createTabs(session: AppSessionPool[IO]): IO[SettledTabReadMapper] =
     val amount = Amount(10)
+    val settledTabRepo = SettledTabRepository.fromSession(session)
     for
       setupData <- setup(session)
       (id, from, to) = setupData
       createInput = SettleExpenseListInput(id, from, to, amount)
-      settledTabRepo <- SettledTabRepository.fromSession(session)
       _ <- settledTabRepo.create(createInput)
       _ <- settledTabRepo.create(createInput)
       settledTab <- settledTabRepo.create(createInput)
@@ -78,73 +81,66 @@ class SettledTabsSuite extends DatabaseSuite:
 
   test("You should be able to create a settled tab in the database"):
     val session = sessionPool()
-    session.use: session =>
-      for settledTab <- createTabs(session).attempt
-      yield assertEquals(settledTab.isRight, true)
+    for settledTab <- createTabs(session).attempt
+    yield assertEquals(settledTab.isRight, true)
 
   test("You should be able to read a settled tab from the database"):
     val session = sessionPool()
-    session.use: session =>
-      for
-        expected <- createTabs(session)
-        settledTabRepo <- SettledTabRepository.fromSession(session)
-        obtained <- settledTabRepo.get(expected.id).rethrow
-      yield assertEquals(obtained, expected)
+    val settledTabRepo = SettledTabRepository.fromSession(session)
+    for
+      expected <- createTabs(session)
+      obtained <- settledTabRepo.get(expected.id).rethrow
+    yield assertEquals(obtained, expected)
 
   test("You should be able to delete a settled tab from the database"):
     val session = sessionPool()
-    session.use: session =>
-      for
-        expected <- createTabs(session)
-        settledTabRepo <- SettledTabRepository.fromSession(session)
-        _ <- settledTabRepo.delete(expected.id)
-        obtained <- settledTabRepo.get(expected.id)
-      yield assertEquals(obtained.isLeft, true)
+    val settledTabRepo = SettledTabRepository.fromSession(session)
+    for
+      expected <- createTabs(session)
+      _ <- settledTabRepo.delete(expected.id)
+      obtained <- settledTabRepo.get(expected.id)
+    yield assertEquals(obtained.isLeft, true)
 
   test("You should be able to update a settled tab in the database"):
     val session = sessionPool()
-    session.use: session =>
-      for
-        created <- createTabs(session)
-        settledTabRepo <- SettledTabRepository.fromSession(session)
-        write = SettledTabWriteMapper(
-          created.id,
-          Some(created.toMember),
-          Some(created.fromMember),
-          None
-        ) // the people are swapped
-        _ <- settledTabRepo.update(write)
-        read <- settledTabRepo.get(created.id).rethrow
-        expected = (read.toMember, read.fromMember)
-        obtained = (created.fromMember, created.toMember)
-      yield assertEquals(expected, obtained)
+    val settledTabRepo = SettledTabRepository.fromSession(session)
+    for
+      created <- createTabs(session)
+      write = SettledTabWriteMapper(
+        created.id,
+        Some(created.toMember),
+        Some(created.fromMember),
+        None
+      ) // the people are swapped
+      _ <- settledTabRepo.update(write)
+      read <- settledTabRepo.get(created.id).rethrow
+      expected = (read.toMember, read.fromMember)
+      obtained = (created.fromMember, created.toMember)
+    yield assertEquals(expected, obtained)
 
   test("You should be able to get all settled tabs for an expense list"):
     val session = sessionPool()
-    session.use: session =>
-      for
-        created <- createTabs(session)
-        settledTabRepo <- SettledTabRepository.fromSession(session)
-        id = ExpenseListId(created.expenseListId)
-        obtained <- settledTabRepo.fromExpenseList(id)
-      yield assertEquals(obtained.length, 3)
+    val settledTabRepo = SettledTabRepository.fromSession(session)
+    for
+      created <- createTabs(session)
+      id = ExpenseListId(created.expenseListId)
+      obtained <- settledTabRepo.fromExpenseList(id)
+    yield assertEquals(obtained.length, 3)
 
   test("You should be able to get all settled tabs for a from member"):
     val session = sessionPool()
-    session.use: session =>
-      for
-        created <- createTabs(session)
-        settledTabRepo <- SettledTabRepository.fromSession(session)
-        id = CircleMemberId(created.fromMember)
-        obtained <- settledTabRepo.byFromMembers(id)
-      yield assertEquals(obtained.length, 3)
+    val settledTabRepo = SettledTabRepository.fromSession(session)
+    for
+      created <- createTabs(session)
+      id = CircleMemberId(created.fromMember)
+      obtained <- settledTabRepo.byFromMembers(id)
+    yield assertEquals(obtained.length, 3)
 
   test("You should be able to get all settled tabs for a to member"):
     val session = sessionPool()
-    session.use: session =>
-      for
-        created <- createTabs(session)
-        settledTabRepo <- SettledTabRepository.fromSession(session)
-        id = CircleMemberId(created.toMember)
-        obtained <- settledTabRepo.byToMembers(id)
-      yield assertEquals(obtained.length, 3)
+    val settledTabRepo = SettledTabRepository.fromSession(session)
+    for
+      created <- createTabs(session)
+      id = CircleMemberId(created.toMember)
+      obtained <- settledTabRepo.byToMembers(id)
+    yield assertEquals(obtained.length, 3)

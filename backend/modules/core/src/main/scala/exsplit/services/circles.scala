@@ -13,16 +13,17 @@ import skunk.Session
 import exsplit.domainmapper._
 import exsplit.authorization.extractors._
 import exsplit.authorization._
+import exsplit.database.AppSessionPool
 
 object CirclesEntryPoint:
   def fromSession[F[_]: Concurrent: Parallel](
-      session: Session[F]
-  ): F[CirclesService[F]] =
-    (
-      CirclesRepository.fromSession(session),
-      CircleMembersRepository.fromSession(session),
-      UserMapper.fromSession(session)
-    ).mapN(CirclesServiceImpl(_, _, _))
+      session: AppSessionPool[F]
+  ): CirclesService[F] =
+
+    val circlesRepo = CirclesRepository.fromSession(session)
+    val membersRepo = CircleMembersRepository.fromSession(session)
+    val userRepo = UserMapper.fromSession(session)
+    CirclesServiceImpl(circlesRepo, membersRepo, userRepo)
 
 case class CirclesServiceImpl[F[_]: MonadThrow: Parallel](
     circlesRepo: CirclesRepository[F],

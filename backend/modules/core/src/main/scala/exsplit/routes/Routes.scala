@@ -16,22 +16,22 @@ import io.chrisdavenport.fiberlocal.FiberLocal
 import exsplit.authorization._
 import cats._
 import exsplit.auth._
+import exsplit.database._
 
 object Routes:
   def fromSession[F[_]: Async: Parallel](
       config: AuthConfig,
       local: FiberLocal[F, Either[InvalidTokenError, Email]],
-      session: Session[F]
-  ): F[Resource[F, HttpRoutes[F]]] =
+      pool: AppSessionPool[F]
+  ): Resource[F, HttpRoutes[F]] =
     val getEmail = local.get.flatMap(_.liftTo[F])
-    (
-      AuthEntryPoint.fromSession(session, config),
-      ExpenseServiceWithAuth.fromSession(getEmail, session),
-      ExpenseListServiceWithAuth.fromSession(getEmail, session),
-      CirclesWithAuthEntryPoint.fromSession(getEmail, session)
-    ).mapN:
-      servicesToRoutes(config, _, _, _, _)
-        .map(Middleware.withRequestInfo(_, config, local))
+
+    val auth = AuthEntryPoint.fromSession(pool, config)
+    val expense = ExpenseServiceWithAuth.fromSession(getEmail, pool)
+    val expenseList = ExpenseListServiceWithAuth.fromSession(getEmail, pool)
+    val circles = CirclesWithAuthEntryPoint.fromSession(getEmail, pool)
+    servicesToRoutes(config, auth, expense, expenseList, circles)
+      .map(Middleware.withRequestInfo(_, config, local))
 
   private def servicesToRoutes[F[_]: Async](
       config: AuthConfig,

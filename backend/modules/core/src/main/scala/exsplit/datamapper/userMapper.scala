@@ -11,6 +11,7 @@ import cats._
 import cats.data._
 import java.util.UUID
 import exsplit.datamapper._
+import exsplit.database._
 
 /** Represents a user read mapper. This class is a one to one mapping of the
   * user table in the database without the creation and update timestamps.
@@ -133,71 +134,50 @@ object UserMapper:
    * @return
    *   An effect that yields a new `UserMapper` instance.
    */
-  def fromSession[F[_]: Applicative](
-      session: Session[F]
-  ): F[UserMapper[F]] =
-    (
-      session.prepare(userFromId),
-      session.prepare(userFromEmail),
-      session.prepare(_createUser),
-      session.prepare(updateEmail),
-      session.prepare(updatePassword),
-      session.prepare(deleteUser)
-    ).mapN(fromQueries[F])
-
-  def fromQueries[F[_]: Applicative](
-      findUserByIdQuery: PreparedQuery[F, String, UserReadMapper],
-      findUserByEmailQuery: PreparedQuery[F, String, UserReadMapper],
-      createUserCommand: PreparedQuery[
-        F,
-        (String, String, String),
-        UserReadMapper
-      ],
-      updateEmailCommand: PreparedCommand[F, (String, String)],
-      updatePasswordCommand: PreparedCommand[F, (String, String)],
-      deleteUserCommand: PreparedCommand[F, String]
+  def fromSession[F[_]: Cancel: Parallel](
+      pool: AppSessionPool[F]
   ): UserMapper[F] =
     new UserMapper[F]:
 
       def get(id: String): F[Either[NotFoundError, UserReadMapper]] =
-        findUserByIdQuery
-          .option(id)
+        pool
+          .option(userFromId, id)
           .map(_.toRight(NotFoundError(s"User $id not found.")))
 
       def delete(id: String): F[Unit] =
-        deleteUserCommand.execute(id).void
+        pool.exec(deleteUserCommand, id).void
 
       def create(input: (String, String, String)): F[UserReadMapper] =
-        createUserCommand.unique(input)
+        pool.unique(createUserCommand, input)
 
       def findUserById(
           userId: UserId
       ): F[Either[NotFoundError, UserReadMapper]] =
-        findUserByIdQuery
-          .option(userId.value)
-          .map(_.toRight(NotFoundError(s"User $userId not found.")))
+        get(userId.value)
 
       def findUserByEmail(
           email: Email
       ): F[Either[NotFoundError, UserReadMapper]] =
-        findUserByEmailQuery
-          .option(email.value)
+        pool
+          .option(userFromEmail, email.value)
           .map(_.toRight(NotFoundError(s"User with email $email not found.")))
 
       def createUser(id: UUID, email: Email, password: String): F[Unit] =
-        createUserCommand.unique(id.toString(), email.value, password).void
+        create((id.toString, email.value, password)).void
 
       def update(user: UserWriteMapper): F[Unit] =
         List(
-          user.email.map(updateEmailCommand.execute(_, user.id)),
-          user.password.map(updatePasswordCommand.execute(_, user.id))
-        ).flatten.sequence.void
+          user.email.map: mail =>
+            pool.exec(updateEmail, (mail, user.id)),
+          user.password.map: pass =>
+            pool.exec(updatePassword, (pass, user.id))
+        ).flatten.parSequence.void
 
       def updateUser(user: UserWriteMapper): F[Unit] =
         update(user).void
 
       def deleteUser(userId: UserId): F[Unit] =
-        deleteUserCommand.execute(userId.value).void
+        delete(userId.value).void
 
   private val userFromEmail: Query[String, UserReadMapper] =
     sql"""
@@ -217,7 +197,8 @@ object UserMapper:
       .query(text *: text *: text)
       .to[UserReadMapper]
 
-  private val _createUser: Query[(String, String, String), UserReadMapper] =
+  private val createUserCommand
+      : Query[(String, String, String), UserReadMapper] =
     sql"""
       INSERT INTO users (id, email, password)
       VALUES ($text, $text, $text)
@@ -240,7 +221,7 @@ object UserMapper:
       WHERE id = $text
     """.command
 
-  private val deleteUser: Command[String] =
+  private val deleteUserCommand: Command[String] =
     sql"""
       DELETE FROM users
       WHERE id = $text

@@ -13,20 +13,29 @@ import exsplit.datamapper.circles._
 import exsplit.expenseList.ExpenseListEntryPoint
 import exsplit.datamapper.expenseList.ExpenseListRepository
 import exsplit.datamapper.expenses.ExpenseRepository
+import exsplit.database._
 
 object ExpenseListServiceWithAuth:
   def fromSession[F[_]: Concurrent: Parallel](
       userInfo: F[Email],
-      session: Session[F]
-  ): F[ExpenseListService[F]] =
-    (
-      ExpenseListEntryPoint.fromSession(session),
-      UserMapper.fromSession(session),
-      CirclesRepository.fromSession(session),
-      CircleMembersRepository.fromSession(session),
-      ExpenseListRepository.fromSession(session),
-      ExpenseRepository.fromSession(session)
-    ).mapN(makeAuthService(userInfo, _, _, _, _, _, _))
+      pool: AppSessionPool[F]
+  ): ExpenseListService[F] =
+
+    val service = ExpenseListEntryPoint.fromSession(pool)
+    val userMapper = UserMapper.fromSession(pool)
+    val circlesRepo = CirclesRepository.fromSession(pool)
+    val membersRepo = CircleMembersRepository.fromSession(pool)
+    val listRepo = ExpenseListRepository.fromSession(pool)
+    val expenseRepo = ExpenseRepository.fromSession(pool)
+    makeAuthService(
+      userInfo,
+      service,
+      userMapper,
+      circlesRepo,
+      membersRepo,
+      listRepo,
+      expenseRepo
+    )
 
   private def makeAuthService[F[_]: MonadThrow: Parallel](
       userInfo: F[Email],

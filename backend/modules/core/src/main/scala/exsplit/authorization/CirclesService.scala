@@ -10,18 +10,19 @@ import cats._
 import skunk.Session
 import exsplit.datamapper.user.UserMapper
 import exsplit.datamapper.circles._
+import exsplit.database._
 
 object CirclesWithAuthEntryPoint:
   def fromSession[F[_]: Concurrent: Parallel](
       userInfo: F[Email],
-      session: Session[F]
-  ): F[CirclesService[F]] =
-    (
-      CirclesEntryPoint.fromSession(session),
-      UserMapper.fromSession(session),
-      CirclesRepository.fromSession(session),
-      CircleMembersRepository.fromSession(session)
-    ).mapN(makeAuthService(userInfo, _, _, _, _))
+      pool: AppSessionPool[F]
+  ): CirclesService[F] =
+
+    val service = CirclesEntryPoint.fromSession(pool)
+    val userRepo = UserMapper.fromSession(pool)
+    val circlesRepo = CirclesRepository.fromSession(pool)
+    val membersRepo = CircleMembersRepository.fromSession(pool)
+    makeAuthService(userInfo, service, userRepo, circlesRepo, membersRepo)
 
   private def makeAuthService[F[_]: MonadThrow: Parallel](
       userInfo: F[Email],
@@ -29,7 +30,7 @@ object CirclesWithAuthEntryPoint:
       userMapper: UserMapper[F],
       circlesRepo: CirclesRepository[F],
       membersRepo: CircleMembersRepository[F]
-  ) =
+  ): CirclesService[F] =
     val circlesAuth = CirclesAuth(circlesRepo, userMapper)
     val userAuth = UserAuth(userMapper)
     val memberAuth = CircleMemberAuth(userMapper, circlesRepo, membersRepo)

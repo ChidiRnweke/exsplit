@@ -12,20 +12,26 @@ import exsplit.datamapper.expenses._
 import exsplit.domainmapper._
 import exsplit.datamapper.settledTabs._
 import skunk.Session
+import exsplit.database.AppSessionPool
 
 object ExpenseListEntryPoint:
   def fromSession[F[_]: Concurrent: Parallel](
-      session: Session[F]
-  ): F[ExpenseListService[F]] =
-    (
-      ExpenseListRepository.fromSession(session),
-      CircleMembersRepository.fromSession(session),
-      ExpenseRepository.fromSession(session),
-      CirclesRepository.fromSession(session),
-      OwedAmountRepository.fromSession(session),
-      SettledTabRepository.fromSession(session)
-    ).mapN(ExpenseListServiceImpl(_, _, _, _, _, _))
-
+      session: AppSessionPool[F]
+  ): ExpenseListService[F] =
+    val expenseListRepo = ExpenseListRepository.fromSession(session)
+    val circleMembersRepo = CircleMembersRepository.fromSession(session)
+    val expenseRepository = ExpenseRepository.fromSession(session)
+    val circlesRepo = CirclesRepository.fromSession(session)
+    val owedAmountsRepo = OwedAmountRepository.fromSession(session)
+    val settledTabRepository = SettledTabRepository.fromSession(session)
+    ExpenseListServiceImpl(
+      expenseListRepo,
+      circleMembersRepo,
+      expenseRepository,
+      circlesRepo,
+      owedAmountsRepo,
+      settledTabRepository
+    )
 case class ExpenseListServiceImpl[F[_]: MonadThrow: Parallel](
     expenseListRepo: ExpenseListRepository[F],
     circleMembersRepo: CircleMembersRepository[F],

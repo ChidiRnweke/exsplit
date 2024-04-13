@@ -14,6 +14,7 @@ import org.testcontainers.containers.wait.strategy.Wait
 import skunk.Session
 import natchez.Trace.Implicits.noop
 import java.io.File
+import exsplit.database.SessionPool
 
 /** Abstract class representing a database suite for integration testing. This
   * is a `CatsEffectSuite` which gives it the ability to run effectful tests. It

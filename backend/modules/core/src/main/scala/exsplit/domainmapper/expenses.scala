@@ -35,7 +35,7 @@ extension [F[_]: MonadThrow: Parallel](repo: ExpenseRepository[F])
   ): F[List[ExpenseOut]] =
     for
       expenses <- repo.fromExpenseList(id)
-      expenseOuts <- expenses.traverse: expense =>
+      expenseOuts <- expenses.parTraverse: expense =>
         getExpenseOut(
           ExpenseId(expense.id),
           owedAmountsRepo: OwedAmountRepository[F]

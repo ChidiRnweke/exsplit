@@ -18,52 +18,50 @@ class UserServiceSuite extends DatabaseSuite:
     val session = sessionPool()
     val email = Email("test@test.com")
     val password = Password("password")
-    session.use: session =>
-      for
-        userService <- AuthEntryPoint.fromSession(session, authConfig)
-        user <- userService.register(email, password).attempt
-      yield assertEquals(user.isRight, true)
+    val userService = AuthEntryPoint.fromSession(session, authConfig)
+
+    for user <- userService.register(email, password).attempt
+    yield assertEquals(user.isRight, true)
 
   test("You should not be able to create an account with the same email."):
     val session = sessionPool()
     val email = Email("test2@test.com")
     val password = Password("password")
-    session.use: session =>
-      for
-        userService <- AuthEntryPoint.fromSession(session, authConfig)
-        user <- userService.register(email, password)
-        user2 <- userService.register(email, password).attempt
-      yield assertEquals(user2.isLeft, true)
+    val userService = AuthEntryPoint.fromSession(session, authConfig)
+
+    for
+      user <- userService.register(email, password)
+      user2 <- userService.register(email, password).attempt
+    yield assertEquals(user2.isLeft, true)
 
   test("You should be able to login with the correct credentials."):
     val session = sessionPool()
     val email = Email("test3@test.com")
     val password = Password("password")
-    session.use: session =>
-      for
-        userService <- AuthEntryPoint.fromSession(session, authConfig)
-        user <- userService.register(email, password)
-        login <- userService.login(email, password).attempt
-      yield assertEquals(login.isRight, true)
+    val userService = AuthEntryPoint.fromSession(session, authConfig)
+
+    for
+      user <- userService.register(email, password)
+      login <- userService.login(email, password).attempt
+    yield assertEquals(login.isRight, true)
 
   test("You should not be able to login with the wrong credentials."):
     val session = sessionPool()
     val email = Email("test4@test.com")
     val password = Password("password")
     val wrongPassword = Password("wrongPassword")
-    session.use: session =>
-      for
-        userService <- AuthEntryPoint.fromSession(session, authConfig)
-        user <- userService.register(email, password)
-        login <- userService.login(email, wrongPassword).attempt
-      yield assertEquals(login.isLeft, true)
+    val userService = AuthEntryPoint.fromSession(session, authConfig)
+
+    for
+      user <- userService.register(email, password)
+      login <- userService.login(email, wrongPassword).attempt
+    yield assertEquals(login.isLeft, true)
 
   test("You should not be able to create an account with an invalid email."):
     val session = sessionPool()
     val email = Email("test5")
     val password = Password("password")
-    session.use: session =>
-      for
-        userService <- AuthEntryPoint.fromSession(session, authConfig)
-        user <- userService.register(email, password).attempt
-      yield assertEquals(user.isLeft, true)
+    val userService = AuthEntryPoint.fromSession(session, authConfig)
+
+    for user <- userService.register(email, password).attempt
+    yield assertEquals(user.isLeft, true)

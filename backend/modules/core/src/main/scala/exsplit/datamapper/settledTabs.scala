@@ -10,6 +10,7 @@ import cats.syntax.all._
 import cats._
 import java.time.LocalDate
 import exsplit.datamapper._
+import exsplit.database._
 
 /** Represents the read model of a settled tab. This class is a one-to-one
   * mapping of the settled tab table in the database without the creation and
@@ -129,22 +130,19 @@ object SettledTabRepository:
     * @return
     *   a new instance of SettledTabRepository wrapped in an effect type `F`.
     */
-  def fromSession[F[_]: Concurrent](
-      session: Session[F]
-  ): F[SettledTabRepository[F]] =
-    (
-      SettledTabMapper.fromSession(session),
-      ExpenseListToSettledTabs.fromSession(session),
-      FromMemberToSettledTabs.fromSession(session),
-      ToMemberToSettledTabs.fromSession(session)
-    )
-      .mapN: (mainMapper, byExpenses, byFromMembersRepo, byToMembersRepo) =>
-        new SettledTabRepository[F]:
+  def fromSession[F[_]: Concurrent: Parallel](
+      pool: AppSessionPool[F]
+  ): SettledTabRepository[F] =
+    val mainMapper = SettledTabMapper.fromSession(pool)
+    val byExpenses = ExpenseListToSettledTabs.fromSession(pool)
+    val byFromMembersRepo = FromMemberToSettledTabs.fromSession(pool)
+    val byToMembersRepo = ToMemberToSettledTabs.fromSession(pool)
+    new SettledTabRepository[F]:
 
-          export mainMapper._
-          export byExpenses.{listChildren as fromExpenseList}
-          export byFromMembersRepo.{listChildren as byFromMembers}
-          export byToMembersRepo.{listChildren as byToMembers}
+      export mainMapper._
+      export byExpenses.{listChildren as fromExpenseList}
+      export byFromMembersRepo.{listChildren as byFromMembers}
+      export byToMembersRepo.{listChildren as byToMembers}
 
 /** A trait representing a data mapper for Settled Tabs. It provides methods for
   * creating, retrieving, updating, and deleting Settled Tabs.
@@ -263,16 +261,11 @@ object ExpenseListToSettledTabs:
     *   a new instance of ExpenseListToSettledTabs wrapped in an effect type `F`
     */
   def fromSession[F[_]: Concurrent](
-      session: Session[F]
-  ): F[ExpenseListToSettledTabs[F]] =
-    session
-      .prepare(getSettledTabsQuery)
-      .map: getSettledTabsQuery =>
-        new ExpenseListToSettledTabs[F]:
-          def listChildren(
-              parent: ExpenseListId
-          ): F[List[SettledTabReadMapper]] =
-            getSettledTabsQuery.stream(parent.value, 1024).compile.toList
+      pool: AppSessionPool[F]
+  ): ExpenseListToSettledTabs[F] =
+    new ExpenseListToSettledTabs[F]:
+      def listChildren(parent: ExpenseListId): F[List[SettledTabReadMapper]] =
+        pool.stream(getSettledTabsQuery, parent.value)
 
   private val getSettledTabsQuery: Query[String, SettledTabReadMapper] =
     sql"""
@@ -294,16 +287,11 @@ object FromMemberToSettledTabs:
     *   a new instance of FromMemberToSettledTabs wrapped in an effect type `F`
     */
   def fromSession[F[_]: Concurrent](
-      session: Session[F]
-  ): F[FromMemberToSettledTabs[F]] =
-    session
-      .prepare(getSettledTabsQuery)
-      .map: getSettledTabsQuery =>
-        new FromMemberToSettledTabs[F]:
-          def listChildren(
-              parent: CircleMemberId
-          ): F[List[SettledTabReadMapper]] =
-            getSettledTabsQuery.stream(parent.value, 1024).compile.toList
+      pool: AppSessionPool[F]
+  ): FromMemberToSettledTabs[F] =
+    new FromMemberToSettledTabs[F]:
+      def listChildren(parent: CircleMemberId): F[List[SettledTabReadMapper]] =
+        pool.stream(getSettledTabsQuery, parent.value)
 
   private val getSettledTabsQuery: Query[String, SettledTabReadMapper] =
     sql"""
@@ -325,16 +313,13 @@ object ToMemberToSettledTabs:
     *   a new instance of ToMemberToSettledTabs wrapped in an effect type `F`
     */
   def fromSession[F[_]: Concurrent](
-      session: Session[F]
-  ): F[ToMemberToSettledTabs[F]] =
-    session
-      .prepare(getSettledTabsQuery)
-      .map: getSettledTabsQuery =>
-        new ToMemberToSettledTabs[F]:
-          def listChildren(
-              parent: CircleMemberId
-          ): F[List[SettledTabReadMapper]] =
-            getSettledTabsQuery.stream(parent.value, 1024).compile.toList
+      pool: AppSessionPool[F]
+  ): ToMemberToSettledTabs[F] =
+    new ToMemberToSettledTabs[F]:
+      def listChildren(
+          parent: CircleMemberId
+      ): F[List[SettledTabReadMapper]] =
+        pool.stream(getSettledTabsQuery, parent.value)
 
   private val getSettledTabsQuery: Query[String, SettledTabReadMapper] =
     sql"""
@@ -359,48 +344,30 @@ object SettledTabMapper:
     * @return
     *   a new instance of SettledTabMapper
     */
-  def fromSession[F[_]: Concurrent](
-      session: Session[F]
-  ): F[SettledTabMapper[F]] =
-    (
-      session.prepare(getSettledTabQuery),
-      session.prepare(createSettledTabQuery),
-      session.prepare(deleteSettledTabQuery),
-      session.prepare(updateSettledTabFromMemberQuery),
-      session.prepare(updateSettledTabToMemberQuery),
-      session.prepare(updateSettledTabAmountQuery)
-    ).mapN(fromQueries)
-
-  private def fromQueries[F[_]: Concurrent](
-      getSettledTabQuery: PreparedQuery[F, String, SettledTabReadMapper],
-      createSettledTabQuery: PreparedQuery[
-        F,
-        SettleExpenseListInput,
-        SettledTabReadMapper
-      ],
-      deleteSettledTabQuery: PreparedCommand[F, String],
-      updateSettledTabFromMemberQuery: PreparedCommand[F, (String, String)],
-      updateSettledTabToMemberQuery: PreparedCommand[F, (String, String)],
-      updateSettledTabAmountQuery: PreparedCommand[F, (Float, String)]
+  def fromSession[F[_]: Cancel: Parallel](
+      pool: AppSessionPool[F]
   ): SettledTabMapper[F] =
     new SettledTabMapper[F]:
       def create(input: SettleExpenseListInput): F[SettledTabReadMapper] =
-        createSettledTabQuery.unique(input)
+        pool.unique(createSettledTabQuery, input)
 
       def get(id: String): F[Either[NotFoundError, SettledTabReadMapper]] =
-        getSettledTabQuery
-          .option(id)
-          .map(_.toRight(NotFoundError(s"SettledTab $id not found")))
+        pool
+          .option(getSettledTabQuery, id)
+          .map(_.toRight(NotFoundError(s"Settled tab $id not found")))
 
       def update(b: SettledTabWriteMapper): F[Unit] =
         List(
-          b.fromMember.map(updateSettledTabFromMemberQuery.execute(_, b.id)),
-          b.toMember.map(updateSettledTabToMemberQuery.execute(_, b.id)),
-          b.amount.map(updateSettledTabAmountQuery.execute(_, b.id))
-        ).flatten.sequence.void
+          b.fromMember.map: from =>
+            pool.exec(updateSettledTabFromMemberQuery, (from, b.id)),
+          b.toMember.map: to =>
+            pool.exec(updateSettledTabToMemberQuery, (to, b.id)),
+          b.amount.map: amount =>
+            pool.exec(updateSettledTabAmountQuery, (amount, b.id))
+        ).flatten.parSequence.void
 
       def delete(id: String): F[Unit] =
-        deleteSettledTabQuery.execute(id).void
+        pool.exec(deleteSettledTabQuery, id)
 
   private val getSettledTabQuery: Query[String, SettledTabReadMapper] =
     sql"""

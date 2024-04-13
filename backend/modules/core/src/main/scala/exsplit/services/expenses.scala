@@ -13,17 +13,22 @@ import exsplit.datamapper.expenseList._
 import exsplit.domainmapper._
 import java.time.LocalDate
 import skunk.Session
+import exsplit.database.AppSessionPool
 
 object ExpensesEntryPoint:
   def fromSession[F[_]: Concurrent: Parallel](
-      session: Session[F]
-  ): F[ExpenseService[F]] =
-    (
-      ExpenseRepository.fromSession(session),
-      ExpenseListRepository.fromSession(session),
-      CircleMembersRepository.fromSession(session),
-      OwedAmountRepository.fromSession(session)
-    ).mapN(ExpenseServiceImpl(_, _, _, _))
+      session: AppSessionPool[F]
+  ): ExpenseService[F] =
+    val expenseRepo = ExpenseRepository.fromSession(session)
+    val expenseListRepo = ExpenseListRepository.fromSession(session)
+    val membersRepo = CircleMembersRepository.fromSession(session)
+    val owedAmountRepo = OwedAmountRepository.fromSession(session)
+    ExpenseServiceImpl(
+      expenseRepo,
+      expenseListRepo,
+      membersRepo,
+      owedAmountRepo
+    )
 
 case class ExpenseServiceImpl[F[_]: MonadThrow: Parallel](
     expenseRepo: ExpenseRepository[F],
