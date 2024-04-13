@@ -16,7 +16,23 @@ import exsplit.datamapper.expenseList.ExpenseListRepository
 import exsplit.datamapper.expenses.ExpenseRepository
 import exsplit.database._
 
+/** Entry point for creating an instance of the ExpenseService with
+  * authorization. It is a wrapper around the ExpensesEntryPoint that adds
+  * authorization to the service.
+  */
 object ExpenseServiceWithAuth:
+  /** Creates an instance of ExpenseService with authorization from the provided
+    * session. The session pool is eventually passed down to involved
+    * repositories.
+    *
+    * @param userInfo
+    *   The email of the authenticated user. Obtained from the fiber local
+    *   through the middleware.
+    * @param pool
+    *   The AppSessionPool used for database operations.
+    * @return
+    *   An instance of ExpenseService with authorization.
+    */
   def fromSession[F[_]: Concurrent: Parallel](
       userInfo: F[Email],
       pool: AppSessionPool[F]
@@ -50,6 +66,18 @@ object ExpenseServiceWithAuth:
     val expAuth = ExpenseAuth(userMapper, circlesRepo, expListRepo, expenseRepo)
     ExpenseServiceWithAuth(userInfo, memberAuth, listAuth, expAuth, service)
 
+/** ExpenseService with authorization. It is a wrapper around the
+  * ExpensesEntryPoint that adds authorization to the service. Authorization
+  * checks are run concurrently where possible. After the checks are successful,
+  * the service is run. The eventual interpreter of the service is able to run
+  * this as a regular ExpenseService.
+  *
+  * @param userInfo
+  * @param circleMemberAuth
+  * @param expenseListAuth
+  * @param expenseAuth
+  * @param service
+  */
 case class ExpenseServiceWithAuth[F[_]: Monad: Parallel](
     userInfo: F[Email],
     circleMemberAuth: CircleMemberAuth[F],

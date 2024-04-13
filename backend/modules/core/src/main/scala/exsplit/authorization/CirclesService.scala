@@ -12,7 +12,23 @@ import exsplit.datamapper.user.UserMapper
 import exsplit.datamapper.circles._
 import exsplit.database._
 
+/** Entry point for creating an instance of the CirclesService with
+  * authorization. It is a wrapper around the CirclesEntryPoint that adds
+  * authorization to the service.
+  */
 object CirclesWithAuthEntryPoint:
+  /** Creates an instance of CirclesService with authorization from the provided
+    * session. The session pool is eventually passed down to involved
+    * repositories.
+    *
+    * @param userInfo
+    *   The email of the authenticated user. Obtained from the fiber local
+    *   through the middleware.
+    * @param pool
+    *   The AppSessionPool used for database operations.
+    * @return
+    *   An instance of CirclesService with authorization.
+    */
   def fromSession[F[_]: Concurrent: Parallel](
       userInfo: F[Email],
       pool: AppSessionPool[F]
@@ -36,6 +52,26 @@ object CirclesWithAuthEntryPoint:
     val memberAuth = CircleMemberAuth(userMapper, circlesRepo, membersRepo)
     CirclesServiceWithAuth(userInfo, circlesAuth, memberAuth, userAuth, service)
 
+/** The CirclesService with authorization. It is a wrapper around the
+  * CirclesService that adds authorization to the service. Authorization checks
+  * are run concurrently where possible. After the checks are successful, the
+  * service is run. The eventual interpreter of the service is able to run this
+  * as a CirclesService.
+  *
+  * @param userInfo
+  *   The email of the authenticated user. Obtained from the fiber local through
+  *   the middleware.
+  * @param circlesAuth
+  *   The authorization service for circles.
+  * @param circleMemberAuth
+  *   The authorization service for circle members.
+  * @param userAuth
+  *   The authorization service for users.
+  * @param service
+  *   The CirclesService to be wrapped.
+  * @tparam F
+  *   The effect type.
+  */
 case class CirclesServiceWithAuth[F[_]: MonadThrow: Parallel](
     userInfo: F[Email],
     circlesAuth: CirclesAuth[F],

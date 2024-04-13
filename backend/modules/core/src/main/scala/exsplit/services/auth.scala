@@ -83,9 +83,7 @@ object AuthEntryPoint:
     createService(authConfig, repo, clock, bcrypt, uuid)
 
   /** Creates a UserService instance using the provided session and
-    * authentication configuration. The service is wrapped in the effect type F
-    * because the user repository is created using the session, which is
-    * effectful.
+    * authentication configuration.
     * @param session
     *   The session to be used for database operations.
     * @param authConfig

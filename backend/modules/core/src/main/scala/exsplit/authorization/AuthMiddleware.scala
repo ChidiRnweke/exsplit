@@ -18,8 +18,30 @@ import cats.data._
 import exsplit.config.AuthConfig
 import java.time.Instant
 
+/** Middleware for adding request information to the request context.
+  *
+  * This application makes the distinction between authentication and
+  * authorization. The former is carried out by the `withAuthentication`
+  * middleware, which checks if the token is present and/or expired. The latter
+  * is carried out by the `withRequestInfo` middleware, which adds the email of
+  * the authenticated user to the request context
+  */
 object Middleware:
-
+  /** Adds the email of the authenticated user to the request context. Each
+    * route decides how to use this information.
+    *
+    * @param routes
+    *   The routes to be wrapped.
+    * @param authConfig
+    *   The configuration for the authentication. Necessary because a decoder is
+    *   needed to extract the email from the token. This contains the secret key
+    *   used for encoding and decoding the token.
+    * @param local
+    *   The fiber local that stores the email of the authenticated user.
+    * @return
+    *   The wrapped routes, with the email of the authenticated user in the
+    *   request context.
+    */
   def withRequestInfo[F[_]: Monad](
       routes: HttpRoutes[F],
       authConfig: AuthConfig,
@@ -30,6 +52,16 @@ object Middleware:
       val infoMaybe = tokenFromRequest(decoder, request)
       OptionT.liftF(local.set(infoMaybe)) *> routes(request)
 
+  /** Middleware for adding authentication to the routes. It checks if the token
+    * is expired and if it is, it returns an error. Unlike the `withRequestInfo`
+    * middleware, this middleware is applied uniformly to all routes that have
+    * hints for authentication in the same way.
+    *
+    * @param authChecker
+    *   The decoder for the token.
+    * @return
+    *   The middleware that checks if the token is expired.
+    */
   def withAuthentication[F[_]: Clock: MonadThrow](
       authChecker: TokenEncoderDecoder
   ): ServerEndpointMiddleware[F] =
