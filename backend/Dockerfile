@@ -4,15 +4,13 @@ COPY . /build
 
 WORKDIR /build
 
-RUN sbt clean
+RUN sbt universal:packageZipTarball
 
-RUN sbt core/assembly
+RUN tar -xvf /build/modules/core/target/universal/exsplit.tgz 
 
-FROM eclipse-temurin:17-jre-alpine as runtime
+FROM eclipse-temurin:17-jre as runtime
 
-WORKDIR /app
+COPY --from=build /build/exsplit /app
 
-COPY --from=build build/modules/core/target/scala-3.3.1/exsplit.jar  /app/exsplit.jar
-
-ENTRYPOINT ["java", "-jar", "exsplit.jar"]
+ENTRYPOINT ["bash", "/app/bin/exsplit"]
 

@@ -2,14 +2,21 @@ version: '3.8'
 services:
   postgres:
     image: postgres:16.2-alpine3.19
-    environment:
-      POSTGRES_PASSWORD: "exsplit"
-      POSTGRES_USER: "exsplit"
-      POSTGRES_DB: "exsplit"
-    ports:
-      - "5432:5432"
+    env_file:
+     - config/.secrets.env
     volumes:
       - postgres-data-exsplit:/var/lib/postgresql/data
-      
+
+  backend:
+    env_file:
+     - config/.secrets.env
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "9000:9000"
+    depends_on:
+      - postgres      
+
 volumes:
   postgres-data-exsplit:
