@@ -11,6 +11,7 @@ lazy val root = (project in file("."))
 lazy val core = project
   .in(file("modules/core"))
   .dependsOn(shared)
+  .enablePlugins(JavaAppPackaging)
   .settings(
     name := "Exsplit",
     libraryDependencies ++= Seq(
@@ -30,14 +31,13 @@ lazy val core = project
       "org.tpolecat" %% "skunk-core" % "0.6.3",
       "org.typelevel" %% "munit-cats-effect-3" % "1.0.6" % Test
     ),
+    Universal / packageName := "exsplit",
     Compile / run / fork := true,
     Compile / doc / target := file(
       Paths.get("../dist/").toAbsolutePath.toString
     ) / "doc",
     Compile / run / connectInput := true,
-    Test / fork := true,
-    assembly / mainClass := Some("exsplit.Main"),
-    assembly / assemblyJarName := "exsplit.jar"
+    Test / fork := true
   )
 
 lazy val shared = project
@@ -46,8 +46,7 @@ lazy val shared = project
   .settings(
     libraryDependencies ++= Seq(
       "com.disneystreaming.smithy4s" %% "smithy4s-http4s" % smithy4sVersion.value
-    ),
-    assembly / assemblyJarName := "shared.jar"
+    )
   )
 
 lazy val integration = project
@@ -69,9 +68,3 @@ lazy val integration = project
     Compile / run / connectInput := true,
     Test / fork := true
   )
-
-ThisBuild / assemblyMergeStrategy := {
-  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
-  case "application.conf"            => MergeStrategy.concat
-  case _                             => MergeStrategy.first
-}
