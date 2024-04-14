@@ -131,10 +131,14 @@ case class ExpenseListServiceImpl[F[_]: MonadThrow: Parallel](
   def getSettledExpenseLists(
       expenseListId: ExpenseListId
   ): F[GetSettledExpenseListsOutput] =
-    val tabs = ???
-    val settledTabsOut = SettledTabsOut(tabs)
-    expenseListRepo.withValidExpenseList(expenseListId) *>
-      GetSettledExpenseListsOutput(settledTabsOut).pure[F]
+    for
+      _ <- expenseListRepo.withValidExpenseList(expenseListId)
+      tabs <- settledTabRepository.getSettledTabs(
+        expenseListId,
+        circleMembersRepo
+      )
+      settledTabsOut = SettledTabsOut(tabs)
+    yield GetSettledExpenseListsOutput(settledTabsOut)
 
   /** Settle an expense list between two members. This creates a settled tab
     * between the two members.
