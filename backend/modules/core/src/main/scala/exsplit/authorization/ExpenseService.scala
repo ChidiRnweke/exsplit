@@ -113,7 +113,7 @@ case class ExpenseServiceWithAuth[F[_]: Monad: Parallel](
 
   def updateExpense(
       id: ExpenseId,
-      paidBy: Option[CircleMemberId],
+      paidBy: CircleMemberId,
       description: Option[String],
       price: Option[Amount],
       date: Option[Timestamp],
@@ -121,7 +121,7 @@ case class ExpenseServiceWithAuth[F[_]: Monad: Parallel](
   ): F[Unit] =
     (
       expenseAuth.authCheck(userInfo, id),
-      paidBy.traverse(circleMemberAuth.authCheck(userInfo, _))
+      circleMemberAuth.authCheck(userInfo, paidBy)
     ).parTupled *> service.updateExpense(
       id,
       paidBy,

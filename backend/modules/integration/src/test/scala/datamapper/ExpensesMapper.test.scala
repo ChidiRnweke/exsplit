@@ -108,7 +108,7 @@ class ExpenseMapperSuite extends DatabaseSuite:
       result <- createExpenses(session)
       write = ExpenseWriteMapper(
         result.id,
-        None,
+        result.paidBy,
         Some("updated"),
         Some(50),
         None
@@ -206,8 +206,7 @@ class ExpenseMapperSuite extends DatabaseSuite:
       from = CircleMemberId(last.paidBy)
       owed = CreateOwedAmountInput(expenseId, from, from, Amount(10))
       key = OwedAmountKey(expenseId, from, from)
-      result <- owedAmountsRepo.create(owed)
-      write = OwedAmountWriteMapper(result.id, None, None, Some(20))
+      write = OwedAmountWriteMapper(expenseId, from.value, from.value, 20)
       _ <- owedAmountsRepo.update(write)
       obtained <- owedAmountsRepo.get(key).rethrow
     yield assertEquals(obtained.amount, 20f)

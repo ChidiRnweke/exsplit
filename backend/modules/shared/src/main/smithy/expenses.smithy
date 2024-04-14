@@ -47,7 +47,8 @@ operation UpdateExpense {
         @required
         @httpLabel
         id: ExpenseId
-
+        
+        @required
         paidBy: CircleMemberId
 
         description: String

@@ -278,7 +278,7 @@ case class OwedAmountDetailRead(
   */
 case class ExpenseWriteMapper(
     id: String,
-    paidBy: Option[String],
+    paidBy: String,
     description: Option[String],
     price: Option[Float],
     date: Option[Timestamp]
@@ -333,10 +333,10 @@ case class OwedAmountReadMapper(
   *   The amount owed.
   */
 case class OwedAmountWriteMapper(
-    id: String,
-    fromMember: Option[String],
-    toMember: Option[String],
-    amount: Option[Float]
+    expenseId: ExpenseId,
+    fromMember: String,
+    toMember: String,
+    amount: Float
 )
 
 /** Represents the input for creating an owed amount.
@@ -765,14 +765,7 @@ object OwedAmountMapper:
           .map(_.toRight(NotFoundError(s"Owed amount $id not found.")))
 
       def update(b: OwedAmountWriteMapper): F[Unit] =
-        List(
-          b.fromMember.map: fromMember =>
-            pool.exec(updateOwedAmountFromMember, (fromMember, b.id)),
-          b.toMember.map: toMember =>
-            pool.exec(updateOwedAmountToMember, (toMember, b.id)),
-          b.amount.map: amount =>
-            pool.exec(updateOwedAmountAmountQuery, (amount, b.id))
-        ).flatten.parSequence.void
+        pool.exec(updateOwedAmountQuery, b)
 
       def delete(id: OwedAmountKey): F[Unit] =
         pool.exec(deleteOwedAmountQuery, id)
@@ -813,26 +806,14 @@ object OwedAmountMapper:
       .contramap: (key: OwedAmountKey) =>
         (key.expenseId.value, key.fromMember.value, key.toMember.value)
 
-  private val updateOwedAmountFromMember: Command[(String, String)] =
-    sql"""
-          UPDATE owed_amounts
-          SET from_member = $text
-          WHERE id = $text
-        """.command
-
-  private val updateOwedAmountToMember: Command[(String, String)] =
-    sql"""
-          UPDATE owed_amounts
-          SET to_member = $text
-          WHERE id = $text
-        """.command
-
-  private val updateOwedAmountAmountQuery: Command[(Float, String)] =
+  private val updateOwedAmountQuery: Command[OwedAmountWriteMapper] =
     sql"""
           UPDATE owed_amounts
           SET amount = $float4
-          WHERE id = $text
+          WHERE expense_id = $text and from_member = $text and to_member = $text
         """.command
+      .contramap: (b: OwedAmountWriteMapper) =>
+        (b.amount, b.expenseId.value, b.fromMember, b.toMember)
 
 /** Companion object for the ExpenseMapper trait. Contains the factory method
   * for creating an instance of the ExpenseMapper.
@@ -860,16 +841,15 @@ object ExpenseMapper:
           .map(_.toRight(NotFoundError(s"Expense $id not found.")))
 
       def update(b: ExpenseWriteMapper): F[Unit] =
-        List(
-          b.paidBy.map: paidBy =>
-            pool.exec(updateExpensePaidByQuery, (paidBy, b.id)),
-          b.description.map: description =>
-            pool.exec(updateExpenseDescriptionQuery, (description, b.id)),
-          b.price.map: price =>
-            pool.exec(updateExpensePriceQuery, (price, b.id)),
-          b.date.map: date =>
-            pool.exec(updateExpenseDateQuery, (date, b.id))
-        ).flatten.parSequence.void
+        pool.exec(updateExpensePaidByQuery, (b.paidBy, b.id)) *>
+          List(
+            b.description.map: description =>
+              pool.exec(updateExpenseDescriptionQuery, (description, b.id)),
+            b.price.map: price =>
+              pool.exec(updateExpensePriceQuery, (price, b.id)),
+            b.date.map: date =>
+              pool.exec(updateExpenseDateQuery, (date, b.id))
+          ).flatten.parSequence.void
 
       def delete(id: ExpenseId): F[Unit] =
         pool.exec(deleteExpenseQuery, id.value)

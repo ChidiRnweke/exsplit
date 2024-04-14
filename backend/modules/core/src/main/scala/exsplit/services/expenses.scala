@@ -157,7 +157,7 @@ case class ExpenseServiceImpl[F[_]: MonadThrow: Parallel](
     */
   def updateExpense(
       id: ExpenseId,
-      paidBy: Option[CircleMemberId],
+      paidBy: CircleMemberId,
       description: Option[String],
       price: Option[Amount],
       date: Option[Timestamp],
@@ -165,10 +165,18 @@ case class ExpenseServiceImpl[F[_]: MonadThrow: Parallel](
   ): F[Unit] =
     val expenseWriter = ExpenseWriteMapper(
       id.value,
-      paidBy.map(_.value),
+      paidBy.value,
       description,
       price.map(_.value),
       date
     )
+    val owedWrites = owedToPayer.map(_.map: o =>
+      OwedAmountWriteMapper(
+        ExpenseId(id.value),
+        o.circleMemberId.value,
+        paidBy.value,
+        o.amount.value
+      ))
 
-    expenseRepo.update(expenseWriter)
+    owedWrites.traverse(_.parTraverse(owedAmountRepo.update(_))) *>
+      expenseRepo.update(expenseWriter)
