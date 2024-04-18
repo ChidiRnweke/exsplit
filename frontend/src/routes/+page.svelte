@@ -1,6 +1,6 @@
 <script>
 	import H1 from '../components/shared/H1.svelte';
-	import { UserClient } from '$lib/services/UserService';
+	import { UserClient } from '$lib/api/clients/UserService';
 	const login = async () => {
 		const userClient = new UserClient();
 		await userClient.login({ email: 'test@foo.com', password: 'password' });
