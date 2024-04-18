@@ -108,12 +108,12 @@ operation CreateExpenseList {
 }
 
 @idempotent
-@http(method: "PUT", uri: "/api/expenseLists/{id}")
+@http(method: "PUT", uri: "/api/expenseLists/{expenseListId}")
 operation UpdateExpenseList {
     input := {
         @required
         @httpLabel
-        id: ExpenseListId
+        expenseListId: ExpenseListId
 
         @required
         name: String
@@ -121,12 +121,12 @@ operation UpdateExpenseList {
 }
 
 @idempotent
-@http(method: "DELETE", uri: "/api/expenseLists/{id}")
+@http(method: "DELETE", uri: "/api/expenseLists/{expenseListId}")
 operation DeleteExpenseList {
     input := {
         @required
         @httpLabel
-        id: ExpenseListId
+        expenseListId: ExpenseListId
     }
 }
 

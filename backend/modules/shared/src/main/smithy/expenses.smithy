@@ -23,12 +23,12 @@ service ExpenseService {
 }
 
 @readonly
-@http(method: "GET", uri: "/api/expenses/{id}")
+@http(method: "GET", uri: "/api/expenses/{expenseId}")
 operation GetExpense {
     input := {
         @required
         @httpLabel
-        id: ExpenseId
+        expenseId: ExpenseId
     }
 
     output := {
@@ -41,12 +41,12 @@ operation GetExpense {
     ]
 }
 
-@http(method: "PATCH", uri: "/api/expenses/{id}")
+@http(method: "PATCH", uri: "/api/expenses/{expenseId}")
 operation UpdateExpense {
     input := {
         @required
         @httpLabel
-        id: ExpenseId
+        expenseId: ExpenseId
         
         @required
         paidBy: CircleMemberId
@@ -67,12 +67,12 @@ operation UpdateExpense {
 }
 
 @idempotent
-@http(method: "DELETE", uri: "/api/expenses/{id}")
+@http(method: "DELETE", uri: "/api/expenses/{expenseId}")
 operation DeleteExpense {
     input := {
         @required
         @httpLabel
-        id: ExpenseId
+        expenseId: ExpenseId
     }
 }
 
@@ -129,7 +129,7 @@ list OwedAmounts {
 
 structure ExpenseOut {
     @required
-    id: String
+    expenseId: String
 
     @required
     paidBy: CircleMemberOut

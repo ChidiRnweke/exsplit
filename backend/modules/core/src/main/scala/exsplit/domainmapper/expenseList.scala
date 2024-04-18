@@ -92,7 +92,7 @@ extension [F[_]: MonadThrow: Parallel](repo: ExpenseListRepository[F])
     ).parFlatMapN: (expenseList, expenses) =>
       for
         owedAmounts <- expenses.parFlatTraverse(e =>
-          owedAmountRepo.getOwedAmounts(ExpenseId(e.id))
+          owedAmountRepo.getOwedAmounts(ExpenseId(e.expenseId))
         )
         owedTotal = owedAmounts.toTotalOwed
         totalExpense = expenses.map(_.price).sum
