@@ -54,3 +54,4 @@ build/smithy/*
 todo.md
 backend/config/.secrets.env
 frontend/openapi
+node_modules
