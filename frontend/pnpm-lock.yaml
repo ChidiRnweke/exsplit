@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+dependencies:
+  openapi-fetch:
+    specifier: ^0.9.3
+    version: 0.9.3
+
 devDependencies:
   '@iconify-json/mdi':
     specifier: ^1.1.64
@@ -2152,6 +2157,16 @@ packages:
     dependencies:
       mimic-fn: 4.0.0
     dev: true
+
+  /openapi-fetch@0.9.3:
+    resolution: {integrity: sha512-tC1NDn71vJHeCzu+lYdrnIpgRt4GxR0B4eSwXNb15ypWpZcpaEOwHFkoz8FcfG5Fvqkz2P0Fl9zQF1JJwBjuvA==}
+    dependencies:
+      openapi-typescript-helpers: 0.0.7
+    dev: false
+
+  /openapi-typescript-helpers@0.0.7:
+    resolution: {integrity: sha512-7nwlAtdA1fULipibFRBWE/rnF114q6ejRYzNvhdA/x+qTWAZhXGLc/368dlwMlyJDvCQMCnADjpzb5BS5ZmNSA==}
+    dev: false
 
   /optionator@0.9.3:
     resolution: {integrity: sha512-JjCoypp+jKn1ttEFExxhetCKeJt9zhAgAve5FXHixTvFDW/5aEktX9bufBKLRRMdU7bNtpLfcGu94B3cdEJgjg==}

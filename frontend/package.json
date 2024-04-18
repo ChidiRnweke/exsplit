@@ -43,5 +43,8 @@
 		"vite-plugin-tailwind-purgecss": "^0.2.0",
 		"vitest": "^1.2.0"
 	},
-	"type": "module"
+	"type": "module",
+	"dependencies": {
+		"openapi-fetch": "^0.9.3"
+	}
 }
