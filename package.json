@@ -13,10 +13,14 @@
     "frontend:test": "cd frontend && pnpm run test",
     "frontend:lint": "cd frontend && pnpm run lint",
     "frontend:format": "cd frontend && pnpm run format",
-    "backend:api-spec": "smithy4s generate backend/modules/shared/src/main/smithy --skip scala --resource-output frontend/openapi",
-    "backend:run": "cd backend && docker-compose up"
+    "api-spec": "smithy4s generate backend/modules/shared/src/main/smithy --skip scala --skip resource --resource-output schemas && pnpx openapi-typescript 'schemas/**.json' --output frontend/src/lib/ && rm -rf schemas",
+    "backend:run": "cd backend && docker-compose up -d",
+    "dev": "pnpm run backend:run && pnpm run frontend:dev"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "openapi-typescript": "^6.7.5"
+  }
 }
