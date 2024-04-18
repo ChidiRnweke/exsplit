@@ -25,7 +25,7 @@ service ExpenseListService {
 }
 
 @readonly
-@http(method: "GET", uri: "/circles/{circleId}/expenseLists")
+@http(method: "GET", uri: "/api/circles/{circleId}/expenseLists")
 operation GetExpenseLists {
     input := {
         @required
@@ -40,7 +40,7 @@ operation GetExpenseLists {
 }
 
 @readonly
-@http(method: "GET", uri: "/expenseLists/{expenseListId}/settle")
+@http(method: "GET", uri: "/api/expenseLists/{expenseListId}/settle")
 operation GetSettledExpenseLists {
     input := {
         @required
@@ -54,7 +54,7 @@ operation GetSettledExpenseLists {
     }
 }
 
-@http(method: "POST", uri: "/expenseLists/{expenseListId}/settle")
+@http(method: "POST", uri: "/api/expenseLists/{expenseListId}/settle")
 operation SettleExpenseList {
     input := {
         @required
@@ -73,7 +73,7 @@ operation SettleExpenseList {
 }
 
 @readonly
-@http(method: "GET", uri: "/expenseLists/{expenseListId}")
+@http(method: "GET", uri: "/api/expenseLists/{expenseListId}")
 operation GetExpenseList {
     input := {
         @required
@@ -90,7 +90,7 @@ operation GetExpenseList {
     }
 }
 
-@http(method: "POST", uri: "/circles/{circleId}/expenseLists")
+@http(method: "POST", uri: "/api/circles/{circleId}/expenseLists")
 operation CreateExpenseList {
     input := {
         @required
@@ -108,7 +108,7 @@ operation CreateExpenseList {
 }
 
 @idempotent
-@http(method: "PUT", uri: "/expenseLists/{id}")
+@http(method: "PUT", uri: "/api/expenseLists/{id}")
 operation UpdateExpenseList {
     input := {
         @required
@@ -121,7 +121,7 @@ operation UpdateExpenseList {
 }
 
 @idempotent
-@http(method: "DELETE", uri: "/expenseLists/{id}")
+@http(method: "DELETE", uri: "/api/expenseLists/{id}")
 operation DeleteExpenseList {
     input := {
         @required

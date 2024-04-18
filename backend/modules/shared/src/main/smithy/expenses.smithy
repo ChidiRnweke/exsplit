@@ -23,7 +23,7 @@ service ExpenseService {
 }
 
 @readonly
-@http(method: "GET", uri: "/expenses/{id}")
+@http(method: "GET", uri: "/api/expenses/{id}")
 operation GetExpense {
     input := {
         @required
@@ -41,7 +41,7 @@ operation GetExpense {
     ]
 }
 
-@http(method: "PATCH", uri: "/expenses/{id}")
+@http(method: "PATCH", uri: "/api/expenses/{id}")
 operation UpdateExpense {
     input := {
         @required
@@ -67,7 +67,7 @@ operation UpdateExpense {
 }
 
 @idempotent
-@http(method: "DELETE", uri: "/expenses/{id}")
+@http(method: "DELETE", uri: "/api/expenses/{id}")
 operation DeleteExpense {
     input := {
         @required
@@ -76,7 +76,7 @@ operation DeleteExpense {
     }
 }
 
-@http(method: "POST", uri: "/expense_lists/{expenseListId}/expenses")
+@http(method: "POST", uri: "/api/expense_lists/{expenseListId}/expenses")
 operation CreateExpense {
     input := {
         @required

@@ -26,7 +26,7 @@ service CirclesService {
 }
 
 @readonly
-@http(method: "GET", uri: "/circles/{circleId}")
+@http(method: "GET", uri: "/api/circles/{circleId}")
 operation GetCircle {
     input := {
         @required
@@ -42,7 +42,7 @@ operation GetCircle {
 }
 
 @readonly
-@http(method: "GET", uri: "/users/{userId}/circles")
+@http(method: "GET", uri: "/api/users/{userId}/circles")
 operation ListCirclesForUser {
     input := {
         @required
@@ -55,7 +55,7 @@ operation ListCirclesForUser {
 
 }
 
-@http(method: "POST", uri: "/users/{userId}/circles")
+@http(method: "POST", uri: "/api/users/{userId}/circles")
 operation CreateCircle {
     input := {
         @required
@@ -79,7 +79,7 @@ operation CreateCircle {
 }
 
 @idempotent
-@http(method: "PATCH", uri: "/circles/{circleId}")
+@http(method: "PATCH", uri: "/api/circles/{circleId}")
 operation UpdateCircle {
     input := {
         @required
@@ -94,7 +94,7 @@ operation UpdateCircle {
 }
 
 @idempotent
-@http(method: "DELETE", uri: "/circles/{circleId}")
+@http(method: "DELETE", uri: "/api/circles/{circleId}")
 operation DeleteCircle {
     input := {
         @required
@@ -104,7 +104,7 @@ operation DeleteCircle {
 }
 
 @idempotent
-@http(method: "POST", uri: "/circles/{circleId}/members")
+@http(method: "POST", uri: "/api/circles/{circleId}/members")
 operation AddUserToCircle {
     input := {
         @required
@@ -121,7 +121,7 @@ operation AddUserToCircle {
 }
 
 @readonly
-@http(method: "GET", uri: "/circles/{circleId}/members")
+@http(method: "GET", uri: "/api/circles/{circleId}/members")
 operation ListCircleMembers {
     input := {
         @required
@@ -134,7 +134,7 @@ operation ListCircleMembers {
 }
 
 @idempotent
-@http(method: "DELETE", uri: "/circles/{circleId}/members/{memberId}")
+@http(method: "DELETE", uri: "/api/circles/{circleId}/members/{memberId}")
 operation RemoveMemberFromCircle {
     input := {
         @required
@@ -149,7 +149,7 @@ operation RemoveMemberFromCircle {
 }
 
 @idempotent
-@http(method: "PATCH", uri: "/circles/{circleId}/members/{memberId}")
+@http(method: "PATCH", uri: "/api/circles/{circleId}/members/{memberId}")
 operation ChangeDisplayName {
     input := {
         @required
