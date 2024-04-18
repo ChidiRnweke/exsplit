@@ -12,6 +12,7 @@ import type {
 	GetSettledExpenseListsOutput
 } from '../types/expenseList';
 import type { paths as ExpenseListPaths } from '../schemas/exsplit.spec.ExpenseListService';
+import { authMiddleware } from './util/Auth';
 
 export interface ExpenseListService {
 	createExpenseList: (
@@ -32,8 +33,12 @@ export interface ExpenseListService {
 	getSettledExpenseList: (expenseListId: ExpenseListId) => Promise<GetSettledExpenseListsOutput>;
 }
 
-export class ExpenseListClient implements ExpenseListService {
+class ExpenseListClient implements ExpenseListService {
 	private client = createClient<ExpenseListPaths>({ baseUrl: '/' });
+
+	constructor() {
+		this.client.use(authMiddleware);
+	}
 
 	createExpenseList = async (
 		circleId: CircleId,
@@ -98,3 +103,5 @@ export class ExpenseListClient implements ExpenseListService {
 		return throwIfError(data, error);
 	};
 }
+
+export const expenseListClient = new ExpenseListClient();

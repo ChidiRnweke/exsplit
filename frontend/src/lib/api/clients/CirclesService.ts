@@ -13,6 +13,7 @@ import type {
 } from '../types/circles';
 import type { UserId } from '../types/user';
 import type { paths as CirclesPaths } from '../schemas/exsplit.spec.CirclesService';
+import { authMiddleware } from './util/Auth';
 
 export interface CirclesService {
 	createCircle: (userId: UserId, circle: CreateCircleInput) => Promise<CreateCircleOutput>;
@@ -30,8 +31,12 @@ export interface CirclesService {
 	) => Promise<void>;
 }
 
-export class CirclesClient implements CirclesService {
+class CirclesClient implements CirclesService {
 	private client = createClient<CirclesPaths>({ baseUrl: '/' });
+
+	constructor() {
+		this.client.use(authMiddleware);
+	}
 
 	createCircle = async (userId: UserId, circle: CreateCircleInput): Promise<CreateCircleOutput> => {
 		const { data, error } = await this.client.POST('/api/users/{userId}/circles', {
@@ -96,3 +101,5 @@ export class CirclesClient implements CirclesService {
 		throwIfError(undefined, error);
 	};
 }
+
+export const circlesClient = new CirclesClient();

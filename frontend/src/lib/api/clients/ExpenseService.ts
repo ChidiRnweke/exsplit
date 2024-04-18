@@ -1,6 +1,5 @@
 import createClient from 'openapi-fetch';
 import { throwIfError } from './util/ErrorHandling';
-import type { CircleId } from '../types/circles';
 import type {
 	CreateExpenseInput,
 	CreateExpenseOutput,
@@ -10,6 +9,7 @@ import type {
 } from '../types/expense';
 import type { ExpenseListId } from '../types/expenseList';
 import type { paths as ExpensePaths } from '../schemas/exsplit.spec.ExpenseService';
+import { authMiddleware } from './util/Auth';
 
 export interface ExpenseService {
 	createExpense: (
@@ -17,16 +17,14 @@ export interface ExpenseService {
 		expenseInput: CreateExpenseInput
 	) => Promise<CreateExpenseOutput>;
 	getExpense: (expenseId: ExpenseId) => Promise<GetExpenseOutput>;
-	updateExpense: (
-		circleId: CircleId,
-		expenseId: ExpenseId,
-		updateExpenseInput: UpdateExpenseInput
-	) => Promise<void>;
+	updateExpense: (expenseId: ExpenseId, updateExpenseInput: UpdateExpenseInput) => Promise<void>;
 	deleteExpense: (expenseId: ExpenseId) => Promise<void>;
 }
-
-export class ExpenseClient implements ExpenseService {
+class ExpenseClient implements ExpenseService {
 	private client = createClient<ExpensePaths>({ baseUrl: '/' });
+	constructor() {
+		this.client.use(authMiddleware);
+	}
 
 	createExpense = async (
 		expenseListId: ExpenseListId,
@@ -47,12 +45,11 @@ export class ExpenseClient implements ExpenseService {
 	};
 
 	updateExpense = async (
-		circleId: CircleId,
 		expenseId: ExpenseId,
 		updateExpenseInput: UpdateExpenseInput
 	): Promise<void> => {
 		const { error } = await this.client.PATCH('/api/expenses/{expenseId}', {
-			params: { path: { ...circleId, ...expenseId } },
+			params: { path: expenseId },
 			body: updateExpenseInput
 		});
 		throwIfError(undefined, error);
@@ -65,3 +62,5 @@ export class ExpenseClient implements ExpenseService {
 		throwIfError(undefined, error);
 	};
 }
+
+export const expenseClient = new ExpenseClient();

@@ -10,3 +10,10 @@ export const throwIfError = <T>(data: T | undefined, error: APIError | undefined
 	}
 	return data;
 };
+
+export class AuthenticationError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'AuthenticationError';
+	}
+}

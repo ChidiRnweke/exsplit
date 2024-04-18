@@ -10,7 +10,12 @@ import type {
 	RegisterOutput
 } from '../types/user';
 
-export class UserClient implements UserService {
+export interface UserService {
+	login: (credentials: LoginInput) => Promise<LoginOutput>;
+	refresh: (refreshToken: RefreshInput) => Promise<RefreshOutput>;
+	register: (credentials: RegisterInput) => Promise<RegisterOutput>;
+}
+class UserClient implements UserService {
 	private client = createClient<paths>({ baseUrl: '/' });
 
 	login = async (credentials: LoginInput): Promise<LoginOutput> => {
@@ -29,8 +34,4 @@ export class UserClient implements UserService {
 	};
 }
 
-export interface UserService {
-	login: (credentials: LoginInput) => Promise<LoginOutput>;
-	refresh: (refreshToken: RefreshInput) => Promise<RefreshOutput>;
-	register: (credentials: RegisterInput) => Promise<RegisterOutput>;
-}
+export const userClient = new UserClient();
