@@ -12,7 +12,7 @@
 	{disabled}
 	type="submit"
 	on:click={formAction}
-	class=" bg-primary dark:bg-dark-primary hover:bg-accent dark:hover:bg-dark-accent self-stretch text-lg font-extrabold"
+	class=" self-stretch bg-primary text-lg font-extrabold hover:bg-accent dark:bg-dark-primary dark:hover:bg-dark-accent"
 >
 	{#if arrowDirection == 'left'}
 		<svelte:component this={arrow} />

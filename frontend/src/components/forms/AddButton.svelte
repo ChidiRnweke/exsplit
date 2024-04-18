@@ -5,6 +5,6 @@
 
 <button on:click|preventDefault={action}>
 	<Plus
-		class="bg-accent dark:bg-accent hover:bg-primary dark:hover:bg-primary relative h-auto w-10 place-self-center rounded-full text-white lg:place-self-start"
+		class="relative h-auto w-10 place-self-center rounded-full bg-accent text-white hover:bg-primary dark:bg-accent dark:hover:bg-primary lg:place-self-start"
 	/>
 </button>

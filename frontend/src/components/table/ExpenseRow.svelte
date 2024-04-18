@@ -16,7 +16,7 @@
 	<TableBodyCell>{price}</TableBodyCell>
 	<TableBodyCell>{date}</TableBodyCell>
 	<TableBodyCell>
-		<a href={link} class="text-accent dark:text-dark-accent text-xl font-extrabold hover:underline">
+		<a href={link} class="text-xl font-extrabold text-accent hover:underline dark:text-dark-accent">
 			<Edit />Edit
 		</a>
 	</TableBodyCell>

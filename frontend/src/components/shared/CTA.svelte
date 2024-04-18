@@ -6,7 +6,7 @@
 
 <Button
 	{href}
-	class="bg-primary dark:bg-dark-primary hover:bg-accent dark:hover:bg-dark-accent mt-8"
+	class="mt-8 bg-primary hover:bg-accent dark:bg-dark-primary dark:hover:bg-dark-accent"
 >
 	Get Started <ArrowRight />
 </Button>

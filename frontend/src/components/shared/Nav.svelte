@@ -16,7 +16,7 @@
 <header>
 	<Navbar class={classProp}>
 		<NavBrand href="/">
-			<span class="text-primary dark:text-dark-primary font-extrabold">EXsplit</span>
+			<span class="font-extrabold text-primary dark:text-dark-primary">EXsplit</span>
 		</NavBrand>
 		<NavHamburger />
 		<NavUl {activeUrl} {activeClass}>

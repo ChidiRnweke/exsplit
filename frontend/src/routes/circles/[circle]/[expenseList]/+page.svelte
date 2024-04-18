@@ -16,7 +16,7 @@
 <div class="text-center">
 	<Table
 		striped={true}
-		class="border-t-primary dark:border-t-dark-primary mb-10 rounded-t-lg border-t-4"
+		class="mb-10 rounded-t-lg border-t-4 border-t-primary dark:border-t-dark-primary"
 	>
 		<TableHead theadClass="border-b-dark-subtle border-b-2">
 			<TableHeadCell>Person</TableHeadCell>

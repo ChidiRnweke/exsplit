@@ -41,7 +41,7 @@
 </script>
 
 <fieldset class={fieldsetClass}>
-	<Label for={inputId} class="text-secondary dark:text-dark-secondary mb-2 text-xl font-extrabold">
+	<Label for={inputId} class="mb-2 text-xl font-extrabold text-secondary dark:text-dark-secondary">
 		{labelText}
 	</Label>
 	<Input

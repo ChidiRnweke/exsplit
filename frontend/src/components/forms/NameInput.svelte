@@ -7,7 +7,7 @@
 <fieldset>
 	<Label
 		for="user-name"
-		class="text-secondary dark:text-dark-secondary mb-2 text-xl font-extrabold"
+		class="mb-2 text-xl font-extrabold text-secondary dark:text-dark-secondary"
 	>
 		User name
 	</Label>

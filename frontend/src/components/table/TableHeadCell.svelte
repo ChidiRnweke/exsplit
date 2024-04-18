@@ -2,6 +2,6 @@
 	import TableHeadCell from 'flowbite-svelte/TableHeadCell.svelte';
 </script>
 
-<TableHeadCell class="text-foreground dark:text-dark-foreground bg-background-alt dark:bg-gray-800">
+<TableHeadCell class="bg-background-alt text-foreground dark:bg-gray-800 dark:text-dark-foreground">
 	<slot />
 </TableHeadCell>

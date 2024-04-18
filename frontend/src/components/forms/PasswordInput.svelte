@@ -9,7 +9,7 @@
 	export let newPassword = true;
 </script>
 
-<Label for={labelText} class="text-secondary dark:text-dark-secondary mb-2 text-xl font-extrabold">
+<Label for={labelText} class="mb-2 text-xl font-extrabold text-secondary dark:text-dark-secondary">
 	{labelText}
 </Label>
 <Input

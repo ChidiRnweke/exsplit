@@ -12,7 +12,7 @@
 </header>
 
 <FormComponent>
-	<P align="center" class="text-accent dark:text-dark-accent pb-8 text-xl font-bold">
+	<P align="center" class="pb-8 text-xl font-bold text-accent dark:text-dark-accent">
 		Get started with a free account.
 	</P>
 	<div class="mb-10 self-stretch">
@@ -26,7 +26,7 @@
 	</div>
 	<Button
 		type="submit"
-		class=" bg-primary dark:bg-dark-primary hover:bg-accent dark:hover:bg-dark-accent self-stretch text-lg"
+		class=" self-stretch bg-primary text-lg hover:bg-accent dark:bg-dark-primary dark:hover:bg-dark-accent"
 	>
 		Register
 	</Button>

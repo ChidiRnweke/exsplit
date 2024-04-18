@@ -11,16 +11,16 @@
 </script>
 
 <section class="mt-12">
-	<div class="md:grid md:grid-cols-2 gap-10">
+	<div class="gap-10 md:grid md:grid-cols-2">
 		<div class="grid grid-cols-1">
-			<Heading tag="h3" class="text-secondary dark:text-dark-secondary font-extrabold"
+			<Heading tag="h3" class="font-extrabold text-secondary dark:text-dark-secondary"
 				>{title}
 			</Heading>
 
-			<P class="text-accent dark:text-dark-accent text-lg mb-6 ">{tagLine}</P>
+			<P class="mb-6 text-lg text-accent dark:text-dark-accent ">{tagLine}</P>
 			<svelte:component
 				this={IconComponent}
-				class="w-20 h-auto text-accent dark:text-dark-accent relative bg-background-alt dark:bg-dark-background-alt rounded-lg p-6 mb-3 place-self-center  lg:place-self-start"
+				class="relative mb-3 h-auto w-20 place-self-center rounded-lg bg-background-alt p-6 text-accent dark:bg-dark-background-alt dark:text-dark-accent  lg:place-self-start"
 			/>
 			<P class="text-foreground dark:text-dark-foreground ">{paragraph}</P>
 		</div>

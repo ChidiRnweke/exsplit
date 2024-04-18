@@ -4,7 +4,7 @@
 </script>
 
 <Button
-	class="bg-primary dark:bg-dark-primary text-dark-foreground hover:bg-secondary hover:dark:bg-dark-secondary text-xl"
+	class="bg-primary text-xl text-dark-foreground hover:bg-secondary dark:bg-dark-primary hover:dark:bg-dark-secondary"
 >
 	<Check /> Settle expenses
 </Button>

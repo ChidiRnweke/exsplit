@@ -2,6 +2,6 @@
 	import Heading from 'flowbite-svelte/Heading.svelte';
 </script>
 
-<Heading tag="h1" class="text-primary dark:text-dark-primary text-6xl">
+<Heading tag="h1" class="text-6xl text-primary dark:text-dark-primary">
 	<slot />
 </Heading>
