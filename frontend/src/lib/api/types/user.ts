@@ -7,3 +7,4 @@ export type RegisterOutput = UserComponents['schemas']['RegisterResponseContent'
 export type RefreshInput = UserComponents['schemas']['RefreshRequestContent'];
 export type RefreshOutput = UserComponents['schemas']['RefreshResponseContent'];
 export type UserId = { userId: string };
+export type TokenKind = 'accessToken' | 'refreshToken';
