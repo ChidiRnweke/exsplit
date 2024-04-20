@@ -1,6 +1,18 @@
-type APIError = {
+export type APIError = {
 	message: string;
 };
+
+export type APIResponse<T> =
+	| {
+			data?: undefined;
+			error: APIError;
+			response: Response;
+	  }
+	| {
+			data: T;
+			error?: undefined;
+			response: Response;
+	  };
 
 export const throwIfError = <T>(data: T | undefined, error: APIError | undefined): T => {
 	if (!data) {
