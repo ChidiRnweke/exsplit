@@ -28,6 +28,7 @@ export interface components {
       password: string;
     };
     LoginResponseContent: {
+      userId: string;
       accessToken: string;
       refreshToken: string;
     };

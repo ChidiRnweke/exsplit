@@ -115,8 +115,11 @@ class TokenDecoderEncoderSuite extends CatsEffectSuite:
     val authenticator = UserAuthenticator(userRepository, validator, uuid)
     val mail = Email("mail@mail.com")
     val password = Password("password")
-    val auth = authenticator.authenticateUser(mail, password)
-    assertIOBoolean(auth)
+    val getMaybeUser = userRepository.findUserByEmail(mail)
+    for
+      maybeUser <- getMaybeUser
+      auth = authenticator.authenticateUser(maybeUser, password)
+    yield assert(auth)
 
   test("User authenticator fails to authenticate a user that doesn't exist"):
     val userRepository = MockUserRepository()
@@ -125,8 +128,11 @@ class TokenDecoderEncoderSuite extends CatsEffectSuite:
     val authenticator = UserAuthenticator(userRepository, validator, uuid)
     val mail = Email("not-found@mail.com") // This email doesn't exist
     val password = Password("password")
-    val failed = authenticator.authenticateUser(mail, password)
-    assertIO(failed, false)
+    val getMaybeUser = userRepository.findUserByEmail(mail)
+    for
+      maybeUser <- getMaybeUser
+      failed = authenticator.authenticateUser(maybeUser, password)
+    yield assertEquals(failed, false)
 
   test(
     "User authenticator fails to authenticate a user with the wrong password"
@@ -136,9 +142,12 @@ class TokenDecoderEncoderSuite extends CatsEffectSuite:
     val uuid = UUIDGen[IO]
     val authenticator = UserAuthenticator(userRepository, validator, uuid)
     val mail = Email("mail@mail.com")
+    val getMaybeUser = userRepository.findUserByEmail(mail)
     val password = Password("wrong") // This password is wrong
-    val failed = authenticator.authenticateUser(mail, password)
-    assertIO(failed, false)
+    for
+      maybeUser <- getMaybeUser
+      failed = authenticator.authenticateUser(maybeUser, password)
+    yield assertEquals(failed, false)
 
   test("Should not create a user that already exists"):
     val userRepository = MockUserRepository()

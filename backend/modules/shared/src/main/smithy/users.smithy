@@ -44,6 +44,9 @@ operation Login {
 
     output := {
         @required
+        userId: String
+
+        @required
         accessToken: AccessToken
 
         @required

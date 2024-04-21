@@ -165,11 +165,13 @@ case class UserServiceImpl[F[_]](
   def login(email: Email, password: Password): F[LoginOutput] =
     for
       validatedEmail <- F.fromEither(email.validate)
-      authSuccess <- auth.authenticateUser(validatedEmail, password)
+      userReadEither <- auth.repo.findUserByEmail(email)
+      authSuccess = auth.authenticateUser(userReadEither, password)
       _ <- F.raiseWhen(!authSuccess)(AuthError("Invalid credentials"))
+      user <- F.fromEither(userReadEither) // safe to unwrap, checked it above
       refresh <- authTokenCreator.generateRefreshToken(validatedEmail)
       access <- authTokenCreator.generateAccessToken(refresh)
-    yield (LoginOutput(access, refresh))
+    yield (LoginOutput(user.id, access, refresh))
 
   /** Registers a new user with the provided email and password. The password is
     * hashed before being stored in the database.
@@ -407,14 +409,14 @@ case class UserAuthenticator[F[_]](
     * @return
     *   A boolean indicating whether the authentication was successful.
     */
-  def authenticateUser(email: Email, password: Password): F[Boolean] =
-    for
-      userReadEither <- repo.findUserByEmail(email)
-      result = userReadEither match
-        case Right(user) =>
-          validator.checkPassword(user.password, password.value)
-        case Left(_) => false
-    yield result
+  def authenticateUser(
+      maybeUser: Either[NotFoundError, UserReadMapper],
+      password: Password
+  ): Boolean =
+    maybeUser match
+      case Right(user) =>
+        validator.checkPassword(user.password, password.value)
+      case Left(_) => false
 
   /** Registers a new user with the provided email and password.
     *
