@@ -1,22 +1,22 @@
-version: '3.8'
+version: "3.8"
 services:
   postgres:
     image: postgres:16.2-alpine3.19
     env_file:
-     - config/.secrets.env
+      - config/.secrets.env
     volumes:
       - postgres-data-exsplit:/var/lib/postgresql/data
 
-  backend:
+  exsplit-backend:
     env_file:
-     - config/.secrets.env
+      - config/.secrets.env
     build:
       context: .
       dockerfile: Dockerfile
     ports:
       - "9000:9000"
     depends_on:
-      - postgres      
+      - postgres
 
 volumes:
   postgres-data-exsplit:
