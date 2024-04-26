@@ -7,8 +7,6 @@ import exsplit.integration._
 import exsplit.spec._
 import exsplit.datamapper.circles._
 import exsplit.datamapper.user._
-import cats.effect.std.UUIDGen
-
 class CirclesRepositorySuite extends DatabaseSuite:
 
   test("It is possible to write a circle to the database"):
@@ -133,10 +131,9 @@ class CircleMembersRepositorySuite extends DatabaseSuite:
     val userRepo = UserMapper.fromSession(session)
     for
       createdCircle <- circlesRepo.create(testCircle)
-      uuid <- UUIDGen[IO].randomUUID
-      _ <- userRepo.createUser(uuid, Email("foo@bar.com"), "password")
+      user <- userRepo.createUser(Email("foo@bar.com"), "password")
       createUser = AddUserToCircleInput(
-        UserId(uuid.toString()),
+        UserId(user.id),
         "User",
         CircleId(createdCircle.id)
       )
@@ -153,10 +150,9 @@ class CircleMembersRepositorySuite extends DatabaseSuite:
     for
 
       createdCircle <- circlesRepo.create(testCircle)
-      uuid <- UUIDGen[IO].randomUUID
-      _ <- userRepo.createUser(uuid, Email("foo@bar.com"), "password")
+      user <- userRepo.createUser(Email("foo@bar.com"), "password")
       createUser = AddUserToCircleInput(
-        UserId(uuid.toString()),
+        UserId(user.id),
         "User",
         CircleId(createdCircle.id)
       )
@@ -174,10 +170,9 @@ class CircleMembersRepositorySuite extends DatabaseSuite:
     val userRepo = UserMapper.fromSession(session)
     for
       createdCircle <- circlesRepo.create(testCircle)
-      uuid <- UUIDGen[IO].randomUUID
-      _ <- userRepo.createUser(uuid, Email("foo@bar.com"), "password")
+      user <- userRepo.createUser(Email("foo@bar.com"), "password")
       createUser = AddUserToCircleInput(
-        UserId(uuid.toString()),
+        UserId(user.id),
         "User",
         CircleId(createdCircle.id)
       )
@@ -195,10 +190,9 @@ class CircleMembersRepositorySuite extends DatabaseSuite:
     val userRepo = UserMapper.fromSession(session)
     for
       createdCircle <- circlesRepo.create(testCircle)
-      uuid <- UUIDGen[IO].randomUUID
-      _ <- userRepo.createUser(uuid, Email("foo@bar.com"), "password")
+      user <- userRepo.createUser(Email("foo@bar.com"), "password")
       createUser = AddUserToCircleInput(
-        UserId(uuid.toString()),
+        UserId(user.id),
         "User",
         CircleId(createdCircle.id)
       )
@@ -222,10 +216,9 @@ class CircleMembersRepositorySuite extends DatabaseSuite:
     val userRepo = UserMapper.fromSession(session)
     for
       createdCircle <- circlesRepo.create(testCircle)
-      uuid <- UUIDGen[IO].randomUUID
-      _ <- userRepo.createUser(uuid, Email("foo@bar.com"), "password")
+      user <- userRepo.createUser(Email("foo@bar.com"), "password")
       createUser = AddUserToCircleInput(
-        UserId(uuid.toString()),
+        UserId(user.id),
         "User",
         CircleId(createdCircle.id)
       )
@@ -245,21 +238,20 @@ class CircleMembersRepositorySuite extends DatabaseSuite:
     for
       circle1 <- circlesRepo.create(testCircle)
       circle2 <- circlesRepo.create(testCircle)
-      uuid <- UUIDGen[IO].randomUUID
-      _ <- userRepo.createUser(uuid, Email("foo@bar.com"), "password")
+      user <- userRepo.createUser(Email("foo@bar.com"), "password")
       member1 = AddUserToCircleInput(
-        UserId(uuid.toString()),
+        UserId(user.id),
         "User",
         CircleId(circle1.id)
       )
       member2 = AddUserToCircleInput(
-        UserId(uuid.toString()),
+        UserId(user.id),
         "User",
         CircleId(circle2.id)
       )
       member1 <- circleMembersRepo.create(member1)
       member2 <- circleMembersRepo.create(member2)
-      circles <- circleMembersRepo.byUserId(UserId(uuid.toString()))
+      circles <- circleMembersRepo.byUserId(UserId(user.id))
       expected = List(member1.id, member2.id).sorted
       obtained = circles.map(_.id).sorted
     yield assertEquals(obtained, expected)

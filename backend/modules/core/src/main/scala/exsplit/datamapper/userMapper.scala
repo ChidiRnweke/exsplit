@@ -62,7 +62,7 @@ case class UserWriteMapper(
 trait UserMapper[F[_]]
     extends DataMapper[
       F,
-      (String, String, String),
+      (String, String),
       UserReadMapper,
       UserWriteMapper,
       String
@@ -88,10 +88,8 @@ trait UserMapper[F[_]]
     */
   def findUserByEmail(email: Email): F[Either[NotFoundError, UserReadMapper]]
 
-  /** Creates a new user with the specified ID, email, and password.
+  /** Creates a new user with the specified email, and password.
     *
-    * @param id
-    *   the ID of the user
     * @param email
     *   the email of the user
     * @param password
@@ -99,7 +97,7 @@ trait UserMapper[F[_]]
     * @return
     *   an effect that yields `Unit` when the user is successfully created
     */
-  def createUser(id: UUID, email: Email, password: String): F[Unit]
+  def createUser(email: Email, password: String): F[UserReadMapper]
 
   /** Updates a user in the database. The email and password are optional, so
     * they can be updated independently or together.
@@ -146,7 +144,7 @@ object UserMapper:
       def delete(id: String): F[Unit] =
         pool.exec(deleteUserCommand, id).void
 
-      def create(input: (String, String, String)): F[UserReadMapper] =
+      def create(input: (String, String)): F[UserReadMapper] =
         pool.unique(createUserCommand, input)
 
       def findUserById(
@@ -161,8 +159,8 @@ object UserMapper:
           .option(userFromEmail, email.value)
           .map(_.toRight(NotFoundError(s"User with email $email not found.")))
 
-      def createUser(id: UUID, email: Email, password: String): F[Unit] =
-        create((id.toString, email.value, password)).void
+      def createUser(email: Email, password: String): F[UserReadMapper] =
+        create((email.value, password))
 
       def update(user: UserWriteMapper): F[Unit] =
         List(
@@ -196,11 +194,10 @@ object UserMapper:
       .query(text *: text *: text)
       .to[UserReadMapper]
 
-  private val createUserCommand
-      : Query[(String, String, String), UserReadMapper] =
+  private val createUserCommand: Query[(String, String), UserReadMapper] =
     sql"""
-      INSERT INTO users (id, email, password)
-      VALUES ($text, $text, $text)
+      INSERT INTO users (email, password)
+      VALUES ($text, $text)
       RETURNING id, email, password
     """
       .query(text *: text *: text)

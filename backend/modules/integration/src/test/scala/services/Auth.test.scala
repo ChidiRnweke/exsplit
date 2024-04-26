@@ -1,6 +1,5 @@
 import cats.effect._
 import cats.syntax.all._
-import cats.effect.std.UUIDGen
 import cats.data._
 import cats._
 import exsplit.config._

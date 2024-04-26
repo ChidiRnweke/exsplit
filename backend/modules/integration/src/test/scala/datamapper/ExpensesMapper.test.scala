@@ -1,6 +1,5 @@
 import cats.effect._
 import cats.syntax.all._
-import cats.effect.std.UUIDGen
 import cats.data._
 import cats._
 import exsplit.config._
@@ -52,12 +51,9 @@ class ExpenseMapperSuite extends DatabaseSuite:
     *   The session to use for the database connection.
     */
   def createUser(session: AppSessionPool[IO]): IO[UserId] =
-    val uuid = UUIDGen[IO].randomUUID
     val userRepo = UserMapper.fromSession(session)
-    for
-      nextId <- uuid
-      _ <- userRepo.createUser(nextId, Email("test@test.com"), "password")
-    yield UserId(nextId.toString())
+    for user <- userRepo.createUser(Email("test@test.com"), "password")
+    yield UserId(user.id)
 
   /** Helper function to create 3 expenses.
     * @param session
@@ -207,6 +203,7 @@ class ExpenseMapperSuite extends DatabaseSuite:
       owed = CreateOwedAmountInput(expenseId, from, from, Amount(10))
       key = OwedAmountKey(expenseId, from, from)
       write = OwedAmountWriteMapper(expenseId, from.value, from.value, 20)
+      _ <- owedAmountsRepo.create(owed)
       _ <- owedAmountsRepo.update(write)
       obtained <- owedAmountsRepo.get(key).rethrow
     yield assertEquals(obtained.amount, 20f)

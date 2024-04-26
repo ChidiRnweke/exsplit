@@ -1,6 +1,5 @@
 import cats.effect._
 import cats.syntax.all._
-import cats.effect.std.UUIDGen
 import cats.data._
 import cats._
 import exsplit.config._
@@ -53,13 +52,9 @@ class SettledTabsSuite extends DatabaseSuite:
     *   The session to use for the database connection.
     */
   def createUser(session: AppSessionPool[IO]): IO[UserId] =
-    val uuid = UUIDGen[IO].randomUUID
     val userRepo = UserMapper.fromSession(session)
-    for
-      nextId <- uuid
-
-      _ <- userRepo.createUser(nextId, Email("test@test.com"), "password")
-    yield UserId(nextId.toString())
+    for user <- userRepo.createUser(Email("test@test.com"), "password")
+    yield UserId(user.id)
 
   /** Helper function to create a settled tab in the database. It creates three
     * settled tabs in the database. This test can be reused for other tests that

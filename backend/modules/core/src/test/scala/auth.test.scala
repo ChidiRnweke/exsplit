@@ -7,7 +7,6 @@ import cats.data._
 import exsplit.config._
 import exsplit.spec._
 import cats.effect.std._
-import java.util.UUID
 import exsplit.datamapper.user._
 
 class TokenDecoderEncoderSuite extends CatsEffectSuite:
@@ -111,8 +110,7 @@ class TokenDecoderEncoderSuite extends CatsEffectSuite:
   test("User authenticator should authenticate a user that exists"):
     val userRepository = MockUserRepository()
     val validator = MockValidator()
-    val uuid = UUIDGen[IO]
-    val authenticator = UserAuthenticator(userRepository, validator, uuid)
+    val authenticator = UserAuthenticator(userRepository, validator)
     val mail = Email("mail@mail.com")
     val password = Password("password")
     val getMaybeUser = userRepository.findUserByEmail(mail)
@@ -124,8 +122,7 @@ class TokenDecoderEncoderSuite extends CatsEffectSuite:
   test("User authenticator fails to authenticate a user that doesn't exist"):
     val userRepository = MockUserRepository()
     val validator = MockValidator()
-    val uuid = UUIDGen[IO]
-    val authenticator = UserAuthenticator(userRepository, validator, uuid)
+    val authenticator = UserAuthenticator(userRepository, validator)
     val mail = Email("not-found@mail.com") // This email doesn't exist
     val password = Password("password")
     val getMaybeUser = userRepository.findUserByEmail(mail)
@@ -139,8 +136,7 @@ class TokenDecoderEncoderSuite extends CatsEffectSuite:
   ):
     val userRepository = MockUserRepository()
     val validator = MockValidator()
-    val uuid = UUIDGen[IO]
-    val authenticator = UserAuthenticator(userRepository, validator, uuid)
+    val authenticator = UserAuthenticator(userRepository, validator)
     val mail = Email("mail@mail.com")
     val getMaybeUser = userRepository.findUserByEmail(mail)
     val password = Password("wrong") // This password is wrong
@@ -152,8 +148,7 @@ class TokenDecoderEncoderSuite extends CatsEffectSuite:
   test("Should not create a user that already exists"):
     val userRepository = MockUserRepository()
     val validator = MockValidator()
-    val uuid = UUIDGen[IO]
-    val authenticator = UserAuthenticator(userRepository, validator, uuid)
+    val authenticator = UserAuthenticator(userRepository, validator)
     val mail = Email("mail@mail.com") // This email already exists
     val password = Password("password")
     val created = authenticator.registerUser(mail, password)
@@ -162,8 +157,7 @@ class TokenDecoderEncoderSuite extends CatsEffectSuite:
   test("Should create a user that doesn't exist"):
     val userRepository = MockUserRepository()
     val validator = MockValidator()
-    val uuid = UUIDGen[IO]
-    val authenticator = UserAuthenticator(userRepository, validator, uuid)
+    val authenticator = UserAuthenticator(userRepository, validator)
     val mail = Email("not-found@mail.com") // This email doesn't exist
     val password = Password("password")
     val created = authenticator.registerUser(mail, password)
@@ -193,7 +187,8 @@ case class MockValidator() extends PasswordValidator[IO]:
     password == hash
 
 case class MockUserRepository() extends UserMapper[IO]:
-  def createUser(id: UUID, email: Email, password: String): IO[Unit] = IO.unit
+  def createUser(email: Email, password: String): IO[UserReadMapper] =
+    IO.pure(UserReadMapper("id", email.value, password))
 
   def findUserByEmail(email: Email): IO[Either[NotFoundError, UserReadMapper]] =
     email.value match
@@ -211,7 +206,7 @@ case class MockUserRepository() extends UserMapper[IO]:
   def deleteUser(userId: UserId): IO[Unit] = IO.unit
 
   def delete(id: String): IO[Unit] = IO.unit
-  def create(input: (String, String, String)): IO[UserReadMapper] =
+  def create(input: (String, String)): IO[UserReadMapper] =
     IO.pure(UserReadMapper("id", "email", "password"))
   def get(id: String): IO[Either[NotFoundError, UserReadMapper]] =
     IO.pure(Right(UserReadMapper("id", "email", "password")))
