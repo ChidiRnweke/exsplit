@@ -10,12 +10,13 @@ export const storeLoginData = (userId: string) => {
 	userIdStore.set(userId);
 };
 
-export const logout = () => {
+export const logout = (redirect: () => void) => {
 	loggedInStatusStore.set(false);
 	userIdStore.set(null);
 	localStorage.removeItem('accessToken');
 	localStorage.removeItem('refreshToken');
 	localStorage.removeItem('userId');
+	redirect();
 };
 
 export const initialState = async () => {
@@ -29,8 +30,7 @@ export const initialState = async () => {
 		// so we only need to set the user id here
 		userIdStore.set(user);
 		if (error) {
-			logout();
-			goto('login');
+			logout(() => goto('login'));
 		} else {
 			loggedInStatusStore.set(true);
 		}
