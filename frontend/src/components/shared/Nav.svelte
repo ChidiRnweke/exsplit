@@ -6,12 +6,14 @@
 	import NavUl from 'flowbite-svelte/NavUl.svelte';
 	import NavHamburger from 'flowbite-svelte/NavHamburger.svelte';
 	import DarkMode from 'flowbite-svelte/DarkMode.svelte';
+	import LogoutModal from './LogoutModal.svelte';
 	import { loggedInStatusStore, userIdStore } from '$lib/stores';
 	let activeClass = 'text-primary dark:text-dark-primary font-bold';
 	let classProp = '';
 	export { classProp as class };
 	$: activeUrl = $page.url.pathname;
 	$: myCirclesHref = `/MyCircles/${$userIdStore}`;
+	let showLogoutModal = false;
 </script>
 
 <header>
@@ -24,6 +26,7 @@
 			<NavLi href="/">Home</NavLi>
 			{#if $loggedInStatusStore}
 				<NavLi href={myCirclesHref}>My Circles</NavLi>
+				<NavLi on:click={() => (showLogoutModal = true)}>Logout</NavLi>
 			{:else}
 				<NavLi href="/register">Register</NavLi>
 				<NavLi href="/login">Login</NavLi>
@@ -31,4 +34,5 @@
 		</NavUl>
 		<DarkMode size="lg" />
 	</Navbar>
+	<LogoutModal bind:show={showLogoutModal} />
 </header>
