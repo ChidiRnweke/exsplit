@@ -30,8 +30,7 @@ class UserClient implements UserService {
 			.then((res) => {
 				const { data } = res;
 				if (data) {
-					this.addTokenToStorage('accessToken', data.accessToken);
-					this.addTokenToStorage('refreshToken', data.refreshToken);
+					this.addToStorage(data);
 				}
 				return res;
 			});
@@ -63,8 +62,7 @@ class UserClient implements UserService {
 			.then((res) => {
 				const { data } = res;
 				if (data) {
-					this.addTokenToStorage('accessToken', data.accessToken);
-					this.addTokenToStorage('refreshToken', data.refreshToken);
+					this.addToStorage(data);
 				}
 				return res;
 			});
@@ -73,6 +71,12 @@ class UserClient implements UserService {
 	private addTokenToStorage = (kind: TokenKind, token: string) => {
 		localStorage.setItem(kind, token);
 	};
+
+	private addToStorage(data: { userId: string; refreshToken: string; accessToken: string }) {
+		this.addTokenToStorage('accessToken', data.accessToken);
+		this.addTokenToStorage('refreshToken', data.refreshToken);
+		localStorage.setItem('userId', data.userId);
+	}
 }
 
 export const userClient = new UserClient();
