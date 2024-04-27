@@ -6,18 +6,21 @@
 	import EmailInput from '../../components/forms/EmailInput.svelte';
 	import H1 from '../../components/shared/H1.svelte';
 	import { userClient } from '$lib/api/clients/UserService';
-	import { redirect } from '@sveltejs/kit';
+	import { storeLoginData } from '$lib/stores';
+	import { goto } from '$app/navigation';
 	let email = '';
 	let password = '';
 	let confirmPassword = '';
+	$: registerError = '';
 	$: canSubmit = email && password == confirmPassword && password.length >= 8;
 
 	const register = async () => {
 		const { data, error } = await userClient.register({ email, password });
 		if (error) {
-			console.error(error);
+			registerError = error.message;
 		} else {
-			redirect(303, '/login');
+			storeLoginData(data.userId);
+			goto(`MyCircles/${data.userId}`);
 		}
 	};
 </script>
@@ -47,4 +50,9 @@
 	>
 		Register
 	</Button>
+	{#if registerError}
+		<P align="center" class=" text-error dark:text-dark-error pb-8 text-xl font-bold">
+			{registerError}
+		</P>
+	{/if}
 </FormComponent>
